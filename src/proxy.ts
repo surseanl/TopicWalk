@@ -2,6 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { env } from "~/env";
 
+// Guest access is permitted everywhere; individual pages handle their own gates
+const PROTECTED: string[] = [];
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -26,8 +29,16 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refresh the auth token
-  await supabase.auth.getUser();
+  // Refresh session cookie on every request (required for SSR auth)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Redirect to /auth if accessing protected routes without a session
+  const path = request.nextUrl.pathname;
+  if (PROTECTED.some((p) => path.startsWith(p)) && !user) {
+    return NextResponse.redirect(new URL("/auth", request.url));
+  }
 
   return response;
 }

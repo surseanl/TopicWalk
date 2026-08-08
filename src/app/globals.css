@@ -1,50 +1,74 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* OKLCH Design Tokens — Light Mode Default (zinc) */
-  --color-background: oklch(1 0 0);
-  --color-foreground: oklch(0.145 0 0);
-  --color-muted: oklch(0.967 0 0);
-  --color-muted-foreground: oklch(0.556 0 0);
+  /* TopicWalk — Orange + Sky brand system */
+
+  /* Surface */
+  --color-background: oklch(0.99 0.004 85);
+  --color-foreground: oklch(0.14 0.015 255);
   --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.145 0 0);
+  --color-card-foreground: oklch(0.14 0.015 255);
   --color-popover: oklch(1 0 0);
-  --color-popover-foreground: oklch(0.145 0 0);
-  --color-border: oklch(0.92 0 0);
-  --color-input: oklch(0.92 0 0);
-  --color-primary: oklch(0.205 0 0);
-  --color-primary-foreground: oklch(0.985 0 0);
-  --color-secondary: oklch(0.967 0 0);
-  --color-secondary-foreground: oklch(0.205 0 0);
-  --color-accent: oklch(0.967 0 0);
-  --color-accent-foreground: oklch(0.205 0 0);
+  --color-popover-foreground: oklch(0.14 0.015 255);
+
+  /* Neutral */
+  --color-muted: oklch(0.96 0.006 85);
+  --color-muted-foreground: oklch(0.54 0.02 255);
+  --color-border: oklch(0.9 0.008 85);
+  --color-input: oklch(0.9 0.008 85);
+
+  /* Primary — Orange ("Walk" in logo) */
+  --color-primary: oklch(0.72 0.194 47);
+  --color-primary-foreground: oklch(1 0 0);
+
+  /* Secondary — Sky/Teal ("Topic" in logo) */
+  --color-secondary: oklch(0.65 0.172 216);
+  --color-secondary-foreground: oklch(1 0 0);
+
+  /* Accent — sky/teal */
+  --color-accent: oklch(0.65 0.172 216);
+  --color-accent-foreground: oklch(1 0 0);
+
+  /* Destructive */
   --color-destructive: oklch(0.577 0.245 27.325);
-  --color-ring: oklch(0.556 0 0);
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+
+  /* Focus ring */
+  --color-ring: oklch(0.72 0.194 47);
+
+  /* Radius scale */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Shadow scale */
+  --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --shadow-md:
+    0 4px 6px -1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.04);
+  --shadow-lg:
+    0 10px 15px -3px oklch(0 0 0 / 0.07), 0 4px 6px -4px oklch(0 0 0 / 0.04);
 }
 
 .dark {
-  --color-background: oklch(0.145 0 0);
-  --color-foreground: oklch(0.985 0 0);
-  --color-muted: oklch(0.269 0 0);
-  --color-muted-foreground: oklch(0.708 0 0);
-  --color-card: oklch(0.145 0 0);
-  --color-card-foreground: oklch(0.985 0 0);
-  --color-popover: oklch(0.145 0 0);
-  --color-popover-foreground: oklch(0.985 0 0);
-  --color-border: oklch(0.269 0 0);
-  --color-input: oklch(0.269 0 0);
-  --color-primary: oklch(0.985 0 0);
-  --color-primary-foreground: oklch(0.205 0 0);
-  --color-secondary: oklch(0.269 0 0);
-  --color-secondary-foreground: oklch(0.985 0 0);
-  --color-accent: oklch(0.269 0 0);
-  --color-accent-foreground: oklch(0.985 0 0);
-  --color-destructive: oklch(0.396 0.141 25.723);
-  --color-ring: oklch(0.556 0 0);
+  --color-background: oklch(0.14 0.015 255);
+  --color-foreground: oklch(0.96 0.008 85);
+  --color-card: oklch(0.18 0.018 255);
+  --color-card-foreground: oklch(0.96 0.008 85);
+  --color-popover: oklch(0.18 0.018 255);
+  --color-popover-foreground: oklch(0.96 0.008 85);
+  --color-muted: oklch(0.24 0.022 255);
+  --color-muted-foreground: oklch(0.65 0.02 255);
+  --color-border: oklch(0.28 0.02 255);
+  --color-input: oklch(0.28 0.02 255);
+  --color-primary: oklch(0.77 0.19 47);
+  --color-primary-foreground: oklch(0.14 0.015 255);
+  --color-secondary: oklch(0.7 0.17 216);
+  --color-secondary-foreground: oklch(0.14 0.015 255);
+  --color-accent: oklch(0.7 0.17 216);
+  --color-accent-foreground: oklch(0.14 0.015 255);
+  --color-destructive: oklch(0.5 0.2 27);
+  --color-ring: oklch(0.77 0.19 47);
 }
 
 @layer base {
@@ -53,5 +77,106 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* ── Animation keyframes ─────────────────────────── */
+@keyframes tw-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes tw-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tw-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes tw-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ── Animation utility classes ─────────────────────── */
+@layer utilities {
+  .animate-fade-in-up {
+    animation: tw-fade-in-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-fade-in {
+    animation: tw-fade-in 0.45s ease-out both;
+  }
+  .animate-scale-in {
+    animation: tw-scale-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-float-slow {
+    animation: tw-float 4.5s ease-in-out infinite;
+  }
+
+  /* Logo: quick fade-in then gentle perpetual float */
+  .animate-logo {
+    animation:
+      tw-fade-in 0.6s ease-out both,
+      tw-float 4.5s ease-in-out 0.7s infinite;
+  }
+
+  /* Stagger delay helpers */
+  .animation-delay-75 {
+    animation-delay: 75ms;
+  }
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-225 {
+    animation-delay: 225ms;
+  }
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  /* Honour system reduced-motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-fade-in,
+    .animate-scale-in,
+    .animate-float-slow,
+    .animate-logo {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
   }
 }
