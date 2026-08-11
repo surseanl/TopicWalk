@@ -453,7 +453,7 @@ export default function LandingPage() {
           <div className="flex flex-row gap-16 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
-              className="h-[4.5rem] w-56 text-xl font-semibold !bg-transparent !border-2 !border-transparent !text-foreground hover:!border-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] transition-all duration-200 !rounded-2xl"
+              className="h-[4.5rem] w-56 text-xl font-semibold !bg-transparent !border-2 !border-black !text-foreground hover:!border-white hover:!text-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] transition-all duration-200 !rounded-2xl"
               onClick={() =>
                 formRef.current?.scrollIntoView({ behavior: "smooth" })
               }
@@ -462,7 +462,7 @@ export default function LandingPage() {
             </Button>
             <Button
               size="lg"
-              className="h-[4.5rem] px-12 text-xl font-medium !bg-transparent !border-2 !border-transparent !text-foreground hover:!border-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
+              className="h-[4.5rem] px-12 text-xl font-medium !bg-transparent !border-2 !border-black !text-foreground hover:!border-white hover:!text-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
               onClick={() => {
                 saveGuestIdentity();
                 router.push("/walk");
