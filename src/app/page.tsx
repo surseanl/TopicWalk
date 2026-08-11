@@ -81,10 +81,20 @@ export default function LandingPage() {
   const modesMarkerRef = useRef<HTMLDivElement>(null);
   const formMarkerRef = useRef<HTMLDivElement>(null);
   const sectionsWrapperRef = useRef<HTMLDivElement>(null);
+  const heroSectionRef = useRef<HTMLDivElement>(null);
+  const phone1Ref = useRef<HTMLDivElement>(null);
+  const phone2Ref = useRef<HTMLDivElement>(null);
+  const phone3Ref = useRef<HTMLDivElement>(null);
   const [visitedSections, setVisitedSections] = useState<Set<number>>(
     new Set(),
   );
   const [trailPath, setTrailPath] = useState("");
+  const [heroTrail, setHeroTrail] = useState<{
+    vx: number;
+    vy1: number;
+    vy2: number;
+    curve: string;
+  } | null>(null);
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"choose" | "join">("choose");
   const [code, setCode] = useState("");
@@ -151,6 +161,38 @@ export default function LandingPage() {
     if (sectionsWrapperRef.current) ro.observe(sectionsWrapperRef.current);
     return () => {
       clearTimeout(timer);
+      ro.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const calc = () => {
+      const section = heroSectionRef.current;
+      const p1 = phone1Ref.current;
+      const p2 = phone2Ref.current;
+      const p3 = phone3Ref.current;
+      if (!section || !p1 || !p2 || !p3) return;
+      const sR = section.getBoundingClientRect();
+      const r1 = p1.getBoundingClientRect();
+      const r2 = p2.getBoundingClientRect();
+      const r3 = p3.getBoundingClientRect();
+      const x1 = r1.left - sR.left + r1.width / 2;
+      const p3cx = r3.left - sR.left + r3.width / 2;
+      const p3cy = r3.top - sR.top + r3.height / 2;
+      const by = r2.bottom - sR.top + 6;
+      const dip = Math.min(sR.height - 36, by + 100);
+      setHeroTrail({
+        vx: x1,
+        vy1: r1.bottom - sR.top + 4,
+        vy2: r2.top - sR.top - 4,
+        curve: `M ${x1} ${by} C ${x1 + 80} ${dip} ${p3cx - 120} ${dip * 0.92} ${p3cx} ${p3cy}`,
+      });
+    };
+    const t = setTimeout(calc, 150);
+    const ro = new ResizeObserver(calc);
+    if (heroSectionRef.current) ro.observe(heroSectionRef.current);
+    return () => {
+      clearTimeout(t);
       ro.disconnect();
     };
   }, []);
@@ -427,7 +469,10 @@ export default function LandingPage() {
       </div>
 
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section className="relative overflow-hidden flex flex-col items-center justify-center min-h-[calc(100dvh-4rem)] px-8 py-16 pb-20 border-b border-border/60">
+      <section
+        ref={heroSectionRef}
+        className="relative overflow-hidden grid items-center justify-items-center min-h-[calc(100dvh-4rem)] px-8 py-16 pb-20 border-b border-border/60 gap-x-6 [grid-template-columns:140px_1fr_140px]"
+      >
         <div
           className="absolute inset-0 -z-10"
           style={{
@@ -435,8 +480,167 @@ export default function LandingPage() {
               "radial-gradient(ellipse at center, #FFD44A 0%, #FFC730 45%, #FFB018 80%, #F0A010 100%)",
           }}
         />
-        <div className="flex flex-col items-center text-center gap-6 max-w-[640px]">
-          <div className="space-y-6 animate-fade-in-up animation-delay-100">
+        {/* Dotted trail SVG — positions computed from actual phone element rects */}
+        {heroTrail && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-0"
+            aria-hidden="true"
+          >
+            <line
+              x1={heroTrail.vx}
+              y1={heroTrail.vy1}
+              x2={heroTrail.vx}
+              y2={heroTrail.vy2}
+              stroke="rgba(0,0,0,0.30)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray="0.1 13"
+            />
+            <path
+              d={heroTrail.curve}
+              fill="none"
+              stroke="rgba(0,0,0,0.26)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray="0.1 13"
+            />
+          </svg>
+        )}
+
+        {/* Phone frames — left */}
+        <div className="flex flex-col items-center gap-8 animate-fade-in-up animation-delay-300">
+          {/* Phone 1 — Get a Topic: Walk page topic picker */}
+          <div className="flex flex-col items-center gap-2">
+            <div
+              ref={phone1Ref}
+              className="relative w-[140px] h-[280px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
+              <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
+                <div className="flex items-center gap-1 pb-1 border-b border-border/50">
+                  <span className="text-[9px] text-muted-foreground">‹</span>
+                  <p className="text-[8px] font-bold flex-1">Free Walk</p>
+                  <Calendar
+                    className="h-2.5 w-2.5 text-muted-foreground shrink-0"
+                    strokeWidth={1.5}
+                  />
+                </div>
+                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  Today's Topics
+                </p>
+                <div className="grid grid-cols-2 gap-1 flex-1">
+                  <div className="border-2 border-primary rounded-lg p-1 bg-primary/8 scale-[1.02]">
+                    <span className="text-[4px] font-semibold bg-orange-100 text-orange-700 rounded-full px-1 py-0.5">
+                      Color
+                    </span>
+                    <p className="text-[6px] font-semibold mt-1 leading-tight">
+                      Something Orange
+                    </p>
+                  </div>
+                  <div className="border border-border rounded-lg p-1">
+                    <span className="text-[4px] font-semibold bg-sky-100 text-sky-700 rounded-full px-1 py-0.5">
+                      Shape
+                    </span>
+                    <p className="text-[6px] font-semibold mt-1 leading-tight">
+                      Round Things
+                    </p>
+                  </div>
+                  <div className="border border-border rounded-lg p-1">
+                    <span className="text-[4px] font-semibold bg-violet-100 text-violet-700 rounded-full px-1 py-0.5">
+                      Theme
+                    </span>
+                    <p className="text-[6px] font-semibold mt-1 leading-tight">
+                      Daily Ritual
+                    </p>
+                  </div>
+                  <div className="border border-border rounded-lg p-1">
+                    <span className="text-[4px] font-semibold bg-emerald-100 text-emerald-700 rounded-full px-1 py-0.5">
+                      Object
+                    </span>
+                    <p className="text-[6px] font-semibold mt-1 leading-tight">
+                      Found Objects
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
+              Get a Topic
+            </span>
+          </div>
+
+          {/* Phone 2 — Take a Walk: topic selected + capture panel */}
+          <div className="flex flex-col items-center gap-2">
+            <div
+              ref={phone2Ref}
+              className="relative w-[140px] h-[304px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
+              <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
+                <div className="flex items-center gap-1 pb-1 border-b border-border/50">
+                  <span className="text-[9px] text-muted-foreground">‹</span>
+                  <p className="text-[8px] font-bold flex-1">Free Walk</p>
+                  <Calendar
+                    className="h-2.5 w-2.5 text-muted-foreground shrink-0"
+                    strokeWidth={1.5}
+                  />
+                </div>
+                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  Today's Topics
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  <div className="border-2 border-primary rounded-lg p-1 bg-primary/8">
+                    <span className="text-[4px] font-semibold bg-orange-100 text-orange-700 rounded-full px-1 py-0.5">
+                      Color
+                    </span>
+                    <p className="text-[6px] font-semibold mt-0.5 leading-tight">
+                      Something Orange
+                    </p>
+                  </div>
+                  <div className="border border-border rounded-lg p-1 opacity-40">
+                    <span className="text-[4px] font-semibold bg-sky-100 text-sky-700 rounded-full px-1 py-0.5">
+                      Shape
+                    </span>
+                    <p className="text-[6px] font-semibold mt-0.5 leading-tight">
+                      Round Things
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-primary/5 border border-primary/20 p-1.5 flex flex-col gap-1.5">
+                  <p className="text-[6px]">
+                    Topic:{" "}
+                    <span className="font-semibold text-primary">
+                      Something Orange
+                    </span>
+                  </p>
+                  <div className="bg-primary rounded-lg py-1.5 flex items-center justify-center gap-1">
+                    <Camera
+                      className="h-2.5 w-2.5 text-primary-foreground"
+                      strokeWidth={1.5}
+                    />
+                    <p className="text-[6px] font-semibold text-primary-foreground">
+                      Take / Upload Photo
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  Today's Feed
+                </p>
+                <div className="flex-1 rounded-lg bg-muted/50 flex items-center justify-center">
+                  <p className="text-[5px] text-muted-foreground text-center px-2">
+                    Be the first to submit!
+                  </p>
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
+              Take a Walk
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center text-center gap-6 w-full">
+          <div className="space-y-5 animate-fade-in-up animation-delay-100">
             <h1 className="font-display text-[5.5rem] font-extrabold leading-[1.15] tracking-tight">
               <span className="block">Get a topic.</span>
               <span className="block">Take a walk.</span>
@@ -444,16 +648,14 @@ export default function LandingPage() {
                 Explore.
               </span>
             </h1>
-            <p className="text-xl leading-relaxed max-w-2xl">
+            <p className="text-lg leading-relaxed text-foreground/80 max-w-[440px]">
               Go outside, capture what you find, and share it with friends.
-              <br />
-              Your neighborhood has more to offer than you think.
             </p>
           </div>
-          <div className="flex flex-row gap-16 animate-fade-in-up animation-delay-200">
+          <div className="flex flex-row gap-3 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
-              className="h-[4.5rem] w-56 text-xl font-semibold !bg-transparent !border-2 !border-black !text-foreground hover:!border-white hover:!text-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] transition-all duration-200 !rounded-2xl"
+              className="h-14 w-52 text-lg font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!bg-gray-950/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
               onClick={() =>
                 formRef.current?.scrollIntoView({ behavior: "smooth" })
               }
@@ -462,7 +664,7 @@ export default function LandingPage() {
             </Button>
             <Button
               size="lg"
-              className="h-[4.5rem] px-12 text-xl font-medium !bg-transparent !border-2 !border-black !text-foreground hover:!border-white hover:!text-white hover:!bg-white/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
+              className="h-14 w-52 text-lg font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!bg-gray-950/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
               onClick={() => {
                 saveGuestIdentity();
                 router.push("/walk");
@@ -471,6 +673,103 @@ export default function LandingPage() {
               Try Free Walk →
             </Button>
           </div>
+        </div>
+
+        {/* Phone 3 — Explore */}
+        <div className="flex flex-col items-center gap-3 animate-fade-in-up animation-delay-300">
+          <div
+            ref={phone3Ref}
+            className="relative w-[140px] h-[280px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
+            <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
+              <div className="flex items-center gap-1 pb-1 border-b border-border/50">
+                <span className="text-[9px] text-muted-foreground">‹</span>
+                <div>
+                  <p className="text-[8px] font-bold leading-tight">
+                    My Archive
+                  </p>
+                  <p className="text-[5px] text-muted-foreground">
+                    Your Free Walk history
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[8px] text-muted-foreground">‹</span>
+                <p className="text-[7px] font-semibold">August 2025</p>
+                <span className="text-[8px] text-muted-foreground">›</span>
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                  <div
+                    key={d}
+                    className="text-center text-[4px] text-muted-foreground font-medium"
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+              {/* Aug 2025 starts on Friday (5 leading blanks) */}
+              <div className="grid grid-cols-7 gap-0.5 flex-1 content-start">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={`s${i}`} />
+                ))}
+                {[
+                  [1, ""],
+                  [2, "bg-emerald-300"],
+                  [3, ""],
+                  [4, ""],
+                  [5, ""],
+                  [6, ""],
+                  [7, "bg-sky-300"],
+                  [8, ""],
+                  [9, ""],
+                  [10, ""],
+                  [11, "bg-amber-300"],
+                  [12, ""],
+                  [13, ""],
+                  [14, "bg-rose-300"],
+                  [15, ""],
+                  [16, ""],
+                  [17, ""],
+                  [18, "bg-violet-300"],
+                  [19, ""],
+                  [20, ""],
+                  [21, "bg-orange-300"],
+                  [22, ""],
+                  [23, ""],
+                  [24, ""],
+                  [25, "bg-teal-300"],
+                  [26, ""],
+                  [27, ""],
+                  [28, "bg-pink-300"],
+                  [29, ""],
+                  [30, ""],
+                  [31, ""],
+                ].map(([d, bg]) => (
+                  <div
+                    key={d}
+                    className={cn(
+                      "aspect-square rounded flex items-center justify-center overflow-hidden",
+                      bg ? `${bg}` : "",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-[4px] font-medium",
+                        bg ? "text-white font-bold" : "text-foreground/60",
+                      )}
+                    >
+                      {d}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
+            Explore
+          </span>
         </div>
 
         {/* Scroll hint */}
