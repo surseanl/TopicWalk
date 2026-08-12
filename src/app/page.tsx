@@ -1,17 +1,13 @@
 "use client";
 
 import {
-  Calendar,
   Camera,
   ChevronDown,
   Compass,
   Crosshair,
-  Eye,
   MapPin,
   Search,
-  Sun,
   Users,
-  Zap,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,60 +15,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimateOnScroll } from "~/components/animate-on-scroll";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { getIdentity, saveGuestIdentity, saveIdentity } from "~/lib/identity";
-import { createClient } from "~/lib/supabase/client";
+import { getIdentity, saveGuestIdentity } from "~/lib/identity";
 import { cn } from "~/lib/utils";
-
-const WHY_ITEMS = [
-  {
-    icon: Sun,
-    title: "Get outside more",
-    description:
-      "A daily challenge that makes getting off the couch actually tempting.",
-    color: "text-primary",
-    iconBg: "bg-primary/12",
-  },
-  {
-    icon: Eye,
-    title: "See differently",
-    description:
-      "Topics train you to notice things you'd normally walk right past.",
-    color: "text-secondary",
-    iconBg: "bg-secondary/12",
-  },
-  {
-    icon: Zap,
-    title: "Always fresh",
-    description:
-      "A new topic drops every day. You'll never run out of reasons to go.",
-    color: "text-primary",
-    iconBg: "bg-primary/12",
-  },
-  {
-    icon: Users,
-    title: "Better with friends",
-    description:
-      "Share finds, react to photos, and compete in real-world games.",
-    color: "text-secondary",
-    iconBg: "bg-secondary/12",
-  },
-  {
-    icon: Calendar,
-    title: "Build a habit",
-    description: "Turn your daily walk into a ritual worth looking forward to.",
-    color: "text-primary",
-    iconBg: "bg-primary/12",
-  },
-  {
-    icon: MapPin,
-    title: "Any neighbourhood",
-    description: "Works wherever you are — your street, a park, a new city.",
-    color: "text-secondary",
-    iconBg: "bg-secondary/12",
-  },
-] as const;
 
 export default function LandingPage() {
   const router = useRouter();
@@ -81,26 +25,11 @@ export default function LandingPage() {
   const modesMarkerRef = useRef<HTMLDivElement>(null);
   const formMarkerRef = useRef<HTMLDivElement>(null);
   const sectionsWrapperRef = useRef<HTMLDivElement>(null);
-  const heroSectionRef = useRef<HTMLDivElement>(null);
-  const phone1Ref = useRef<HTMLDivElement>(null);
-  const phone2Ref = useRef<HTMLDivElement>(null);
-  const phone3Ref = useRef<HTMLDivElement>(null);
   const [visitedSections, setVisitedSections] = useState<Set<number>>(
     new Set(),
   );
   const [trailPath, setTrailPath] = useState("");
-  const [heroTrail, setHeroTrail] = useState<{
-    vx: number;
-    vy1: number;
-    vy2: number;
-    curve: string;
-  } | null>(null);
-  const [name, setName] = useState("");
-  const [mode, setMode] = useState<"choose" | "join">("choose");
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const [selectedStep, setSelectedStep] = useState(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -164,95 +93,6 @@ export default function LandingPage() {
       ro.disconnect();
     };
   }, []);
-
-  useEffect(() => {
-    const calc = () => {
-      const section = heroSectionRef.current;
-      const p1 = phone1Ref.current;
-      const p2 = phone2Ref.current;
-      const p3 = phone3Ref.current;
-      if (!section || !p1 || !p2 || !p3) return;
-      const sR = section.getBoundingClientRect();
-      const r1 = p1.getBoundingClientRect();
-      const r2 = p2.getBoundingClientRect();
-      const r3 = p3.getBoundingClientRect();
-      const x1 = r1.left - sR.left + r1.width / 2;
-      const p3cx = r3.left - sR.left + r3.width / 2;
-      const p3cy = r3.top - sR.top + r3.height / 2;
-      const by = r2.bottom - sR.top + 6;
-      const dip = Math.min(sR.height - 36, by + 100);
-      setHeroTrail({
-        vx: x1,
-        vy1: r1.bottom - sR.top + 4,
-        vy2: r2.top - sR.top - 4,
-        curve: `M ${x1} ${by} C ${x1 + 80} ${dip} ${p3cx - 120} ${dip * 0.92} ${p3cx} ${p3cy}`,
-      });
-    };
-    const t = setTimeout(calc, 150);
-    const ro = new ResizeObserver(calc);
-    if (heroSectionRef.current) ro.observe(heroSectionRef.current);
-    return () => {
-      clearTimeout(t);
-      ro.disconnect();
-    };
-  }, []);
-
-  async function createGroup() {
-    if (!name.trim()) {
-      setError("Enter your name first");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const groupCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const { data, error: err } = await supabase
-      .from("tw_groups")
-      .insert({ code: groupCode })
-      .select()
-      .single();
-    if (err || !data) {
-      setError("Failed to create group. Try again.");
-      setLoading(false);
-      return;
-    }
-    saveIdentity({
-      userId: crypto.randomUUID(),
-      displayName: name.trim(),
-      groupCode: (data as { code: string }).code,
-      groupId: (data as { id: string }).id,
-    });
-    router.push("/home");
-  }
-
-  async function joinGroup() {
-    if (!name.trim()) {
-      setError("Enter your name first");
-      return;
-    }
-    if (!code.trim()) {
-      setError("Enter a group code");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await supabase
-      .from("tw_groups")
-      .select()
-      .eq("code", code.trim().toUpperCase())
-      .single();
-    if (err || !data) {
-      setError("Group not found. Check the code.");
-      setLoading(false);
-      return;
-    }
-    saveIdentity({
-      userId: crypto.randomUUID(),
-      displayName: name.trim(),
-      groupCode: (data as { code: string }).code,
-      groupId: (data as { id: string }).id,
-    });
-    router.push("/home");
-  }
 
   return (
     <div className="flex flex-col min-h-dvh">
@@ -469,10 +309,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section
-        ref={heroSectionRef}
-        className="relative overflow-hidden grid items-center justify-items-center min-h-[calc(100dvh-4rem)] px-8 py-16 pb-20 border-b border-border/60 gap-x-6 [grid-template-columns:140px_1fr_140px]"
-      >
+      <section className="relative overflow-hidden flex items-center justify-center min-h-[calc(100dvh-4rem)] py-16 px-16 gap-20 border-b border-border/60">
         <div
           className="absolute inset-0 -z-10"
           style={{
@@ -480,182 +317,121 @@ export default function LandingPage() {
               "radial-gradient(ellipse at center, #FFD44A 0%, #FFC730 45%, #FFB018 80%, #F0A010 100%)",
           }}
         />
-        {/* Dotted trail SVG — positions computed from actual phone element rects */}
-        {heroTrail && (
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-0"
-            aria-hidden="true"
-          >
-            <line
-              x1={heroTrail.vx}
-              y1={heroTrail.vy1}
-              x2={heroTrail.vx}
-              y2={heroTrail.vy2}
-              stroke="rgba(0,0,0,0.30)"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray="0.1 13"
-            />
-            <path
-              d={heroTrail.curve}
-              fill="none"
-              stroke="rgba(0,0,0,0.26)"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray="0.1 13"
-            />
-          </svg>
-        )}
-
-        {/* Phone frames — left */}
-        <div className="flex flex-col items-center gap-8 animate-fade-in-up animation-delay-300">
-          {/* Phone 1 — Get a Topic: Walk page topic picker */}
-          <div className="flex flex-col items-center gap-2">
+        {/* Left phone mockup */}
+        <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
+          <div className="bg-gray-950 rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
             <div
-              ref={phone1Ref}
-              className="relative w-[140px] h-[280px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
+              className="relative bg-background rounded-[2rem] overflow-hidden"
+              style={{ height: "530px" }}
             >
-              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
-              <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
-                <div className="flex items-center gap-1 pb-1 border-b border-border/50">
-                  <span className="text-[9px] text-muted-foreground">‹</span>
-                  <p className="text-[8px] font-bold flex-1">Free Walk</p>
-                  <Calendar
-                    className="h-2.5 w-2.5 text-muted-foreground shrink-0"
-                    strokeWidth={1.5}
-                  />
-                </div>
-                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  Today's Topics
-                </p>
-                <div className="grid grid-cols-2 gap-1 flex-1">
-                  <div className="border-2 border-primary rounded-lg p-1 bg-primary/8 scale-[1.02]">
-                    <span className="text-[4px] font-semibold bg-orange-100 text-orange-700 rounded-full px-1 py-0.5">
-                      Color
-                    </span>
-                    <p className="text-[6px] font-semibold mt-1 leading-tight">
-                      Something Orange
-                    </p>
-                  </div>
-                  <div className="border border-border rounded-lg p-1">
-                    <span className="text-[4px] font-semibold bg-sky-100 text-sky-700 rounded-full px-1 py-0.5">
-                      Shape
-                    </span>
-                    <p className="text-[6px] font-semibold mt-1 leading-tight">
-                      Round Things
-                    </p>
-                  </div>
-                  <div className="border border-border rounded-lg p-1">
-                    <span className="text-[4px] font-semibold bg-violet-100 text-violet-700 rounded-full px-1 py-0.5">
-                      Theme
-                    </span>
-                    <p className="text-[6px] font-semibold mt-1 leading-tight">
-                      Daily Ritual
-                    </p>
-                  </div>
-                  <div className="border border-border rounded-lg p-1">
-                    <span className="text-[4px] font-semibold bg-emerald-100 text-emerald-700 rounded-full px-1 py-0.5">
-                      Object
-                    </span>
-                    <p className="text-[6px] font-semibold mt-1 leading-tight">
-                      Found Objects
-                    </p>
-                  </div>
+              {/* App header */}
+              <div className="flex items-center px-4 py-2.5 border-b border-border">
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-foreground leading-tight">
+                    Free Walk
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Pick a topic · Take a photo
+                  </p>
                 </div>
               </div>
-            </div>
-            <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
-              Get a Topic
-            </span>
-          </div>
-
-          {/* Phone 2 — Take a Walk: topic selected + capture panel */}
-          <div className="flex flex-col items-center gap-2">
-            <div
-              ref={phone2Ref}
-              className="relative w-[140px] h-[304px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
-            >
-              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
-              <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
-                <div className="flex items-center gap-1 pb-1 border-b border-border/50">
-                  <span className="text-[9px] text-muted-foreground">‹</span>
-                  <p className="text-[8px] font-bold flex-1">Free Walk</p>
-                  <Calendar
-                    className="h-2.5 w-2.5 text-muted-foreground shrink-0"
-                    strokeWidth={1.5}
-                  />
-                </div>
-                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  Today's Topics
-                </p>
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="border-2 border-primary rounded-lg p-1 bg-primary/8">
-                    <span className="text-[4px] font-semibold bg-orange-100 text-orange-700 rounded-full px-1 py-0.5">
-                      Color
-                    </span>
-                    <p className="text-[6px] font-semibold mt-0.5 leading-tight">
-                      Something Orange
-                    </p>
-                  </div>
-                  <div className="border border-border rounded-lg p-1 opacity-40">
-                    <span className="text-[4px] font-semibold bg-sky-100 text-sky-700 rounded-full px-1 py-0.5">
-                      Shape
-                    </span>
-                    <p className="text-[6px] font-semibold mt-0.5 leading-tight">
-                      Round Things
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-primary/5 border border-primary/20 p-1.5 flex flex-col gap-1.5">
-                  <p className="text-[6px]">
-                    Topic:{" "}
-                    <span className="font-semibold text-primary">
-                      Something Orange
-                    </span>
+              {/* Topic section label */}
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
+                Today's Topics
+              </p>
+              {/* Topic grid */}
+              <div className="grid grid-cols-2 gap-2.5 px-4">
+                <div className="rounded-xl border-2 border-primary bg-primary/8 p-3">
+                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-orange-100 text-orange-700">
+                    Color
+                  </span>
+                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
+                    Something Red
                   </p>
-                  <div className="bg-primary rounded-lg py-1.5 flex items-center justify-center gap-1">
-                    <Camera
-                      className="h-2.5 w-2.5 text-primary-foreground"
-                      strokeWidth={1.5}
+                </div>
+                <div className="rounded-xl border-2 border-border p-3">
+                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-sky-100 text-sky-700">
+                    Shape
+                  </span>
+                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
+                    Perfect Circle
+                  </p>
+                </div>
+                <div className="rounded-xl border-2 border-border p-3">
+                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-violet-100 text-violet-700">
+                    Theme
+                  </span>
+                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
+                    Morning Light
+                  </p>
+                </div>
+                <div className="rounded-xl border-2 border-border p-3">
+                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-700">
+                    Object
+                  </span>
+                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
+                    Found Art
+                  </p>
+                </div>
+              </div>
+              {/* Photo submit panel */}
+              <div className="mx-4 mt-3 rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-2">
+                <p className="text-[10px] text-foreground">
+                  Topic:{" "}
+                  <span className="font-semibold text-primary">
+                    Something Red
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  className="w-full h-8 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
                     />
-                    <p className="text-[6px] font-semibold text-primary-foreground">
-                      Take / Upload Photo
-                    </p>
-                  </div>
-                </div>
-                <p className="text-[5px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  Today's Feed
-                </p>
-                <div className="flex-1 rounded-lg bg-muted/50 flex items-center justify-center">
-                  <p className="text-[5px] text-muted-foreground text-center px-2">
-                    Be the first to submit!
-                  </p>
-                </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  Take / Upload Photo
+                </button>
               </div>
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
             </div>
-            <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
-              Take a Walk
-            </span>
           </div>
         </div>
 
-        <div className="flex flex-col items-center text-center gap-6 w-full">
-          <div className="space-y-5 animate-fade-in-up animation-delay-100">
-            <h1 className="font-display text-[5.5rem] font-extrabold leading-[1.15] tracking-tight">
+        <div className="shrink-0 flex flex-col items-center text-center gap-6 animate-fade-in-up animation-delay-100">
+          <div className="space-y-5">
+            <h1 className="font-display text-[5.75rem] font-extrabold leading-[1.15] tracking-tight">
               <span className="block">Get a topic.</span>
               <span className="block">Take a walk.</span>
               <span className="block underline decoration-wavy decoration-primary decoration-4 underline-offset-[6px]">
                 Explore.
               </span>
             </h1>
-            <p className="text-lg leading-relaxed text-foreground/80 max-w-[440px]">
-              Go outside, capture what you find, and share it with friends.
+            <p className="text-xl leading-relaxed text-foreground/80">
+              Go outside, capture what you find, and share it with your friends.
+              <br />
+              Your neighborhood has more to offer than you think.
             </p>
           </div>
-          <div className="flex flex-row gap-3 animate-fade-in-up animation-delay-200">
+          <div className="flex flex-row gap-6 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
-              className="h-14 w-52 text-lg font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!bg-gray-950/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
+              className="h-16 w-60 text-xl font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!border-secondary hover:!text-secondary hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
               onClick={() =>
                 formRef.current?.scrollIntoView({ behavior: "smooth" })
               }
@@ -664,7 +440,7 @@ export default function LandingPage() {
             </Button>
             <Button
               size="lg"
-              className="h-14 w-52 text-lg font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!bg-gray-950/10 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
+              className="h-16 w-60 text-xl font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!border-secondary hover:!text-secondary hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
               onClick={() => {
                 saveGuestIdentity();
                 router.push("/walk");
@@ -675,101 +451,80 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Phone 3 — Explore */}
-        <div className="flex flex-col items-center gap-3 animate-fade-in-up animation-delay-300">
-          <div
-            ref={phone3Ref}
-            className="relative w-[140px] h-[280px] bg-gray-950 rounded-[2rem] border-[4px] border-gray-800 shadow-2xl overflow-hidden"
-          >
-            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-700 rounded-full z-10" />
-            <div className="absolute inset-0 bg-background pt-7 px-2 pb-2 flex flex-col gap-1.5">
-              <div className="flex items-center gap-1 pb-1 border-b border-border/50">
-                <span className="text-[9px] text-muted-foreground">‹</span>
-                <div>
-                  <p className="text-[8px] font-bold leading-tight">
-                    My Archive
+        {/* Right phone mockup */}
+        <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
+          <div className="bg-gray-950 rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
+            <div
+              className="relative bg-background rounded-[2rem] overflow-hidden"
+              style={{ height: "530px" }}
+            >
+              {/* App header */}
+              <div className="flex items-center px-4 py-2.5 border-b border-border">
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-foreground leading-tight">
+                    Hide &amp; Seek
                   </p>
-                  <p className="text-[5px] text-muted-foreground">
-                    Your Free Walk history
+                  <p className="text-[10px] text-primary leading-tight">
+                    📍 GPS active
                   </p>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[8px] text-muted-foreground">‹</span>
-                <p className="text-[7px] font-semibold">August 2025</p>
-                <span className="text-[8px] text-muted-foreground">›</span>
+              {/* Tabs */}
+              <div className="flex mx-4 mt-3 rounded-lg bg-muted p-0.5">
+                <div className="flex-1 rounded-md py-1.5 text-center text-[10px] font-semibold bg-background shadow-sm">
+                  🎯 Seek
+                </div>
+                <div className="flex-1 rounded-md py-1.5 text-center text-[10px] font-medium text-muted-foreground">
+                  🏆 Leaderboard
+                </div>
               </div>
-              <div className="grid grid-cols-7 gap-0.5">
-                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                  <div
-                    key={d}
-                    className="text-center text-[4px] text-muted-foreground font-medium"
-                  >
-                    {d}
+              {/* Section label */}
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
+                Active Mascots (1)
+              </p>
+              {/* Mascot card */}
+              <div className="mx-4 rounded-xl border-2 border-primary ring-1 ring-primary/30 overflow-hidden">
+                <div className="relative">
+                  <Image
+                    src="/ny mascot.png"
+                    alt="TopicWalk mascot in front of the Statue of Liberty"
+                    width={1536}
+                    height={1024}
+                    unoptimized
+                    className="w-full"
+                    priority
+                  />
+                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full">
+                    <span>📍</span>
+                    <span>38m away</span>
                   </div>
-                ))}
-              </div>
-              {/* Aug 2025 starts on Friday (5 leading blanks) */}
-              <div className="grid grid-cols-7 gap-0.5 flex-1 content-start">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <div key={`s${i}`} />
-                ))}
-                {[
-                  [1, ""],
-                  [2, "bg-emerald-300"],
-                  [3, ""],
-                  [4, ""],
-                  [5, ""],
-                  [6, ""],
-                  [7, "bg-sky-300"],
-                  [8, ""],
-                  [9, ""],
-                  [10, ""],
-                  [11, "bg-amber-300"],
-                  [12, ""],
-                  [13, ""],
-                  [14, "bg-rose-300"],
-                  [15, ""],
-                  [16, ""],
-                  [17, ""],
-                  [18, "bg-violet-300"],
-                  [19, ""],
-                  [20, ""],
-                  [21, "bg-orange-300"],
-                  [22, ""],
-                  [23, ""],
-                  [24, ""],
-                  [25, "bg-teal-300"],
-                  [26, ""],
-                  [27, ""],
-                  [28, "bg-pink-300"],
-                  [29, ""],
-                  [30, ""],
-                  [31, ""],
-                ].map(([d, bg]) => (
-                  <div
-                    key={d}
-                    className={cn(
-                      "aspect-square rounded flex items-center justify-center overflow-hidden",
-                      bg ? `${bg}` : "",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "text-[4px] font-medium",
-                        bg ? "text-white font-bold" : "text-foreground/60",
-                      )}
-                    >
-                      {d}
-                    </span>
+                </div>
+                <div className="p-2.5 bg-background space-y-2">
+                  <div className="flex items-start justify-between gap-1">
+                    <div>
+                      <p className="font-semibold text-xs text-foreground">
+                        Sean's mascot
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        1m 47s ago
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-primary text-xs">38m</p>
+                      <p className="text-sm leading-none">↗</p>
+                    </div>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    className="w-full h-7 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold"
+                  >
+                    🎯 Capture!
+                  </button>
+                </div>
               </div>
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
             </div>
           </div>
-          <span className="text-[10px] font-bold bg-gray-950 text-white px-2.5 py-1 rounded-full tracking-wide">
-            Explore
-          </span>
         </div>
 
         {/* Scroll hint */}
@@ -784,7 +539,7 @@ export default function LandingPage() {
       {/* ── Sections with connecting trail ───────────────── */}
       <div
         ref={sectionsWrapperRef}
-        className="relative max-w-3xl mx-auto w-full isolate"
+        className="relative max-w-5xl mx-auto w-full isolate"
       >
         {/* Trail SVG — winding path between section waypoints */}
         <svg
@@ -803,60 +558,6 @@ export default function LandingPage() {
             />
           )}
         </svg>
-
-        {/* ── Why ──────────────────────────────────────────── */}
-        <section className="px-5 py-14 w-full">
-          <AnimateOnScroll className="mb-8">
-            <div className="flex items-center gap-3">
-              <div
-                ref={whyMarkerRef}
-                className={cn(
-                  "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
-                  visitedSections.has(0)
-                    ? "w-10 h-10 border-primary/50 shadow-sm"
-                    : "w-7 h-7 border-border bg-muted",
-                )}
-              >
-                {visitedSections.has(0) ? (
-                  <Image
-                    src="/mascot-new.png"
-                    alt="TopicWalk mascot"
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-contain"
-                    unoptimized
-                  />
-                ) : (
-                  <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </div>
-              <h2 className="font-bold text-base whitespace-nowrap">
-                Why TopicWalk?
-              </h2>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-          </AnimateOnScroll>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {WHY_ITEMS.slice(0, 3).map(
-              ({ icon: Icon, title, description, color, iconBg }, i) => (
-                <AnimateOnScroll key={title} variant="scale-in" delay={i * 60}>
-                  <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm h-full">
-                    <div className={`p-2.5 rounded-xl ${iconBg} w-fit`}>
-                      <Icon className={`h-5 w-5 ${color}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">{title}</p>
-                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-                </AnimateOnScroll>
-              ),
-            )}
-          </div>
-        </section>
 
         {/* ── Modes callout ────────────────────────────────── */}
         <AnimateOnScroll className="px-5 pt-4 pb-10 w-full">
@@ -885,9 +586,8 @@ export default function LandingPage() {
             </div>
             <div className="flex-1 h-px bg-border" />
           </div>
-          <p className="text-3xl font-extrabold tracking-tight">2 modes.</p>
-          <p className="text-xl font-semibold text-muted-foreground mt-1">
-            Endless reasons to go outside.
+          <p className="text-3xl font-extrabold tracking-tight">
+            2 modes - Endless reasons to go outside
           </p>
         </AnimateOnScroll>
 
@@ -1007,20 +707,20 @@ export default function LandingPage() {
           </AnimateOnScroll>
         </section>
 
-        {/* ── Get Started form ──────────────────────────────── */}
-        <section ref={formRef} className="px-5 pb-16 w-full">
-          <AnimateOnScroll className="mb-8">
+        {/* ── Why ──────────────────────────────────────────── */}
+        <section className="px-4 py-20 w-full">
+          <AnimateOnScroll className="mb-12">
             <div className="flex items-center gap-3">
               <div
-                ref={formMarkerRef}
+                ref={whyMarkerRef}
                 className={cn(
                   "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
-                  visitedSections.has(2)
+                  visitedSections.has(0)
                     ? "w-10 h-10 border-primary/50 shadow-sm"
                     : "w-7 h-7 border-border bg-muted",
                 )}
               >
-                {visitedSections.has(2) ? (
+                {visitedSections.has(0) ? (
                   <Image
                     src="/mascot-new.png"
                     alt="TopicWalk mascot"
@@ -1033,126 +733,290 @@ export default function LandingPage() {
                   <Camera className="h-3.5 w-3.5 text-muted-foreground" />
                 )}
               </div>
-              <h2 className="font-bold text-base whitespace-nowrap">
-                Ready to start walking?
+              <h2 className="font-bold text-xl whitespace-nowrap">
+                How it works
               </h2>
               <div className="flex-1 h-px bg-border" />
             </div>
           </AnimateOnScroll>
 
-          <div className="max-w-lg mx-auto">
-            <AnimateOnScroll delay={100}>
-              <div className="bg-card rounded-2xl border shadow-md p-6 space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-sm font-medium">
-                    Your Name
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g. Alice"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && createGroup()}
-                    maxLength={30}
-                    className="h-11 text-base"
-                  />
-                </div>
-
-                {mode === "choose" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      size="lg"
-                      className="h-12 text-base font-semibold shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all"
-                      onClick={createGroup}
-                      disabled={loading}
-                    >
-                      {loading ? "Creating…" : "Create Group"}
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="h-12 text-base hover:-translate-y-px active:translate-y-0 transition-all"
-                      onClick={() => setMode("join")}
-                    >
-                      Join Group
-                    </Button>
-                  </div>
-                )}
-
-                {mode === "join" && (
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="code">Group Code</Label>
-                      <Input
-                        id="code"
-                        placeholder="e.g. XK9F2A"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => e.key === "Enter" && joinGroup()}
-                        maxLength={8}
-                        className="uppercase tracking-widest font-mono text-lg h-11"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        size="lg"
-                        className="h-12 text-base font-semibold"
-                        onClick={joinGroup}
-                        disabled={loading}
-                      >
-                        {loading ? "Joining…" : "Join"}
-                      </Button>
-                      <Button
-                        size="lg"
-                        variant="ghost"
-                        onClick={() => {
-                          setMode("choose");
-                          setError(null);
-                        }}
-                      >
-                        Back
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {error && (
-                  <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 text-center">
-                    {error}
-                  </p>
-                )}
-              </div>
-            </AnimateOnScroll>
-
-            <AnimateOnScroll delay={200} className="space-y-3 mt-4">
-              <div className="relative flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-
-              <Button
-                variant="ghost"
-                className="w-full text-muted-foreground hover:text-foreground h-11 transition-colors"
-                onClick={() => {
-                  saveGuestIdentity();
-                  router.push("/walk");
-                }}
-              >
-                Try Free Walk without an account →
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                Have a TopicWalk account?{" "}
-                <Link
-                  href="/auth"
-                  className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
+          {(() => {
+            const HOW_STEPS = [
+              {
+                num: "1.",
+                title: "Pick a mode",
+                description:
+                  "Four fresh challenges drop every morning — a color, shape, theme, and object. Pick whichever one calls to you and head out.",
+                icon: Crosshair,
+                bg: "bg-sky-100 dark:bg-sky-900/30",
+                iconColor: "text-sky-500 dark:text-sky-400",
+              },
+              {
+                num: "2.",
+                title: "Head outside & shoot",
+                description:
+                  "Open Free Walk, select your topic, and start exploring. When you spot something that fits, snap a photo right from the app.",
+                icon: Camera,
+                bg: "bg-orange-100 dark:bg-orange-900/30",
+                iconColor: "text-orange-500 dark:text-orange-400",
+              },
+              {
+                num: "3.",
+                title: "Share to your feed",
+                description:
+                  "Your photo lands in a shared feed with your group. React to what friends found, compare perspectives, and see the neighbourhood through different eyes.",
+                icon: Users,
+                bg: "bg-violet-100 dark:bg-violet-900/30",
+                iconColor: "text-violet-500 dark:text-violet-400",
+              },
+              {
+                num: "4.",
+                title: "Play Hide & Seek",
+                description:
+                  "Drop your mascot anywhere on the map. Friends get a GPS ping and a photo clue — first one to find it wins the round.",
+                icon: MapPin,
+                bg: "bg-emerald-100 dark:bg-emerald-900/30",
+                iconColor: "text-emerald-500 dark:text-emerald-400",
+              },
+            ];
+            const active = HOW_STEPS[selectedStep];
+            const ActiveIcon = active.icon;
+            return (
+              <div className="flex items-center gap-16">
+                {/* Left: compact step list */}
+                <AnimateOnScroll
+                  className="shrink-0 flex flex-col"
+                  variant="scale-in"
                 >
-                  Log In
-                </Link>
+                  {HOW_STEPS.map(({ num, title }, i) => {
+                    const isActive = i === selectedStep;
+                    return (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setSelectedStep(i)}
+                        className={cn(
+                          "py-6 pl-5 pr-10 text-left border-l-2 transition-all duration-200",
+                          isActive
+                            ? "border-l-primary"
+                            : "border-l-border hover:border-l-primary/40",
+                        )}
+                      >
+                        <p
+                          className={cn(
+                            "text-xs font-bold uppercase tracking-widest transition-colors duration-200",
+                            isActive ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {num.replace(".", "")}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-base font-semibold transition-all duration-200 mt-1",
+                            isActive
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {title}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </AnimateOnScroll>
+
+                {/* Middle: step illustration */}
+                <AnimateOnScroll
+                  className="shrink-0"
+                  variant="scale-in"
+                  delay={80}
+                >
+                  <div
+                    className={cn(
+                      "w-96 h-[32rem] rounded-3xl flex items-center justify-center transition-colors duration-300",
+                      active.bg,
+                    )}
+                  >
+                    <ActiveIcon
+                      className={cn(
+                        "h-36 w-36 transition-colors duration-300",
+                        active.iconColor,
+                      )}
+                    />
+                  </div>
+                </AnimateOnScroll>
+
+                {/* Right: reactive text */}
+                <div className="flex-1 flex flex-col gap-6">
+                  <p className="font-display text-[7rem] font-extrabold text-primary leading-none">
+                    {active.num}
+                  </p>
+                  <p className="font-bold text-5xl leading-snug">
+                    {active.title}
+                  </p>
+                  <p className="text-xl text-muted-foreground leading-relaxed">
+                    {active.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </section>
+
+        {/* ── Easily shareable ─────────────────────────────── */}
+        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
+          <div className="flex items-center justify-between gap-16">
+            <AnimateOnScroll
+              className="flex flex-col gap-4 max-w-2xl shrink-0"
+              variant="scale-in"
+            >
+              <h2 className="font-bold text-7xl leading-tight">
+                Easily shareable with friends
+              </h2>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                Every photo you take lands straight in a shared feed. React,
+                compare, and see what your friends spotted — no links or group
+                chats needed.
               </p>
             </AnimateOnScroll>
+
+            {/* Phone mockup: feed */}
+            <AnimateOnScroll
+              className="shrink-0"
+              variant="scale-in"
+              delay={100}
+            >
+              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                <div className="bg-foreground/5 flex justify-center py-2.5">
+                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                </div>
+                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    Today's Feed
+                  </p>
+                  {/* Feed item 1 */}
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-orange-100 dark:bg-orange-900/30 h-32 flex items-center justify-center">
+                      <Camera className="h-12 w-12 text-orange-400" />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-xs font-semibold">Alex · Red Things</p>
+                      <div className="flex gap-1.5 mt-1.5">
+                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
+                          ❤️ 2
+                        </span>
+                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
+                          🔥 1
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Feed item 2 */}
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-sky-100 dark:bg-sky-900/30 h-32 flex items-center justify-center">
+                      <MapPin className="h-12 w-12 text-sky-400" />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-xs font-semibold">Jordan · Circles</p>
+                      <div className="flex gap-1.5 mt-1.5">
+                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
+                          😮 3
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-background flex justify-center py-2">
+                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                </div>
+              </div>
+            </AnimateOnScroll>
           </div>
+        </section>
+
+        {/* ── Never gets repetitive ─────────────────────────── */}
+        <section className="px-4 py-16 w-full border-t border-border/60">
+          <AnimateOnScroll className="flex flex-col gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Crosshair className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="font-bold text-3xl leading-tight">
+                Never gets repetitive
+              </h2>
+            </div>
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+              Four fresh challenges drop every morning — a new color, shape,
+              theme, and object. No two days look the same.
+            </p>
+          </AnimateOnScroll>
+        </section>
+
+        {/* ── Explore places ───────────────────────────────── */}
+        <section className="px-4 py-16 w-full border-t border-border/60">
+          <AnimateOnScroll className="flex flex-col gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                <Compass className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <h2 className="font-bold text-3xl leading-tight">
+                Explore places you've never gone to
+              </h2>
+            </div>
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+              A topic pulls you down streets you'd normally walk past. You'll be
+              surprised how much your own neighbourhood has been hiding.
+            </p>
+          </AnimateOnScroll>
+        </section>
+
+        {/* ── Get Started CTA ──────────────────────────────── */}
+        <section ref={formRef} className="px-5 pb-16 w-full">
+          {/* invisible trail anchor */}
+          <div
+            ref={formMarkerRef}
+            className="w-0 h-0 opacity-0 pointer-events-none"
+          />
+          <AnimateOnScroll>
+            <div className="rounded-3xl bg-primary/10 border-2 border-primary/60 px-12 py-16 flex flex-col items-center text-center gap-10">
+              <h2 className="font-bold text-5xl leading-tight">
+                Ready to start walking?
+              </h2>
+
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button
+                  size="lg"
+                  className="h-14 px-8 text-lg font-semibold shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all"
+                  onClick={() => router.push("/auth?tab=signup")}
+                >
+                  Sign Up
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-14 px-8 text-lg hover:-translate-y-px active:translate-y-0 transition-all"
+                  onClick={() => router.push("/auth")}
+                >
+                  Log In
+                </Button>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="h-14 px-8 text-lg text-muted-foreground hover:text-foreground transition-all"
+                  onClick={() => {
+                    saveGuestIdentity();
+                    router.push("/walk");
+                  }}
+                >
+                  Try Free Walk →
+                </Button>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                No account needed to try Free Walk
+              </p>
+            </div>
+          </AnimateOnScroll>
         </section>
       </div>
       {/* end sectionsWrapper */}
