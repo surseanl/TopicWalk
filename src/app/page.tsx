@@ -30,6 +30,7 @@ export default function LandingPage() {
   );
   const [trailPath, setTrailPath] = useState("");
   const [selectedStep, setSelectedStep] = useState(0);
+  const [selectedStep2, setSelectedStep2] = useState(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -324,89 +325,31 @@ export default function LandingPage() {
               className="relative bg-background rounded-[2rem] overflow-hidden"
               style={{ height: "530px" }}
             >
-              {/* App header */}
-              <div className="flex items-center px-4 py-2.5 border-b border-border">
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground leading-tight">
-                    Free Walk
-                  </p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">
-                    Pick a topic · Take a photo
-                  </p>
-                </div>
+              <div className="bg-foreground/5 flex justify-center py-3">
+                <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
               </div>
-              {/* Topic section label */}
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
-                Today's Topics
-              </p>
-              {/* Topic grid */}
-              <div className="grid grid-cols-2 gap-2.5 px-4">
-                <div className="rounded-xl border-2 border-primary bg-primary/8 p-3">
-                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-orange-100 text-orange-700">
-                    Color
-                  </span>
-                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
-                    Something Red
+              <div className="flex-1 bg-primary/[0.07] p-5 flex flex-col gap-5">
+                <div className="bg-card rounded-xl p-3.5 border border-border/60 shadow-sm">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Today's Topic
                   </p>
+                  <p className="text-lg font-bold mt-1">🔴 Red Things</p>
                 </div>
-                <div className="rounded-xl border-2 border-border p-3">
-                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-sky-100 text-sky-700">
-                    Shape
-                  </span>
-                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
-                    Perfect Circle
-                  </p>
+                <div className="grid grid-cols-2 gap-2.5 flex-1">
+                  <div className="bg-primary/20 rounded-xl flex items-center justify-center">
+                    <MapPin className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="bg-primary/10 rounded-xl" />
+                  <div className="bg-primary/10 rounded-xl" />
+                  <div className="bg-primary/20 rounded-xl flex items-center justify-center">
+                    <Compass className="h-8 w-8 text-primary/60" />
+                  </div>
                 </div>
-                <div className="rounded-xl border-2 border-border p-3">
-                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-violet-100 text-violet-700">
-                    Theme
-                  </span>
-                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
-                    Morning Light
-                  </p>
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-md">
+                    <Camera className="h-7 w-7 text-primary-foreground" />
+                  </div>
                 </div>
-                <div className="rounded-xl border-2 border-border p-3">
-                  <span className="text-[9px] font-semibold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-700">
-                    Object
-                  </span>
-                  <p className="mt-2 font-semibold text-xs text-foreground leading-tight">
-                    Found Art
-                  </p>
-                </div>
-              </div>
-              {/* Photo submit panel */}
-              <div className="mx-4 mt-3 rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-2">
-                <p className="text-[10px] text-foreground">
-                  Topic:{" "}
-                  <span className="font-semibold text-primary">
-                    Something Red
-                  </span>
-                </p>
-                <button
-                  type="button"
-                  className="w-full h-8 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center gap-1.5"
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Take / Upload Photo
-                </button>
               </div>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
             </div>
@@ -458,68 +401,28 @@ export default function LandingPage() {
               className="relative bg-background rounded-[2rem] overflow-hidden"
               style={{ height: "530px" }}
             >
-              {/* App header */}
-              <div className="flex items-center px-4 py-2.5 border-b border-border">
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground leading-tight">
-                    Hide &amp; Seek
-                  </p>
-                  <p className="text-[10px] text-primary leading-tight">
-                    📍 GPS active
-                  </p>
-                </div>
+              <div className="bg-foreground/5 flex justify-center py-3">
+                <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
               </div>
-              {/* Tabs */}
-              <div className="flex mx-4 mt-3 rounded-lg bg-muted p-0.5">
-                <div className="flex-1 rounded-md py-1.5 text-center text-[10px] font-semibold bg-background shadow-sm">
-                  🎯 Seek
+              <div className="flex-1 bg-secondary/[0.07] p-5 flex flex-col gap-5">
+                <div className="bg-secondary/20 rounded-xl p-3.5 border border-secondary/30">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Clue dropped!
+                  </p>
+                  <p className="text-lg font-bold mt-1 text-secondary">
+                    Find them →
+                  </p>
                 </div>
-                <div className="flex-1 rounded-md py-1.5 text-center text-[10px] font-medium text-muted-foreground">
-                  🏆 Leaderboard
+                <div className="flex-1 bg-secondary/10 rounded-xl flex items-center justify-center">
+                  <Crosshair className="h-24 w-24 text-secondary/40" />
                 </div>
-              </div>
-              {/* Section label */}
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
-                Active Mascots (1)
-              </p>
-              {/* Mascot card */}
-              <div className="mx-4 rounded-xl border-2 border-primary ring-1 ring-primary/30 overflow-hidden">
-                <div className="relative">
-                  <Image
-                    src="/ny mascot.png"
-                    alt="TopicWalk mascot in front of the Statue of Liberty"
-                    width={1536}
-                    height={1024}
-                    unoptimized
-                    className="w-full"
-                    priority
-                  />
-                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full">
-                    <span>📍</span>
-                    <span>38m away</span>
+                <div className="flex gap-3">
+                  <div className="flex-1 h-14 bg-secondary/20 rounded-xl flex items-center justify-center">
+                    <Users className="h-6 w-6 text-secondary" />
                   </div>
-                </div>
-                <div className="p-2.5 bg-background space-y-2">
-                  <div className="flex items-start justify-between gap-1">
-                    <div>
-                      <p className="font-semibold text-xs text-foreground">
-                        Sean's mascot
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        1m 47s ago
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-primary text-xs">38m</p>
-                      <p className="text-sm leading-none">↗</p>
-                    </div>
+                  <div className="flex-1 h-14 bg-secondary rounded-xl flex items-center justify-center shadow-sm">
+                    <Search className="h-6 w-6 text-secondary-foreground" />
                   </div>
-                  <button
-                    type="button"
-                    className="w-full h-7 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold"
-                  >
-                    🎯 Capture!
-                  </button>
                 </div>
               </div>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
@@ -614,33 +517,66 @@ export default function LandingPage() {
                       "perspective(600px) rotateY(10deg) rotateZ(-2deg)",
                   }}
                 >
-                  <div className="w-36 md:w-48 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                    <div className="bg-foreground/5 flex justify-center py-2.5">
+                  <div className="w-56 md:w-72 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                    <div className="bg-foreground/5 flex justify-center py-2">
                       <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                     </div>
-                    <div className="flex-1 bg-primary/[0.07] p-3 md:p-4 flex flex-col gap-2.5 min-h-[260px] md:min-h-[320px]">
-                      <div className="bg-card rounded-xl p-2.5 border border-border/60 shadow-sm">
-                        <p className="text-[9px] md:text-[10px] text-muted-foreground font-medium">
-                          Today's Topic
-                        </p>
-                        <p className="text-xs md:text-sm font-bold mt-0.5">
-                          🔴 Red Things
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5 flex-1">
-                        <div className="bg-primary/20 rounded-xl flex items-center justify-center">
-                          <MapPin className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="bg-primary/10 rounded-xl" />
-                        <div className="bg-primary/10 rounded-xl" />
-                        <div className="bg-primary/20 rounded-xl flex items-center justify-center">
-                          <Compass className="h-4 w-4 text-primary/60" />
+                    <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[520px]">
+                      <div className="flex items-center px-4 py-3 border-b border-border/40">
+                        <div>
+                          <p className="text-sm font-bold text-foreground leading-tight">
+                            Free Walk
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                            Pick a topic · Take a photo
+                          </p>
                         </div>
                       </div>
-                      <div className="flex justify-center mt-1">
-                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center shadow-md">
-                          <Camera className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
+                        Today's Topics
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5 px-4">
+                        <div className="rounded-xl border-2 border-primary bg-primary/8 p-3">
+                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
+                            🎨 Color
+                          </span>
+                          <p className="mt-2 font-bold text-sm leading-tight">
+                            A red fire hydrant
+                          </p>
                         </div>
+                        <div className="rounded-xl border-2 border-border p-3">
+                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
+                            🔷 Shape
+                          </span>
+                          <p className="mt-2 font-bold text-sm leading-tight">
+                            Manhole cover
+                          </p>
+                        </div>
+                        <div className="rounded-xl border-2 border-border p-3">
+                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
+                            🌿 Nature
+                          </span>
+                          <p className="mt-2 font-bold text-sm leading-tight">
+                            Dew on a leaf
+                          </p>
+                        </div>
+                        <div className="rounded-xl border-2 border-border p-3">
+                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                            🚪 Urban
+                          </span>
+                          <p className="mt-2 font-bold text-sm leading-tight">
+                            A colorful front door
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mx-4 mt-3 rounded-xl bg-primary/5 border border-primary/20 p-3">
+                        <button
+                          type="button"
+                          className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          Take / Upload Photo
+                        </button>
                       </div>
                     </div>
                     <div className="bg-background flex justify-center py-2">
@@ -656,7 +592,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* VS badge */}
-                <div className="shrink-0 mb-20 bg-card border-2 border-border rounded-full w-10 h-10 text-[11px] font-extrabold flex items-center justify-center shadow-md text-muted-foreground">
+                <div className="shrink-0 self-center bg-card border-2 border-border rounded-full w-16 h-16 text-base font-extrabold flex items-center justify-center shadow-md text-muted-foreground">
                   VS
                 </div>
 
@@ -668,28 +604,58 @@ export default function LandingPage() {
                       "perspective(600px) rotateY(-10deg) rotateZ(2deg)",
                   }}
                 >
-                  <div className="w-36 md:w-48 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                    <div className="bg-foreground/5 flex justify-center py-2.5">
+                  <div className="w-56 md:w-72 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                    <div className="bg-foreground/5 flex justify-center py-2">
                       <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                     </div>
-                    <div className="flex-1 bg-secondary/[0.07] p-3 md:p-4 flex flex-col gap-2.5 min-h-[260px] md:min-h-[320px]">
-                      <div className="bg-secondary/20 rounded-xl p-2.5 border border-secondary/30">
-                        <p className="text-[9px] md:text-[10px] text-muted-foreground font-medium">
-                          Clue dropped!
-                        </p>
-                        <p className="text-xs md:text-sm font-bold mt-0.5 text-secondary">
-                          Find them →
-                        </p>
-                      </div>
-                      <div className="flex-1 bg-secondary/10 rounded-xl flex items-center justify-center">
-                        <Crosshair className="h-8 w-8 md:h-10 md:w-10 text-secondary/40" />
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="flex-1 h-8 bg-secondary/20 rounded-lg flex items-center justify-center">
-                          <Users className="h-3.5 w-3.5 text-secondary" />
+                    <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[520px]">
+                      <div className="flex items-center px-4 py-3 border-b border-border/40">
+                        <div>
+                          <p className="text-sm font-bold text-foreground leading-tight">
+                            Hide &amp; Seek
+                          </p>
+                          <p className="text-xs text-primary leading-tight mt-0.5">
+                            📍 GPS active
+                          </p>
                         </div>
-                        <div className="flex-1 h-8 bg-secondary rounded-lg flex items-center justify-center shadow-sm">
-                          <Search className="h-3.5 w-3.5 text-secondary-foreground" />
+                      </div>
+                      <div className="flex mx-4 mt-3 rounded-lg bg-muted p-0.5">
+                        <div className="flex-1 rounded-md py-1.5 text-center text-xs font-semibold bg-background shadow-sm">
+                          🎯 Seek
+                        </div>
+                        <div className="flex-1 rounded-md py-1.5 text-center text-xs font-medium text-muted-foreground">
+                          🏆 Score
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
+                        Active Mascots (1)
+                      </p>
+                      <div className="mx-4 rounded-xl border-2 border-primary overflow-hidden">
+                        <div className="relative">
+                          <Image
+                            src="/ny mascot.png"
+                            alt="TopicWalk mascot"
+                            width={400}
+                            height={260}
+                            unoptimized
+                            className="w-full"
+                          />
+                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            <span>📍</span>
+                            <span>38m away</span>
+                          </div>
+                        </div>
+                        <div className="p-3 bg-background space-y-2">
+                          <p className="font-semibold text-xs">Sean's mascot</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            1m 47s ago
+                          </p>
+                          <button
+                            type="button"
+                            className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold"
+                          >
+                            🎯 Capture!
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -708,7 +674,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Why ──────────────────────────────────────────── */}
-        <section className="px-4 py-20 w-full">
+        <section className="py-20 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
           <AnimateOnScroll className="mb-12">
             <div className="flex items-center gap-3">
               <div
@@ -779,27 +745,42 @@ export default function LandingPage() {
                 iconColor: "text-emerald-500 dark:text-emerald-400",
               },
             ];
-            const active = HOW_STEPS[selectedStep];
-            const ActiveIcon = active.icon;
-            return (
-              <div className="flex items-center gap-16">
-                {/* Left: compact step list */}
+
+            const renderInstance = (
+              step: number,
+              setStep: (i: number) => void,
+              mirrored: boolean,
+            ) => {
+              const active = HOW_STEPS[step];
+              const ActiveIcon = active.icon;
+
+              const stepList = (
                 <AnimateOnScroll
                   className="shrink-0 flex flex-col"
                   variant="scale-in"
                 >
                   {HOW_STEPS.map(({ num, title }, i) => {
-                    const isActive = i === selectedStep;
+                    const isActive = i === step;
                     return (
                       <button
                         key={num}
                         type="button"
-                        onClick={() => setSelectedStep(i)}
+                        onClick={() => setStep(i)}
                         className={cn(
-                          "py-6 pl-5 pr-10 text-left border-l-2 transition-all duration-200",
-                          isActive
-                            ? "border-l-primary"
-                            : "border-l-border hover:border-l-primary/40",
+                          "py-6 text-left transition-all duration-200",
+                          mirrored
+                            ? cn(
+                                "pr-5 pl-10 border-r-2",
+                                isActive
+                                  ? "border-r-primary"
+                                  : "border-r-border hover:border-r-primary/40",
+                              )
+                            : cn(
+                                "pl-5 pr-10 border-l-2",
+                                isActive
+                                  ? "border-l-primary"
+                                  : "border-l-border hover:border-l-primary/40",
+                              ),
                         )}
                       >
                         <p
@@ -824,8 +805,9 @@ export default function LandingPage() {
                     );
                   })}
                 </AnimateOnScroll>
+              );
 
-                {/* Middle: step illustration */}
+              const frame = (
                 <AnimateOnScroll
                   className="shrink-0"
                   variant="scale-in"
@@ -845,8 +827,9 @@ export default function LandingPage() {
                     />
                   </div>
                 </AnimateOnScroll>
+              );
 
-                {/* Right: reactive text */}
+              const text = (
                 <div className="flex-1 flex flex-col gap-6">
                   <p className="font-display text-[7rem] font-extrabold text-primary leading-none">
                     {active.num}
@@ -858,6 +841,32 @@ export default function LandingPage() {
                     {active.description}
                   </p>
                 </div>
+              );
+
+              return (
+                <div className="flex items-center gap-12">
+                  {mirrored ? (
+                    <>
+                      {text}
+                      {frame}
+                      {stepList}
+                    </>
+                  ) : (
+                    <>
+                      {stepList}
+                      {frame}
+                      {text}
+                    </>
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <div className="flex flex-col">
+                {renderInstance(selectedStep, setSelectedStep, false)}
+                <div className="h-px bg-border/60 my-12" />
+                {renderInstance(selectedStep2, setSelectedStep2, true)}
               </div>
             );
           })()}
@@ -935,39 +944,161 @@ export default function LandingPage() {
         </section>
 
         {/* ── Never gets repetitive ─────────────────────────── */}
-        <section className="px-4 py-16 w-full border-t border-border/60">
-          <AnimateOnScroll className="flex flex-col gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Crosshair className="h-6 w-6 text-primary" />
+        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
+          <div className="flex items-center justify-between gap-16">
+            {/* Phone mockup: daily challenges — LEFT */}
+            <AnimateOnScroll
+              className="shrink-0"
+              variant="scale-in"
+              delay={100}
+            >
+              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                <div className="bg-foreground/5 flex justify-center py-2.5">
+                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                </div>
+                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                      Today's Challenges
+                    </p>
+                    <p className="text-xs text-muted-foreground">Aug 12</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-orange-100 dark:bg-orange-900/30 p-3 flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+                        Color
+                      </span>
+                      <p className="font-bold text-sm">Something Red</p>
+                    </div>
+                    <div className="rounded-xl bg-sky-100 dark:bg-sky-900/30 p-3 flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 uppercase tracking-widest">
+                        Shape
+                      </span>
+                      <p className="font-bold text-sm">Perfect Circle</p>
+                    </div>
+                    <div className="rounded-xl bg-violet-100 dark:bg-violet-900/30 p-3 flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-widest">
+                        Theme
+                      </span>
+                      <p className="font-bold text-sm">Morning Light</p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-100 dark:bg-emerald-900/30 p-3 flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                        Object
+                      </span>
+                      <p className="font-bold text-sm">Found Art</p>
+                    </div>
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground mt-1">
+                    Refreshes tomorrow at midnight
+                  </p>
+                </div>
+                <div className="bg-background flex justify-center py-2">
+                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                </div>
               </div>
-              <h2 className="font-bold text-3xl leading-tight">
+            </AnimateOnScroll>
+
+            {/* Text — RIGHT */}
+            <AnimateOnScroll
+              className="flex flex-col gap-4 max-w-2xl shrink-0"
+              variant="scale-in"
+            >
+              <h2 className="font-bold text-7xl leading-tight">
                 Never gets repetitive
               </h2>
-            </div>
-            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
-              Four fresh challenges drop every morning — a new color, shape,
-              theme, and object. No two days look the same.
-            </p>
-          </AnimateOnScroll>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                Four fresh challenges drop every morning — a new color, shape,
+                theme, and object. No two days look the same.
+              </p>
+            </AnimateOnScroll>
+          </div>
         </section>
 
         {/* ── Explore places ───────────────────────────────── */}
-        <section className="px-4 py-16 w-full border-t border-border/60">
-          <AnimateOnScroll className="flex flex-col gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                <Compass className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <h2 className="font-bold text-3xl leading-tight">
+        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
+          <div className="flex items-center justify-between gap-16">
+            {/* Text — LEFT */}
+            <AnimateOnScroll
+              className="flex flex-col gap-4 max-w-2xl shrink-0"
+              variant="scale-in"
+            >
+              <h2 className="font-bold text-7xl leading-tight">
                 Explore places you've never gone to
               </h2>
-            </div>
-            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
-              A topic pulls you down streets you'd normally walk past. You'll be
-              surprised how much your own neighbourhood has been hiding.
-            </p>
-          </AnimateOnScroll>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                A topic pulls you down streets you'd normally walk past. You'll
+                be surprised how much your own neighbourhood has been hiding.
+              </p>
+            </AnimateOnScroll>
+
+            {/* Phone mockup: discovery map — RIGHT */}
+            <AnimateOnScroll
+              className="shrink-0"
+              variant="scale-in"
+              delay={100}
+            >
+              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                <div className="bg-foreground/5 flex justify-center py-2.5">
+                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                </div>
+                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    New Discoveries
+                  </p>
+                  {/* Map placeholder */}
+                  <div className="relative rounded-xl bg-emerald-50 dark:bg-emerald-900/20 h-36 overflow-hidden border border-emerald-200 dark:border-emerald-800">
+                    <div
+                      className="absolute inset-0 opacity-20"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(0deg,transparent,transparent 20px,currentColor 20px,currentColor 21px),repeating-linear-gradient(90deg,transparent,transparent 20px,currentColor 20px,currentColor 21px)",
+                      }}
+                    />
+                    <div className="absolute top-4 left-8 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/30" />
+                    <div className="absolute top-10 right-12 w-3 h-3 rounded-full bg-primary ring-4 ring-primary/30" />
+                    <div className="absolute bottom-6 left-16 w-3 h-3 rounded-full bg-sky-500 ring-4 ring-sky-500/30" />
+                    <div className="absolute bottom-4 right-6 w-3 h-3 rounded-full bg-violet-500 ring-4 ring-violet-500/30" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                      <Compass className="h-8 w-8 text-emerald-600 dark:text-emerald-400 opacity-30" />
+                    </div>
+                  </div>
+                  {/* Place list */}
+                  {[
+                    {
+                      name: "Oak Lane",
+                      dist: "0.3km",
+                      color: "bg-emerald-500",
+                    },
+                    {
+                      name: "Sunken Garden",
+                      dist: "1.2km",
+                      color: "bg-primary",
+                    },
+                    {
+                      name: "The Old Mill St",
+                      dist: "2.1km",
+                      color: "bg-sky-500",
+                    },
+                  ].map(({ name, dist, color }) => (
+                    <div
+                      key={name}
+                      className="flex items-center gap-3 py-1.5 border-b border-border/50 last:border-0"
+                    >
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${color}`}
+                      />
+                      <p className="text-sm font-semibold flex-1">{name}</p>
+                      <p className="text-xs text-muted-foreground">{dist}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-background flex justify-center py-2">
+                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                </div>
+              </div>
+            </AnimateOnScroll>
+          </div>
         </section>
 
         {/* ── Get Started CTA ──────────────────────────────── */}

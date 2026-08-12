@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CalendarDays, Camera } from "lucide-react";
+import { ArrowLeft, CalendarDays, Camera, Check } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -26,15 +26,67 @@ type Submission = {
   tw_reactions: Reaction[];
 };
 
+const CATEGORY_STYLE: Record<
+  Category,
+  {
+    emoji: string;
+    icon: string;
+    wash: string;
+    ring: string;
+    dot: string;
+    badge: string;
+  }
+> = {
+  Color: {
+    emoji: "🎨",
+    icon: "bg-orange-100 dark:bg-orange-900/40",
+    wash: "bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800",
+    ring: "ring-orange-300 dark:ring-orange-700",
+    dot: "bg-orange-400 dark:bg-orange-500",
+    badge: "text-orange-600 dark:text-orange-400",
+  },
+  Shape: {
+    emoji: "🔷",
+    icon: "bg-sky-100 dark:bg-sky-900/40",
+    wash: "bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800",
+    ring: "ring-sky-300 dark:ring-sky-700",
+    dot: "bg-sky-400 dark:bg-sky-500",
+    badge: "text-sky-600 dark:text-sky-400",
+  },
+  Theme: {
+    emoji: "✨",
+    icon: "bg-violet-100 dark:bg-violet-900/40",
+    wash: "bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-800",
+    ring: "ring-violet-300 dark:ring-violet-700",
+    dot: "bg-violet-400 dark:bg-violet-500",
+    badge: "text-violet-600 dark:text-violet-400",
+  },
+  Object: {
+    emoji: "📍",
+    icon: "bg-emerald-100 dark:bg-emerald-900/40",
+    wash: "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800",
+    ring: "ring-emerald-300 dark:ring-emerald-700",
+    dot: "bg-emerald-400 dark:bg-emerald-500",
+    badge: "text-emerald-600 dark:text-emerald-400",
+  },
+};
+
+// kept for feed badges
 const CATEGORY_COLORS: Record<Category, string> = {
   Color:
     "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  Shape:
-    "bg-sky-100    text-sky-700    dark:bg-sky-900/30    dark:text-sky-300",
+  Shape: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
   Theme:
     "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
   Object:
     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+};
+
+const CATEGORY_EMOJI: Record<Category, string> = {
+  Color: "🎨",
+  Shape: "🔷",
+  Theme: "✨",
+  Object: "📍",
 };
 
 const STAGGER = [
@@ -198,47 +250,70 @@ export default function WalkPage() {
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
           Today&apos;s Topics
         </h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          {topics.map((t, i) => (
-            <button
-              key={t.category}
-              type="button"
-              onClick={() =>
-                setSelectedTopic(selectedTopic?.label === t.label ? null : t)
-              }
-              className={cn(
-                "animate-scale-in rounded-xl border-2 p-3.5 text-left transition-all duration-200",
-                STAGGER[i],
-                selectedTopic?.label === t.label
-                  ? "border-primary bg-primary/8 shadow-sm scale-[1.02]"
-                  : "border-border hover:border-primary/40 hover:bg-muted/40 hover:-translate-y-px active:translate-y-0 active:scale-[0.98]",
-              )}
-            >
-              <span
+        <div className="flex flex-col gap-2">
+          {topics.map((t, i) => {
+            const s = CATEGORY_STYLE[t.category];
+            const isSelected = selectedTopic?.label === t.label;
+            return (
+              <button
+                key={t.category}
+                type="button"
+                onClick={() => setSelectedTopic(isSelected ? null : t)}
                 className={cn(
-                  "text-xs font-semibold rounded-full px-2 py-0.5",
-                  CATEGORY_COLORS[t.category],
+                  "animate-scale-in w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-200 flex items-center gap-4 active:scale-[0.985]",
+                  STAGGER[i],
+                  isSelected
+                    ? cn("shadow-sm", s.wash)
+                    : "border-border bg-card hover:bg-muted/50 hover:-translate-y-px",
                 )}
               >
-                {t.category}
-              </span>
-              <p className="mt-2 font-semibold text-sm leading-tight">
-                {t.label}
-              </p>
-            </button>
-          ))}
+                {/* Category icon */}
+                <div
+                  className={cn(
+                    "h-11 w-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0",
+                    s.icon,
+                  )}
+                >
+                  {s.emoji}
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "text-[11px] font-semibold uppercase tracking-widest",
+                      s.badge,
+                    )}
+                  >
+                    {t.category}
+                  </p>
+                  <p className="font-semibold text-[15px] leading-snug mt-0.5 text-foreground">
+                    {t.label}
+                  </p>
+                </div>
+
+                {/* Selection ring */}
+                <div
+                  className={cn(
+                    "h-6 w-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                    isSelected
+                      ? cn("border-transparent", s.dot)
+                      : "border-border",
+                  )}
+                >
+                  {isSelected && (
+                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Photo submit */}
       {selectedTopic && (
-        <div className="animate-scale-in rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-3">
-          <p className="text-sm">
-            Topic:{" "}
-            <span className="font-semibold text-primary">
-              {selectedTopic.label}
-            </span>
-          </p>
+        <div className="animate-scale-in space-y-3">
           <input
             ref={fileRef}
             type="file"
@@ -248,7 +323,7 @@ export default function WalkPage() {
             onChange={handleFileChange}
           />
           <Button
-            className="w-full h-12 font-semibold shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all"
+            className="w-full h-14 font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all rounded-2xl"
             onClick={() => {
               setUploadError(null);
               fileRef.current?.click();
@@ -291,7 +366,7 @@ export default function WalkPage() {
                         CATEGORY_COLORS[p.category],
                       )}
                     >
-                      {p.category}
+                      {CATEGORY_EMOJI[p.category]} {p.category}
                     </span>
                   </div>
                 </div>
@@ -376,6 +451,7 @@ export default function WalkPage() {
                           CATEGORY_COLORS[sub.topic_category as Category],
                         )}
                       >
+                        {CATEGORY_EMOJI[sub.topic_category as Category]}{" "}
                         {sub.topic_category}
                       </span>
                     </div>
