@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Camera, MapPin, Trophy } from "lucide-react";
+import { ArrowLeft, Camera, MapPin, TriangleAlert, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -20,10 +20,11 @@ import { imageExt, validateImage } from "~/lib/upload";
 import { cn } from "~/lib/utils";
 
 const CAPTURE_RADIUS = 100; // meters
-const TILE_WALK_METERS = 200; // meters to unlock one tile by walking
+const TILE_WALK_METERS = 300; // meters to unlock one tile by walking
 const AUTO_TILE_MS = 5 * 60 * 1000; // one auto-tile every 5 minutes
-const TOTAL_TILES = 16;
-const MIN_TILES_CAPTURE = 4; // must reveal at least 4/16 tiles before capturing
+const TOTAL_TILES = 9; // 3×3 grid
+const MIN_TILES_CAPTURE = 3; // must reveal at least 3/9 tiles before capturing
+const MILES_TO_METERS = 1609.34;
 
 type Mascot = {
   id: string;
@@ -37,6 +38,9 @@ type Mascot = {
   finder_user_id: string | null;
   finder_name: string | null;
   finder_photo_path: string | null;
+  radius_miles: number | null;
+  center_lat: number | null;
+  center_lng: number | null;
 };
 
 type LeaderRow = {
@@ -76,6 +80,10 @@ function survivalStr(ms: number): string {
   return `${s}s`;
 }
 
+function metersToMiles(m: number): string {
+  return `${(m / MILES_TO_METERS).toFixed(2)} mi`;
+}
+
 function makeTileOrder(seed: string): number[] {
   const tiles = Array.from({ length: TOTAL_TILES }, (_, i) => i);
   let h = 5381;
@@ -92,6 +100,9 @@ function makeTileOrder(seed: string): number[] {
 
 const progressKey = (mascotId: string, userId: string) =>
   `tw_tile_${mascotId}_${userId}`;
+
+const hintKey = (mascotId: string, userId: string) =>
+  `tw_hints_${mascotId}_${userId}`;
 
 function loadProgress(mascotId: string, userId: string): TileProgress {
   try {
@@ -112,6 +123,27 @@ function saveProgress(mascotId: string, userId: string, p: TileProgress) {
   } catch {}
 }
 
+function loadHintData(
+  mascotId: string,
+  userId: string,
+): { hints: string[]; fetchedUpTo: number } {
+  try {
+    const raw = localStorage.getItem(hintKey(mascotId, userId));
+    if (raw) return JSON.parse(raw) as { hints: string[]; fetchedUpTo: number };
+  } catch {}
+  return { hints: [], fetchedUpTo: 0 };
+}
+
+function saveHintData(
+  mascotId: string,
+  userId: string,
+  data: { hints: string[]; fetchedUpTo: number },
+) {
+  try {
+    localStorage.setItem(hintKey(mascotId, userId), JSON.stringify(data));
+  } catch {}
+}
+
 // ── TileOverlay component ─────────────────────────────────────────────────────
 
 function TileOverlay({
@@ -124,14 +156,16 @@ function TileOverlay({
   const order = makeTileOrder(mascotId);
   const revealedSet = new Set(order.slice(0, revealed));
   return (
-    <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-px bg-secondary/30 pointer-events-none">
+    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-0.5 bg-secondary/20 pointer-events-none">
       {order.map((tileIdx) => (
         <div
           key={tileIdx}
-          className={cn(
-            "transition-opacity duration-700 bg-secondary/80",
-            revealedSet.has(tileIdx) ? "opacity-0" : "opacity-100",
-          )}
+          style={{
+            transition: "opacity 0.6s ease, transform 0.6s ease",
+            opacity: revealedSet.has(tileIdx) ? 0 : 1,
+            transform: revealedSet.has(tileIdx) ? "scale(0.9)" : "scale(1)",
+          }}
+          className="bg-secondary/85"
         />
       ))}
     </div>
@@ -148,6 +182,7 @@ export default function SeekPage() {
   const prevPosRef = useRef<Pos | null>(null);
   const firstFetchRef = useRef(true);
   const knownCapturedRef = useRef<Set<string>>(new Set());
+  const fetchedHintTilesRef = useRef<Record<string, number>>({});
 
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -156,7 +191,6 @@ export default function SeekPage() {
   const [myPos, setMyPos] = useState<Pos | null>(null);
   const [posError, setPosError] = useState<string | null>(null);
   const [hiding, setHiding] = useState(false);
-  const [hidePos, setHidePos] = useState<Pos | null>(null);
   const [captureTarget, setCaptureTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
@@ -164,6 +198,16 @@ export default function SeekPage() {
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [soloSpawn, setSoloSpawn] = useState<Pos | null>(null);
   const [soloCaptured, setSoloCaptured] = useState(false);
+
+  // hide flow state
+  const [hideStep, setHideStep] = useState<"pickRadius" | "walking" | null>(
+    null,
+  );
+  const [hideCenter, setHideCenter] = useState<Pos | null>(null);
+  const [hideRadius, setHideRadius] = useState<5 | 10 | null>(null);
+
+  // AI hint state
+  const [hints, setHints] = useState<Record<string, string[]>>({});
 
   // ── mount ──────────────────────────────────────────────────────────────────
 
@@ -281,7 +325,7 @@ export default function SeekPage() {
     return () => clearInterval(interval);
   }, [identity]);
 
-  // ── load saved tile progress when mascots first arrive ────────────────────
+  // ── load saved tile progress + hints when mascots first arrive ────────────
 
   useEffect(() => {
     if (!identity || mascots.length === 0) return;
@@ -298,10 +342,81 @@ export default function SeekPage() {
           saveProgress(m.id, identity.userId, saved);
         }
         next[m.id] = saved;
+        // initialise hint tracking so we don't re-fetch on reload
+        if (!(m.id in fetchedHintTilesRef.current)) {
+          const { fetchedUpTo } = loadHintData(m.id, identity.userId);
+          fetchedHintTilesRef.current[m.id] = fetchedUpTo;
+        }
+      }
+      return next;
+    });
+    // restore saved hints into state
+    setHints((prev) => {
+      const next = { ...prev };
+      for (const m of mascots.filter(
+        (m) => !m.found_at && m.hider_user_id !== identity.userId,
+      )) {
+        if (next[m.id]) continue;
+        const { hints: saved } = loadHintData(m.id, identity.userId);
+        if (saved.length > 0) next[m.id] = saved;
       }
       return next;
     });
   }, [mascots, identity]);
+
+  // ── fetch AI hint whenever new tiles are revealed ─────────────────────────
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchHintForTile stable within render
+  useEffect(() => {
+    if (!identity) return;
+    for (const m of mascotsRef.current) {
+      if (m.found_at || m.hider_user_id === identity.userId) continue;
+      const prog = progress[m.id];
+      if (!prog) continue;
+      const fetchedUpTo = fetchedHintTilesRef.current[m.id] ?? 0;
+      if (prog.revealed > fetchedUpTo) {
+        for (let tile = fetchedUpTo + 1; tile <= prog.revealed; tile++) {
+          void fetchHintForTile(m, tile);
+        }
+        fetchedHintTilesRef.current[m.id] = prog.revealed;
+      }
+    }
+  }, [progress, identity]);
+
+  async function fetchHintForTile(mascot: Mascot, tileNumber: number) {
+    if (!identity) return;
+    const photoUrl = supabase.storage
+      .from("game-photos")
+      .getPublicUrl(mascot.photo_path).data.publicUrl;
+    try {
+      const res = await fetch("/api/mascot-hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photoUrl,
+          tileNumber,
+          totalTiles: TOTAL_TILES,
+        }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { hint?: string };
+      const hint = data.hint?.trim();
+      if (!hint) return;
+      const userId = identity.userId;
+      setHints((prev) => {
+        const existing = prev[mascot.id] ?? [];
+        const updated = [...existing, hint];
+        const { fetchedUpTo: prevFetched } = loadHintData(mascot.id, userId);
+        saveHintData(mascot.id, userId, {
+          hints: updated,
+          fetchedUpTo: Math.max(prevFetched, tileNumber),
+        });
+        return { ...prev, [mascot.id]: updated };
+      });
+    } catch {
+      // silent fail — hints are non-critical
+    }
+  }
 
   // ── data fetching ─────────────────────────────────────────────────────────
 
@@ -314,7 +429,6 @@ export default function SeekPage() {
     if (data) {
       const rows = data as Mascot[];
       mascotsRef.current = rows;
-      // Alert on new captures by others
       if (!firstFetchRef.current) {
         for (const m of rows) {
           if (
@@ -377,30 +491,63 @@ export default function SeekPage() {
     );
   }
 
-  // ── hide mascot ───────────────────────────────────────────────────────────
+  // ── hide mascot flow ──────────────────────────────────────────────────────
 
   function startHide() {
     if (!myPos) {
       setPosError("Waiting for GPS — try again in a moment");
       return;
     }
-    setHidePos(myPos);
+    setHideStep("pickRadius");
+  }
+
+  function confirmRadius(miles: 5 | 10) {
+    if (!myPos) return;
+    setHideCenter(myPos);
+    setHideRadius(miles);
+    setHideStep("walking");
+  }
+
+  function takeHidePhoto() {
     setHiding(true);
     hideFileRef.current?.click();
   }
 
+  function cancelHide() {
+    setHideStep(null);
+    setHideCenter(null);
+    setHideRadius(null);
+    setHiding(false);
+    if (hideFileRef.current) hideFileRef.current.value = "";
+  }
+
   async function handleHidePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !hidePos || !identity) {
-      setHiding(false);
+    if (!file || !hideCenter || !identity) {
+      cancelHide();
       return;
     }
     const err = validateImage(file);
     if (err) {
       setPosError(err);
-      setHiding(false);
-      if (hideFileRef.current) hideFileRef.current.value = "";
+      cancelHide();
       return;
+    }
+    // validate within radius
+    if (myPos && hideRadius) {
+      const dist = haversineDistance(
+        hideCenter.lat,
+        hideCenter.lng,
+        myPos.lat,
+        myPos.lng,
+      );
+      if (dist > hideRadius * MILES_TO_METERS) {
+        setPosError(
+          `You're outside the ${hideRadius}-mile play area — get closer to the center.`,
+        );
+        cancelHide();
+        return;
+      }
     }
     const ext = imageExt(file);
     const path = `${identity.groupId}/mascot-${Date.now()}.${ext}`;
@@ -408,19 +555,23 @@ export default function SeekPage() {
       .from("game-photos")
       .upload(path, file, { upsert: false });
     if (!uploadErr) {
+      const lat = myPos?.lat ?? hideCenter.lat;
+      const lng = myPos?.lng ?? hideCenter.lng;
       await supabase.from("tw_mascots").insert({
         group_id: identity.groupId,
         hider_user_id: identity.userId,
         hider_name: identity.displayName,
         photo_path: path,
-        lat: hidePos.lat,
-        lng: hidePos.lng,
+        lat,
+        lng,
+        radius_miles: hideRadius,
+        center_lat: hideCenter.lat,
+        center_lng: hideCenter.lng,
       });
       fetchMascots(identity);
+      showAlert(`📍 Mascot hidden! Friends search within ${hideRadius} miles.`);
     }
-    setHiding(false);
-    setHidePos(null);
-    if (hideFileRef.current) hideFileRef.current.value = "";
+    cancelHide();
   }
 
   // ── capture mascot via photo ──────────────────────────────────────────────
@@ -466,10 +617,19 @@ export default function SeekPage() {
     if (captureFileRef.current) captureFileRef.current.value = "";
   }
 
-  // ── render: guest solo gate ───────────────────────────────────────────────
+  // ── derived values ────────────────────────────────────────────────────────
 
   const active = mascots.filter((m) => !m.found_at);
   const found = mascots.filter((m) => m.found_at);
+
+  const walkDist =
+    hideCenter && myPos
+      ? haversineDistance(myPos.lat, myPos.lng, hideCenter.lat, hideCenter.lng)
+      : 0;
+  const walkMaxMeters = (hideRadius ?? 5) * MILES_TO_METERS;
+  const walkPct = Math.min(1, walkDist / walkMaxMeters);
+  const walkRemaining = Math.max(0, walkMaxMeters - walkDist);
+  const walkOutOfBounds = walkDist > walkMaxMeters;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-12 space-y-4">
@@ -478,6 +638,59 @@ export default function SeekPage() {
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-scale-in">
           <div className="rounded-2xl bg-foreground text-background px-5 py-3 shadow-lg text-sm font-semibold whitespace-nowrap">
             {alertMsg}
+          </div>
+        </div>
+      )}
+
+      {/* Radius picker bottom sheet */}
+      {hideStep === "pickRadius" && (
+        <div className="fixed inset-0 z-50">
+          {/* Backdrop: a real <button> sibling so it isn't nested inside the dialog */}
+          <button
+            type="button"
+            aria-label="Close radius picker"
+            className="absolute inset-0 w-full bg-black/50 border-0 cursor-default"
+            onClick={() => setHideStep(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose play radius"
+            className="absolute bottom-0 inset-x-0 bg-background rounded-t-3xl p-6 max-w-lg mx-auto space-y-5"
+          >
+            <div className="w-10 h-1.5 bg-border rounded-full mx-auto" />
+            <div className="text-center space-y-1">
+              <h2 className="text-lg font-bold">Choose play radius</h2>
+              <p className="text-sm text-muted-foreground">
+                Friends must find your mascot within this distance from your
+                starting point.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {([5, 10] as const).map((miles) => (
+                <button
+                  key={miles}
+                  type="button"
+                  onClick={() => confirmRadius(miles)}
+                  className="rounded-2xl border-2 border-border hover:border-primary bg-muted/30 hover:bg-primary/5 p-5 flex flex-col items-center gap-0.5 transition-colors"
+                >
+                  <span className="text-4xl font-black text-primary">
+                    {miles}
+                  </span>
+                  <span className="text-base font-semibold">miles</span>
+                  <span className="text-xs text-muted-foreground">
+                    {miles === 5 ? "≈ 8 km" : "≈ 16 km"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setHideStep(null)}
+            >
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -494,28 +707,46 @@ export default function SeekPage() {
           {myPos ? (
             <p className="text-xs text-primary">📍 GPS active</p>
           ) : (
-            <p className="text-xs text-muted-foreground">
-              {posError ?? "Getting location…"}
-            </p>
+            !posError && (
+              <p className="text-xs text-muted-foreground">Getting location…</p>
+            )
           )}
         </div>
       </div>
 
+      {/* GPS error alert */}
+      {posError && (
+        <div
+          role="alert"
+          className="flex items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 px-4 py-3.5"
+        >
+          <div className="shrink-0 w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center">
+            <TriangleAlert className="h-4 w-4 text-destructive" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground leading-none mb-0.5">
+              Location access needed
+            </p>
+            <p className="text-xs text-muted-foreground truncate">{posError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex rounded-xl bg-muted p-1 gap-1">
+      <div className="flex gap-2">
         {(["hunt", "solo", "leaderboard"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              "flex-1 rounded-lg py-1.5 text-xs font-semibold transition-colors capitalize",
+              "flex-1 rounded-xl py-2 text-xs font-bold transition-all duration-200",
               tab === t
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground",
+                ? "bg-foreground text-background hover:scale-[1.04] hover:shadow-lg"
+                : "border border-border/50 text-foreground/40 hover:border-foreground/40 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm",
             )}
           >
-            {t === "hunt" ? "🎯 Hunt" : t === "solo" ? "🗺️ Solo" : "🏆 Board"}
+            {t === "hunt" ? "Hunt" : t === "solo" ? "Solo" : "Board"}
           </button>
         ))}
       </div>
@@ -559,15 +790,86 @@ export default function SeekPage() {
                 className="hidden"
                 onChange={handleCapturePhoto}
               />
-              <Button
-                size="lg"
-                className="w-full h-14 text-base"
-                onClick={startHide}
-                disabled={hiding}
-              >
-                <Camera className="h-5 w-5 mr-2" />
-                {hiding ? "Saving location…" : "Hide Mascot Here"}
-              </Button>
+
+              {/* Walking-to-hide panel */}
+              {hideStep === "walking" && hideCenter && hideRadius ? (
+                <div
+                  className={cn(
+                    "rounded-2xl border-2 p-5 space-y-4 transition-colors",
+                    walkOutOfBounds
+                      ? "border-destructive bg-destructive/5"
+                      : "border-primary bg-primary/5",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🚶</span>
+                    <div>
+                      <p className="font-bold">Walk to your hiding spot</p>
+                      <p className="text-xs text-muted-foreground">
+                        {hideRadius}-mile play radius from your start
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {metersToMiles(walkDist)} from start
+                      </span>
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          walkOutOfBounds
+                            ? "text-destructive"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {walkOutOfBounds
+                          ? "⚠️ Out of bounds!"
+                          : `${metersToMiles(walkRemaining)} remaining`}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          walkOutOfBounds ? "bg-destructive" : "bg-primary",
+                        )}
+                        style={{ width: `${walkPct * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={cancelHide}
+                      disabled={hiding}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={takeHidePhoto}
+                      disabled={hiding || walkOutOfBounds}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      {hiding ? "Saving…" : "Take Photo Here"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full h-14 rounded-2xl bg-foreground text-background text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+                  onClick={startHide}
+                  disabled={hideStep === "pickRadius"}
+                >
+                  <Camera className="h-4 w-4" />
+                  Hide Mascot Here
+                </button>
+              )}
 
               {/* Active mascots */}
               <div className="space-y-2">
@@ -611,6 +913,7 @@ export default function SeekPage() {
                       0,
                       TILE_WALK_METERS - prog.metersSinceTile,
                     );
+                    const mascotHints = hints[m.id] ?? [];
 
                     return (
                       <div
@@ -645,6 +948,12 @@ export default function SeekPage() {
                           {isOwn && (
                             <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
                               Your mascot
+                            </div>
+                          )}
+                          {/* Radius badge */}
+                          {m.radius_miles && (
+                            <div className="absolute top-2 left-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
+                              📍 {m.radius_miles} mi radius
                             </div>
                           )}
                         </div>
@@ -722,6 +1031,28 @@ export default function SeekPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* AI hints */}
+                        {!isOwn && mascotHints.length > 0 && (
+                          <div className="border-t px-3 pb-3 pt-2.5 space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                              💡 Clues
+                            </p>
+                            <div className="space-y-1">
+                              {mascotHints.map((hint, hintIdx) => (
+                                <div
+                                  key={`${m.id}-${hint}`}
+                                  className="text-xs bg-muted/60 rounded-lg px-3 py-2 text-foreground/80 leading-relaxed"
+                                >
+                                  <span className="font-mono text-primary/70 mr-1.5 text-[10px]">
+                                    #{hintIdx + 1}
+                                  </span>
+                                  {hint}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -777,28 +1108,46 @@ export default function SeekPage() {
       {tab === "solo" && (
         <div className="space-y-4">
           {/* Daily spawn card */}
-          <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📅</span>
-              <div>
-                <p className="font-bold text-sm">Today's Mascot</p>
-                <p className="text-xs text-muted-foreground">
-                  Resets at midnight · Within 5 miles
-                </p>
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <MapPin className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Today's Mascot</p>
+                  <p className="text-xs text-muted-foreground">
+                    Within 5 miles
+                  </p>
+                </div>
               </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                Resets midnight
+              </span>
             </div>
 
+            {/* Loading */}
             {!myPos && !posError && (
-              <p className="text-sm text-muted-foreground animate-pulse">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-pulse" />
                 Getting your location…
-              </p>
+              </div>
             )}
-            {posError && <p className="text-sm text-destructive">{posError}</p>}
 
+            {/* Inline error */}
+            {posError && (
+              <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2.5">
+                <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                <p className="text-xs text-muted-foreground">{posError}</p>
+              </div>
+            )}
+
+            {/* Distance + direction */}
             {myPos && soloSpawn && !soloCaptured && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3.5">
                 <div>
-                  <p className="text-3xl font-black text-primary tabular-nums">
+                  <p className="text-3xl font-black tabular-nums">
                     {formatDistance(
                       haversineDistance(
                         myPos.lat,
@@ -828,6 +1177,7 @@ export default function SeekPage() {
               </div>
             )}
 
+            {/* Capture button */}
             {myPos &&
               soloSpawn &&
               haversineDistance(
@@ -837,17 +1187,19 @@ export default function SeekPage() {
                 soloSpawn.lng,
               ) <= CAPTURE_RADIUS &&
               !soloCaptured && (
-                <Button
-                  className="w-full"
+                <button
+                  type="button"
+                  className="w-full h-12 rounded-2xl bg-foreground text-background text-sm font-bold transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
                   onClick={() => setSoloCaptured(true)}
                 >
-                  🎯 You're here — Capture!
-                </Button>
+                  You're here — Capture!
+                </button>
               )}
 
+            {/* Captured state */}
             {soloCaptured && (
-              <div className="text-center space-y-1 py-2">
-                <p className="text-2xl">🎉</p>
+              <div className="text-center space-y-1.5 py-3">
+                <p className="text-3xl">🎉</p>
                 <p className="font-bold">Captured!</p>
                 <p className="text-xs text-muted-foreground">
                   Come back tomorrow for a new spawn.

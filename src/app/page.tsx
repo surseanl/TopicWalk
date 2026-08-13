@@ -24,11 +24,9 @@ export default function LandingPage() {
   const whyMarkerRef = useRef<HTMLDivElement>(null);
   const modesMarkerRef = useRef<HTMLDivElement>(null);
   const formMarkerRef = useRef<HTMLDivElement>(null);
-  const sectionsWrapperRef = useRef<HTMLDivElement>(null);
   const [visitedSections, setVisitedSections] = useState<Set<number>>(
     new Set(),
   );
-  const [trailPath, setTrailPath] = useState("");
   const [selectedStep, setSelectedStep] = useState(0);
   const [selectedStep2, setSelectedStep2] = useState(0);
 
@@ -59,40 +57,6 @@ export default function LandingPage() {
       observers.forEach((o) => {
         o.disconnect();
       });
-  }, []);
-
-  useEffect(() => {
-    const calcPath = () => {
-      const wrapper = sectionsWrapperRef.current;
-      const els = [
-        whyMarkerRef.current,
-        modesMarkerRef.current,
-        formMarkerRef.current,
-      ];
-      if (!wrapper || els.some((e) => !e)) return;
-      const wRect = wrapper.getBoundingClientRect();
-      const pts = els.map((el) => {
-        const r = (el as HTMLDivElement).getBoundingClientRect();
-        return {
-          x: r.left - wRect.left + r.width / 2,
-          y: r.top - wRect.top + r.height / 2,
-        };
-      });
-      const [p1, p2, p3] = pts;
-      const off = 40;
-      setTrailPath(
-        `M ${p1.x},${p1.y} ` +
-          `C ${p1.x + off},${(p1.y + p2.y) / 2} ${p2.x - off},${(p1.y + p2.y) / 2} ${p2.x},${p2.y} ` +
-          `C ${p2.x + off},${(p2.y + p3.y) / 2} ${p3.x - off},${(p2.y + p3.y) / 2} ${p3.x},${p3.y}`,
-      );
-    };
-    const timer = setTimeout(calcPath, 50);
-    const ro = new ResizeObserver(calcPath);
-    if (sectionsWrapperRef.current) ro.observe(sectionsWrapperRef.current);
-    return () => {
-      clearTimeout(timer);
-      ro.disconnect();
-    };
   }, []);
 
   return (
@@ -320,7 +284,7 @@ export default function LandingPage() {
         />
         {/* Left phone mockup */}
         <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <div className="bg-gray-950 rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
+          <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
             <div
               className="relative bg-background rounded-[2rem] overflow-hidden"
               style={{ height: "530px" }}
@@ -328,26 +292,28 @@ export default function LandingPage() {
               <div className="bg-foreground/5 flex justify-center py-3">
                 <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
               </div>
-              <div className="flex-1 bg-primary/[0.07] p-5 flex flex-col gap-5">
-                <div className="bg-card rounded-xl p-3.5 border border-border/60 shadow-sm">
+              <div className="flex-1 bg-secondary/[0.07] p-5 flex flex-col gap-5">
+                <div className="bg-secondary/20 rounded-xl p-3.5 border border-secondary/30">
                   <p className="text-xs text-muted-foreground font-medium">
                     Today's Topic
                   </p>
-                  <p className="text-lg font-bold mt-1">🔴 Red Things</p>
+                  <p className="text-lg font-bold mt-1 text-secondary">
+                    Red Things
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5 flex-1">
-                  <div className="bg-primary/20 rounded-xl flex items-center justify-center">
-                    <MapPin className="h-8 w-8 text-primary" />
+                  <div className="bg-secondary/20 rounded-xl flex items-center justify-center">
+                    <MapPin className="h-8 w-8 text-secondary" />
                   </div>
-                  <div className="bg-primary/10 rounded-xl" />
-                  <div className="bg-primary/10 rounded-xl" />
-                  <div className="bg-primary/20 rounded-xl flex items-center justify-center">
-                    <Compass className="h-8 w-8 text-primary/60" />
+                  <div className="bg-secondary/10 rounded-xl" />
+                  <div className="bg-secondary/10 rounded-xl" />
+                  <div className="bg-secondary/20 rounded-xl flex items-center justify-center">
+                    <Compass className="h-8 w-8 text-secondary/60" />
                   </div>
                 </div>
                 <div className="flex justify-center">
-                  <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-md">
-                    <Camera className="h-7 w-7 text-primary-foreground" />
+                  <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center shadow-md">
+                    <Camera className="h-7 w-7 text-secondary-foreground" />
                   </div>
                 </div>
               </div>
@@ -361,8 +327,25 @@ export default function LandingPage() {
             <h1 className="font-display text-[5.75rem] font-extrabold leading-[1.15] tracking-tight">
               <span className="block">Get a topic.</span>
               <span className="block">Take a walk.</span>
-              <span className="block underline decoration-wavy decoration-primary decoration-4 underline-offset-[6px]">
-                Explore.
+              <span className="block">
+                <span className="relative inline-block pb-3">
+                  Explore.
+                  <svg
+                    className="absolute bottom-0 left-0 w-full overflow-visible"
+                    height="10"
+                    viewBox="0 0 200 10"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0,5 C4.5,0 8,0 12.5,5 C17,10 20.5,10 25,5 C29.5,0 33,0 37.5,5 C42,10 45.5,10 50,5 C54.5,0 58,0 62.5,5 C67,10 70.5,10 75,5 C79.5,0 83,0 87.5,5 C92,10 95.5,10 100,5 C104.5,0 108,0 112.5,5 C117,10 120.5,10 125,5 C129.5,0 133,0 137.5,5 C142,10 145.5,10 150,5 C154.5,0 158,0 162.5,5 C167,10 170.5,10 175,5 C179.5,0 183,0 187.5,5 C192,10 195.5,10 200,5"
+                      fill="none"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      className="stroke-secondary"
+                    />
+                  </svg>
+                </span>
               </span>
             </h1>
             <p className="text-xl leading-relaxed text-foreground/80">
@@ -396,7 +379,7 @@ export default function LandingPage() {
 
         {/* Right phone mockup */}
         <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <div className="bg-gray-950 rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
+          <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
             <div
               className="relative bg-background rounded-[2rem] overflow-hidden"
               style={{ height: "530px" }}
@@ -439,29 +422,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Sections with connecting trail ───────────────── */}
-      <div
-        ref={sectionsWrapperRef}
-        className="relative max-w-5xl mx-auto w-full isolate"
-      >
-        {/* Trail SVG — winding path between section waypoints */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none -z-10"
-          aria-hidden="true"
-        >
-          {trailPath && (
-            <path
-              d={trailPath}
-              fill="none"
-              stroke="#FFBE59"
-              strokeWidth="2.5"
-              strokeDasharray="10 7"
-              strokeLinecap="round"
-              opacity="0.55"
-            />
-          )}
-        </svg>
-
+      {/* ── Sections ─────────────────────────────────────── */}
+      <div className="relative max-w-5xl mx-auto w-full isolate">
         {/* ── Modes callout ────────────────────────────────── */}
         <AnimateOnScroll className="px-5 pt-4 pb-10 w-full">
           <div className="flex items-center gap-3 mb-4">
@@ -619,13 +581,19 @@ export default function LandingPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex mx-4 mt-3 rounded-lg bg-muted p-0.5">
-                        <div className="flex-1 rounded-md py-1.5 text-center text-xs font-semibold bg-background shadow-sm">
-                          🎯 Seek
-                        </div>
-                        <div className="flex-1 rounded-md py-1.5 text-center text-xs font-medium text-muted-foreground">
-                          🏆 Score
-                        </div>
+                      <div className="flex gap-2 mx-4 mt-3">
+                        <button
+                          type="button"
+                          className="flex-1 rounded-xl py-2 text-[11px] font-bold bg-foreground text-background transition-all duration-200 hover:scale-[1.06] hover:shadow-lg"
+                        >
+                          Seek
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 rounded-xl py-2 text-[11px] font-medium text-foreground/40 border border-border/50 transition-all duration-200 hover:border-foreground/40 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm"
+                        >
+                          Score
+                        </button>
                       </div>
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
                         Active Mascots (1)
@@ -707,59 +675,454 @@ export default function LandingPage() {
           </AnimateOnScroll>
 
           {(() => {
-            const HOW_STEPS = [
+            const FREE_WALK_STEPS = [
               {
                 num: "1.",
-                title: "Pick a mode",
+                title: "Pick a topic",
                 description:
                   "Four fresh challenges drop every morning — a color, shape, theme, and object. Pick whichever one calls to you and head out.",
-                icon: Crosshair,
-                bg: "bg-sky-100 dark:bg-sky-900/30",
-                iconColor: "text-sky-500 dark:text-sky-400",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Free Walk</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pick a topic · Take a photo
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 p-4">
+                      <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-amber-400/80 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-full bg-orange-500" />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                          Color
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-sky-400/80 flex items-center justify-center">
+                          <div className="w-0 h-0 border-l-[9px] border-r-[9px] border-b-[15px] border-l-transparent border-r-transparent border-b-sky-700" />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
+                          Shape
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-violet-400/80 flex items-center justify-center">
+                          <span className="text-violet-800 font-black text-xl leading-none">
+                            +
+                          </span>
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+                          Theme
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-emerald-400/80 flex items-center justify-center">
+                          <MapPin className="h-5 w-5 text-emerald-800" />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                          Object
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mx-4 mb-4 rounded-xl bg-muted/50 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Tap a category to see today's challenge
+                      </p>
+                    </div>
+                  </div>
+                ),
               },
               {
                 num: "2.",
-                title: "Head outside & shoot",
+                title: "Lock in & head out",
                 description:
-                  "Open Free Walk, select your topic, and start exploring. When you spot something that fits, snap a photo right from the app.",
-                icon: Camera,
-                bg: "bg-orange-100 dark:bg-orange-900/30",
-                iconColor: "text-orange-500 dark:text-orange-400",
+                  "Select your topic, lock in the daily challenge, and go. Today's pick resets at midnight so every day is fresh.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Free Walk</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pick a topic · Take a photo
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 px-4 pt-3 pb-2 opacity-50">
+                      <div className="rounded-xl border-2 border-primary p-2 flex items-center gap-2 bg-primary/5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-400/80 flex items-center justify-center shrink-0">
+                          <div className="w-3 h-3 rounded-full bg-orange-500" />
+                        </div>
+                        <p className="text-[10px] font-bold text-orange-600">
+                          Color
+                        </p>
+                      </div>
+                      {(["Shape", "Theme", "Object"] as const).map((label) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-border p-2 flex items-center gap-2"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-muted shrink-0" />
+                          <p className="text-[10px] text-muted-foreground">
+                            {label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mx-4 mt-2 rounded-xl bg-card border border-border shadow-sm p-3 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+                        <div className="w-4 h-4 rounded-full bg-orange-500" />
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-orange-600 uppercase tracking-widest">
+                          Color
+                        </p>
+                        <p className="font-bold text-sm leading-tight">
+                          Goldenrod #CA8A04
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                      🔒 Today's pick — resets at midnight
+                    </p>
+                    <div className="px-4 mt-3 mb-4">
+                      <div className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Take / Upload Photo
+                      </div>
+                    </div>
+                  </div>
+                ),
               },
               {
                 num: "3.",
-                title: "Share to your feed",
+                title: "AI scores your shot",
                 description:
-                  "Your photo lands in a shared feed with your group. React to what friends found, compare perspectives, and see the neighbourhood through different eyes.",
-                icon: Users,
-                bg: "bg-violet-100 dark:bg-violet-900/30",
-                iconColor: "text-violet-500 dark:text-violet-400",
+                  "Submit your photo and AI instantly grades whether it matches the topic. Honest scoring keeps everyone on the same playing field.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="relative h-36 bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center overflow-hidden">
+                      <Camera className="h-14 w-14 text-amber-300 dark:text-amber-600" />
+                      <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                        Color · Goldenrod
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5 pt-4 pb-2">
+                      <div className="text-5xl font-extrabold text-primary leading-none">
+                        87
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        out of 100
+                      </p>
+                    </div>
+                    <div className="mx-4 mt-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+                      <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        ✓ Confident match!
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        The warm amber hue clearly matches Goldenrod. Great
+                        find!
+                      </p>
+                    </div>
+                    <div className="px-4 mt-3 mb-4">
+                      <div className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
+                        Share to feed →
+                      </div>
+                    </div>
+                  </div>
+                ),
               },
               {
                 num: "4.",
-                title: "Play Hide & Seek",
+                title: "Everyone sees your find",
                 description:
-                  "Drop your mascot anywhere on the map. Friends get a GPS ping and a photo clue — first one to find it wins the round.",
-                icon: MapPin,
-                bg: "bg-emerald-100 dark:bg-emerald-900/30",
-                iconColor: "text-emerald-500 dark:text-emerald-400",
+                  "Your photo lands in a shared feed. React to what friends found, compare perspectives, and see the same streets through different eyes.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-2 border-b border-border/40">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                        Today's Feed
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 p-4">
+                      {[
+                        {
+                          user: "Alex",
+                          topic: "Something Red",
+                          bg: "bg-red-100 dark:bg-red-900/20",
+                          reactions: [
+                            ["❤️", "2"],
+                            ["🔥", "1"],
+                          ],
+                        },
+                        {
+                          user: "Jordan",
+                          topic: "Perfect Circle",
+                          bg: "bg-sky-100 dark:bg-sky-900/20",
+                          reactions: [["😮", "3"]],
+                        },
+                        {
+                          user: "You",
+                          topic: "Goldenrod",
+                          bg: "bg-amber-100 dark:bg-amber-900/20",
+                          reactions: [
+                            ["🔥", "4"],
+                            ["❤️", "2"],
+                          ],
+                        },
+                      ].map(({ user, topic, bg, reactions }) => (
+                        <div
+                          key={user}
+                          className="rounded-xl border border-border overflow-hidden"
+                        >
+                          <div
+                            className={`${bg} h-14 flex items-center justify-center`}
+                          >
+                            <Camera className="h-5 w-5 text-muted-foreground/30" />
+                          </div>
+                          <div className="px-2.5 py-1.5 flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-semibold truncate">
+                              {user} · {topic}
+                            </p>
+                            <div className="flex gap-1 shrink-0">
+                              {reactions.map(([r, n]) => (
+                                <span
+                                  key={r}
+                                  className="text-[9px] bg-muted rounded-full px-1.5 py-0.5"
+                                >
+                                  {r}
+                                  {n}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ),
+              },
+            ];
+
+            const HUNT_STEPS = [
+              {
+                num: "1.",
+                title: "Pick a play radius",
+                description:
+                  "Before the round starts, your group agrees on a 5 or 10 mile play area. The hider must stay within that boundary when they drop the mascot.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Mascot Hunt</p>
+                      <p className="text-xs text-muted-foreground">
+                        📍 Setting up round
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 p-6 pb-3">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center mb-1">
+                        <MapPin className="h-8 w-8 text-primary" />
+                      </div>
+                      <p className="font-bold text-base text-center">
+                        Choose play radius
+                      </p>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Mascot must be hidden within this distance
+                      </p>
+                    </div>
+                    <div className="px-4 flex flex-col gap-2.5 mb-4">
+                      <div className="w-full h-14 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex flex-col items-center justify-center shadow-sm">
+                        <span>5 miles</span>
+                        <span className="text-[10px] font-normal opacity-80">
+                          Quick game · ~8km radius
+                        </span>
+                      </div>
+                      <div className="w-full h-14 rounded-xl border-2 border-border text-sm font-bold flex flex-col items-center justify-center">
+                        <span>10 miles</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">
+                          Epic hunt · ~16km radius
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                num: "2.",
+                title: "Walk to your hiding spot",
+                description:
+                  "Head anywhere inside the play area and snap a photo of something prominent nearby — a landmark, a sign, a view. That photo becomes the seekers' only visual clue.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Mascot Hunt</p>
+                      <p className="text-xs text-primary font-medium">
+                        Walking to hide spot…
+                      </p>
+                    </div>
+                    <div className="px-4 pt-4 flex flex-col gap-3">
+                      <div className="rounded-xl bg-muted/60 p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Distance from start
+                          </p>
+                          <p className="font-bold text-lg leading-tight">
+                            1.2 mi
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">
+                            Radius limit
+                          </p>
+                          <p className="font-bold text-lg leading-tight text-primary">
+                            5 mi
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full w-[24%] bg-primary rounded-full" />
+                      </div>
+                      <p className="text-xs text-center text-emerald-600 dark:text-emerald-400 font-medium">
+                        ✓ You're within the play area
+                      </p>
+                      <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-3 text-center text-xs text-emerald-700 dark:text-emerald-300">
+                        Walk to a good hiding spot and take your photo
+                      </div>
+                    </div>
+                    <div className="px-4 mt-3 mb-4">
+                      <div className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Take Photo Here
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                num: "3.",
+                title: "Tiles flip as they close in",
+                description:
+                  "9 tiles cover your hiding-spot photo. Each one flips open as a seeker walks closer — and AI drops a fresh clue every time a tile reveals.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Sean's mascot</p>
+                      <p className="text-xs text-primary">📍 320m away</p>
+                    </div>
+                    <div className="px-4 pt-3">
+                      <div className="relative rounded-xl overflow-hidden aspect-square w-full bg-amber-100 dark:bg-amber-900/20">
+                        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+                          {[
+                            { k: "r0", v: false },
+                            { k: "r1", v: false },
+                            { k: "r2", v: true },
+                            { k: "r3", v: false },
+                            { k: "r4", v: true },
+                            { k: "r5", v: true },
+                            { k: "r6", v: true },
+                            { k: "r7", v: false },
+                            { k: "r8", v: false },
+                          ].map(({ k, v }) => (
+                            <div
+                              key={k}
+                              className={cn(
+                                "border border-background/20 transition-all",
+                                v
+                                  ? "bg-transparent"
+                                  : "bg-gray-900/80 backdrop-blur-sm",
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <div className="absolute inset-0 flex items-center justify-center opacity-40">
+                          <Camera className="h-10 w-10 text-amber-600" />
+                        </div>
+                        <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                          4 / 9
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mx-4 mt-3 mb-4 rounded-xl bg-muted/60 p-3">
+                      <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-0.5">
+                        Clue #4
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        "The area has paved ground and open sky above —
+                        somewhere outdoors."
+                      </p>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                num: "4.",
+                title: "First to capture wins",
+                description:
+                  "Get close enough, tap Capture, and snap your own photo proving you found the spot. Points logged, round over — everyone sees the reveal.",
+                screen: (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">🎯 Seek</p>
+                      <p className="text-xs text-muted-foreground">
+                        Active mascots · 1
+                      </p>
+                    </div>
+                    <div className="mx-4 mt-3 rounded-xl border-2 border-primary overflow-hidden">
+                      <div className="relative">
+                        <div className="bg-amber-100 dark:bg-amber-900/20 h-24 flex items-center justify-center">
+                          <div className="grid grid-cols-3 grid-rows-3 absolute inset-0 opacity-80">
+                            {[
+                              { k: "c0", v: true },
+                              { k: "c1", v: true },
+                              { k: "c2", v: true },
+                              { k: "c3", v: true },
+                              { k: "c4", v: true },
+                              { k: "c5", v: true },
+                              { k: "c6", v: false },
+                              { k: "c7", v: true },
+                              { k: "c8", v: false },
+                            ].map(({ k, v }) => (
+                              <div
+                                key={k}
+                                className={cn(
+                                  "border border-background/20",
+                                  v ? "bg-transparent" : "bg-gray-900/75",
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <Camera className="h-8 w-8 text-amber-400/50 relative z-10" />
+                        </div>
+                        <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold px-2 py-0.5 rounded-full z-20">
+                          📍 38m away
+                        </div>
+                      </div>
+                      <div className="p-3 bg-background">
+                        <p className="font-semibold text-xs">Sean's mascot</p>
+                        <p className="text-[10px] text-muted-foreground mb-2">
+                          2m 14s ago · 7/9 tiles revealed
+                        </p>
+                        <div className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5">
+                          🎯 Capture!
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ),
               },
             ];
 
             const renderInstance = (
+              steps: typeof FREE_WALK_STEPS,
               step: number,
               setStep: (i: number) => void,
               mirrored: boolean,
             ) => {
-              const active = HOW_STEPS[step];
-              const ActiveIcon = active.icon;
+              const active = steps[step];
 
               const stepList = (
                 <AnimateOnScroll
                   className="shrink-0 flex flex-col"
                   variant="scale-in"
                 >
-                  {HOW_STEPS.map(({ num, title }, i) => {
+                  {steps.map(({ num, title }, i) => {
                     const isActive = i === step;
                     return (
                       <button
@@ -814,17 +1177,16 @@ export default function LandingPage() {
                   delay={80}
                 >
                   <div
-                    className={cn(
-                      "w-96 h-[32rem] rounded-3xl flex items-center justify-center transition-colors duration-300",
-                      active.bg,
-                    )}
+                    className="w-80 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col"
+                    style={{ minHeight: "32rem" }}
                   >
-                    <ActiveIcon
-                      className={cn(
-                        "h-36 w-36 transition-colors duration-300",
-                        active.iconColor,
-                      )}
-                    />
+                    <div className="bg-foreground/5 flex justify-center py-2 shrink-0">
+                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                    </div>
+                    <div className="flex-1">{active.screen}</div>
+                    <div className="bg-background flex justify-center py-2 shrink-0">
+                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                    </div>
                   </div>
                 </AnimateOnScroll>
               );
@@ -864,9 +1226,19 @@ export default function LandingPage() {
 
             return (
               <div className="flex flex-col">
-                {renderInstance(selectedStep, setSelectedStep, false)}
+                {renderInstance(
+                  FREE_WALK_STEPS,
+                  selectedStep,
+                  setSelectedStep,
+                  false,
+                )}
                 <div className="h-px bg-border/60 my-12" />
-                {renderInstance(selectedStep2, setSelectedStep2, true)}
+                {renderInstance(
+                  HUNT_STEPS,
+                  selectedStep2,
+                  setSelectedStep2,
+                  true,
+                )}
               </div>
             );
           })()}
@@ -883,13 +1255,13 @@ export default function LandingPage() {
                 Easily shareable with friends
               </h2>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                Every photo you take lands straight in a shared feed. React,
-                compare, and see what your friends spotted — no links or group
-                chats needed.
+                Share a group code — everyone who joins sees each other's photos
+                the moment they're submitted. React, compare, see the same
+                streets through different eyes.
               </p>
             </AnimateOnScroll>
 
-            {/* Phone mockup: feed */}
+            {/* Phone mockup: real walk feed */}
             <AnimateOnScroll
               className="shrink-0"
               variant="scale-in"
@@ -899,40 +1271,108 @@ export default function LandingPage() {
                 <div className="bg-foreground/5 flex justify-center py-2.5">
                   <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                 </div>
-                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                    Today's Feed
-                  </p>
-                  {/* Feed item 1 */}
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    <div className="bg-orange-100 dark:bg-orange-900/30 h-32 flex items-center justify-center">
-                      <Camera className="h-12 w-12 text-orange-400" />
+                <div className="flex-1 bg-background flex flex-col">
+                  <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm">Free Walk</p>
+                      <p className="text-xs text-muted-foreground">
+                        Today's Feed · 4 members
+                      </p>
                     </div>
-                    <div className="p-3">
-                      <p className="text-xs font-semibold">Alex · Red Things</p>
-                      <div className="flex gap-1.5 mt-1.5">
-                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
-                          ❤️ 2
-                        </span>
-                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
-                          🔥 1
-                        </span>
-                      </div>
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1">
+                      <p className="text-xs font-mono font-bold text-primary tracking-widest">
+                        TRAIL7
+                      </p>
                     </div>
                   </div>
-                  {/* Feed item 2 */}
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    <div className="bg-sky-100 dark:bg-sky-900/30 h-32 flex items-center justify-center">
-                      <MapPin className="h-12 w-12 text-sky-400" />
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs font-semibold">Jordan · Circles</p>
-                      <div className="flex gap-1.5 mt-1.5">
-                        <span className="text-xs bg-muted rounded-full px-2 py-0.5">
-                          😮 3
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex flex-col gap-3 p-4">
+                    {[
+                      {
+                        user: "Alex",
+                        topic: "Goldenrod #CA8A04",
+                        cat: "Color",
+                        photoBg:
+                          "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800",
+                        iconBg: "bg-orange-100 dark:bg-orange-900/40",
+                        catColor: "text-orange-500 dark:text-orange-400",
+                        reactions: [
+                          ["❤️", "3"],
+                          ["🔥", "1"],
+                        ],
+                      },
+                      {
+                        user: "Jordan",
+                        topic: "Perfect Circle",
+                        cat: "Shape",
+                        photoBg:
+                          "bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800",
+                        iconBg: "bg-sky-100 dark:bg-sky-900/40",
+                        catColor: "text-sky-500 dark:text-sky-400",
+                        reactions: [
+                          ["😮", "2"],
+                          ["❤️", "1"],
+                        ],
+                      },
+                      {
+                        user: "Sam",
+                        topic: "Morning Light",
+                        cat: "Theme",
+                        photoBg:
+                          "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800",
+                        iconBg: "bg-violet-100 dark:bg-violet-900/40",
+                        catColor: "text-violet-500 dark:text-violet-400",
+                        reactions: [
+                          ["👍", "1"],
+                          ["❤️", "2"],
+                        ],
+                      },
+                    ].map(
+                      ({
+                        user,
+                        topic,
+                        cat,
+                        photoBg,
+                        iconBg,
+                        catColor,
+                        reactions,
+                      }) => (
+                        <div
+                          key={user}
+                          className={`rounded-xl border overflow-hidden ${photoBg}`}
+                        >
+                          <div
+                            className={`h-20 flex items-center justify-center ${iconBg}`}
+                          >
+                            <Camera
+                              className={`h-8 w-8 opacity-40 ${catColor}`}
+                            />
+                          </div>
+                          <div className="px-3 py-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold">{user}</p>
+                              <span
+                                className={`text-[9px] font-bold uppercase tracking-widest ${catColor}`}
+                              >
+                                {cat}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {topic}
+                            </p>
+                            <div className="flex gap-1.5 mt-1.5">
+                              {reactions.map(([r, n]) => (
+                                <span
+                                  key={`${user}-${r}`}
+                                  className="text-[11px] bg-background/80 rounded-full px-2 py-0.5 border border-border/50"
+                                >
+                                  {r} {n}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
                 <div className="bg-background flex justify-center py-2">
@@ -946,7 +1386,7 @@ export default function LandingPage() {
         {/* ── Never gets repetitive ─────────────────────────── */}
         <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
           <div className="flex items-center justify-between gap-16">
-            {/* Phone mockup: daily challenges — LEFT */}
+            {/* Phone mockup: real category picker — LEFT */}
             <AnimateOnScroll
               className="shrink-0"
               variant="scale-in"
@@ -956,41 +1396,112 @@ export default function LandingPage() {
                 <div className="bg-foreground/5 flex justify-center py-2.5">
                   <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                 </div>
-                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                      Today's Challenges
-                    </p>
-                    <p className="text-xs text-muted-foreground">Aug 12</p>
+                <div className="flex-1 bg-background flex flex-col">
+                  <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm">Free Walk</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pick a topic · Take a photo
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Aug 13</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-orange-100 dark:bg-orange-900/30 p-3 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+                  <div className="grid grid-cols-2 gap-3 p-4">
+                    {/* Color — solid circle icon */}
+                    <div className="rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 p-4 flex flex-col gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
+                        <svg
+                          viewBox="0 0 32 32"
+                          fill="none"
+                          aria-hidden="true"
+                          className="w-7 h-7 text-orange-500"
+                        >
+                          <circle cx="16" cy="16" r="11" fill="currentColor" />
+                        </svg>
+                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">
                         Color
-                      </span>
-                      <p className="font-bold text-sm">Something Red</p>
+                      </p>
+                      <p className="font-bold text-sm leading-tight">
+                        Goldenrod #CA8A04
+                      </p>
                     </div>
-                    <div className="rounded-xl bg-sky-100 dark:bg-sky-900/30 p-3 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 uppercase tracking-widest">
+                    {/* Shape — triangle outline icon */}
+                    <div className="rounded-xl border border-border bg-sky-50 dark:bg-sky-900/20 p-4 flex flex-col gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
+                        <svg
+                          viewBox="0 0 32 32"
+                          fill="none"
+                          aria-hidden="true"
+                          className="w-7 h-7 text-sky-500"
+                        >
+                          <polygon
+                            points="16,3 30,27 2,27"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
                         Shape
-                      </span>
-                      <p className="font-bold text-sm">Perfect Circle</p>
+                      </p>
+                      <p className="font-bold text-sm leading-tight">
+                        Perfect Circle
+                      </p>
                     </div>
-                    <div className="rounded-xl bg-violet-100 dark:bg-violet-900/30 p-3 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-widest">
+                    {/* Theme — 4-pointed star icon */}
+                    <div className="rounded-xl border border-border bg-violet-50 dark:bg-violet-900/20 p-4 flex flex-col gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                        <svg
+                          viewBox="0 0 32 32"
+                          fill="none"
+                          aria-hidden="true"
+                          className="w-7 h-7 text-violet-500"
+                        >
+                          <path
+                            d="M16 2L18.2 13.8L30 16L18.2 18.2L16 30L13.8 18.2L2 16L13.8 13.8Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
                         Theme
-                      </span>
-                      <p className="font-bold text-sm">Morning Light</p>
+                      </p>
+                      <p className="font-bold text-sm leading-tight">
+                        Morning Light
+                      </p>
                     </div>
-                    <div className="rounded-xl bg-emerald-100 dark:bg-emerald-900/30 p-3 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                    {/* Object — map pin icon */}
+                    <div className="rounded-xl border border-border bg-emerald-50 dark:bg-emerald-900/20 p-4 flex flex-col gap-2">
+                      <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                        <svg
+                          viewBox="0 0 32 32"
+                          fill="none"
+                          aria-hidden="true"
+                          className="w-7 h-7 text-emerald-500"
+                        >
+                          <path
+                            d="M16 2C10.48 2 6 6.48 6 12C6 19.5 16 30 16 30C16 30 26 19.5 26 12C26 6.48 21.52 2 16 2Z"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinejoin="round"
+                            fill="currentColor"
+                            fillOpacity="0.15"
+                          />
+                          <circle cx="16" cy="12" r="3" fill="currentColor" />
+                        </svg>
+                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
                         Object
-                      </span>
-                      <p className="font-bold text-sm">Found Art</p>
+                      </p>
+                      <p className="font-bold text-sm leading-tight">
+                        Found Art
+                      </p>
                     </div>
                   </div>
-                  <p className="text-center text-xs text-muted-foreground mt-1">
-                    Refreshes tomorrow at midnight
+                  <p className="text-center text-xs text-muted-foreground pb-5">
+                    🔁 Refreshes tomorrow at midnight
                   </p>
                 </div>
                 <div className="bg-background flex justify-center py-2">
@@ -1009,7 +1520,9 @@ export default function LandingPage() {
               </h2>
               <p className="text-xl text-muted-foreground leading-relaxed">
                 Four fresh challenges drop every morning — a new color, shape,
-                theme, and object. No two days look the same.
+                theme, and object. The topics are always specific: not just
+                "something red", but "Goldenrod #CA8A04". No two days look the
+                same.
               </p>
             </AnimateOnScroll>
           </div>
@@ -1027,12 +1540,13 @@ export default function LandingPage() {
                 Explore places you've never gone to
               </h2>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                A topic pulls you down streets you'd normally walk past. You'll
-                be surprised how much your own neighbourhood has been hiding.
+                Every walk gets logged in your archive. Watch your streak grow
+                as the topics pull you down streets you'd normally walk straight
+                past.
               </p>
             </AnimateOnScroll>
 
-            {/* Phone mockup: discovery map — RIGHT */}
+            {/* Phone mockup: real archive calendar — RIGHT */}
             <AnimateOnScroll
               className="shrink-0"
               variant="scale-in"
@@ -1042,56 +1556,132 @@ export default function LandingPage() {
                 <div className="bg-foreground/5 flex justify-center py-2.5">
                   <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                 </div>
-                <div className="flex-1 bg-background p-4 flex flex-col gap-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                    New Discoveries
-                  </p>
-                  {/* Map placeholder */}
-                  <div className="relative rounded-xl bg-emerald-50 dark:bg-emerald-900/20 h-36 overflow-hidden border border-emerald-200 dark:border-emerald-800">
-                    <div
-                      className="absolute inset-0 opacity-20"
-                      style={{
-                        backgroundImage:
-                          "repeating-linear-gradient(0deg,transparent,transparent 20px,currentColor 20px,currentColor 21px),repeating-linear-gradient(90deg,transparent,transparent 20px,currentColor 20px,currentColor 21px)",
-                      }}
-                    />
-                    <div className="absolute top-4 left-8 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/30" />
-                    <div className="absolute top-10 right-12 w-3 h-3 rounded-full bg-primary ring-4 ring-primary/30" />
-                    <div className="absolute bottom-6 left-16 w-3 h-3 rounded-full bg-sky-500 ring-4 ring-sky-500/30" />
-                    <div className="absolute bottom-4 right-6 w-3 h-3 rounded-full bg-violet-500 ring-4 ring-violet-500/30" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                      <Compass className="h-8 w-8 text-emerald-600 dark:text-emerald-400 opacity-30" />
+                <div className="flex-1 bg-background flex flex-col">
+                  <div className="px-5 pt-4 pb-3 border-b border-border/40">
+                    <p className="font-bold text-sm">My Archive</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your Free Walk history
+                    </p>
+                  </div>
+                  {/* Calendar */}
+                  <div className="px-5 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-semibold text-sm">August 2026</p>
+                      <p className="text-xs text-muted-foreground">
+                        14 walks this month
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-7 mb-1">
+                      {(
+                        [
+                          "Sun",
+                          "Mon",
+                          "Tue",
+                          "Wed",
+                          "Thu",
+                          "Fri",
+                          "Sat",
+                        ] as const
+                      ).map((d) => (
+                        <p
+                          key={d}
+                          className="text-center text-[10px] font-medium text-muted-foreground py-1"
+                        >
+                          {d.charAt(0)}
+                        </p>
+                      ))}
+                    </div>
+                    {/* Aug 2026 starts on a Saturday — 6 leading blanks */}
+                    <div className="grid grid-cols-7 gap-y-0.5">
+                      {(["b1", "b2", "b3", "b4", "b5", "b6"] as const).map(
+                        (k) => (
+                          <div key={k} />
+                        ),
+                      )}
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const day = i + 1;
+                        const walked = [
+                          1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15, 18, 19, 20,
+                          21, 22, 25, 26, 27, 28,
+                        ].includes(day);
+                        const isToday = day === 13;
+                        const dotColors = [
+                          "bg-orange-400",
+                          "bg-sky-400",
+                          "bg-violet-400",
+                          "bg-emerald-400",
+                          "bg-primary",
+                        ];
+                        const dot = dotColors[(day * 3) % dotColors.length];
+                        return (
+                          <div
+                            key={`day-${day}`}
+                            className={cn(
+                              "flex flex-col items-center py-0.5 rounded",
+                              isToday ? "bg-primary/10" : "",
+                            )}
+                          >
+                            <p
+                              className={cn(
+                                "text-[11px] leading-tight",
+                                isToday
+                                  ? "font-bold text-primary"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {day}
+                            </p>
+                            {walked && (
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dot}`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  {/* Place list */}
-                  {[
-                    {
-                      name: "Oak Lane",
-                      dist: "0.3km",
-                      color: "bg-emerald-500",
-                    },
-                    {
-                      name: "Sunken Garden",
-                      dist: "1.2km",
-                      color: "bg-primary",
-                    },
-                    {
-                      name: "The Old Mill St",
-                      dist: "2.1km",
-                      color: "bg-sky-500",
-                    },
-                  ].map(({ name, dist, color }) => (
-                    <div
-                      key={name}
-                      className="flex items-center gap-3 py-1.5 border-b border-border/50 last:border-0"
-                    >
+                  {/* Recent walks */}
+                  <div className="px-5 pt-3 pb-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                      Recent Walks
+                    </p>
+                    {[
+                      {
+                        label: "Today",
+                        topic: "Goldenrod #CA8A04",
+                        cat: "Color",
+                        dot: "bg-orange-400",
+                      },
+                      {
+                        label: "Yesterday",
+                        topic: "Perfect Circle",
+                        cat: "Shape",
+                        dot: "bg-sky-400",
+                      },
+                      {
+                        label: "Aug 11",
+                        topic: "Morning Light",
+                        cat: "Theme",
+                        dot: "bg-violet-400",
+                      },
+                    ].map(({ label, topic, cat, dot }) => (
                       <div
-                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${color}`}
-                      />
-                      <p className="text-sm font-semibold flex-1">{name}</p>
-                      <p className="text-xs text-muted-foreground">{dist}</p>
-                    </div>
-                  ))}
+                        key={label}
+                        className="flex items-center gap-2.5 py-1.5 border-b border-border/40 last:border-0"
+                      >
+                        <div
+                          className={`w-2 h-2 rounded-full shrink-0 ${dot}`}
+                        />
+                        <p className="text-xs font-semibold flex-1 truncate">
+                          {topic}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground shrink-0">
+                          {label} · {cat}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="bg-background flex justify-center py-2">
                   <div className="w-16 h-1 bg-foreground/15 rounded-full" />
