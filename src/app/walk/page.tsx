@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, CalendarDays, Camera, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Lock,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -28,47 +37,100 @@ type Submission = {
 
 const CATEGORY_STYLE: Record<
   Category,
-  {
-    emoji: string;
-    icon: string;
-    wash: string;
-    ring: string;
-    dot: string;
-    badge: string;
-  }
+  { icon: string; wash: string; dot: string; badge: string; accent: string }
 > = {
   Color: {
-    emoji: "🎨",
     icon: "bg-orange-100 dark:bg-orange-900/40",
     wash: "bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800",
-    ring: "ring-orange-300 dark:ring-orange-700",
     dot: "bg-orange-400 dark:bg-orange-500",
     badge: "text-orange-600 dark:text-orange-400",
+    accent: "text-orange-500 dark:text-orange-400",
   },
   Shape: {
-    emoji: "🔷",
     icon: "bg-sky-100 dark:bg-sky-900/40",
     wash: "bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800",
-    ring: "ring-sky-300 dark:ring-sky-700",
     dot: "bg-sky-400 dark:bg-sky-500",
     badge: "text-sky-600 dark:text-sky-400",
+    accent: "text-sky-500 dark:text-sky-400",
   },
   Theme: {
-    emoji: "✨",
     icon: "bg-violet-100 dark:bg-violet-900/40",
     wash: "bg-violet-50 border-violet-200 dark:bg-violet-900/20 dark:border-violet-800",
-    ring: "ring-violet-300 dark:ring-violet-700",
     dot: "bg-violet-400 dark:bg-violet-500",
     badge: "text-violet-600 dark:text-violet-400",
+    accent: "text-violet-500 dark:text-violet-400",
   },
   Object: {
-    emoji: "📍",
     icon: "bg-emerald-100 dark:bg-emerald-900/40",
     wash: "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800",
-    ring: "ring-emerald-300 dark:ring-emerald-700",
     dot: "bg-emerald-400 dark:bg-emerald-500",
     badge: "text-emerald-600 dark:text-emerald-400",
+    accent: "text-emerald-500 dark:text-emerald-400",
   },
+};
+
+// Simplistic SVG symbols — one distinct mark per category
+const CATEGORY_ICONS = {
+  // Solid circle — a pigment dot, pure colour
+  Color: (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="w-full h-full"
+    >
+      <circle cx="16" cy="16" r="11" fill="currentColor" />
+    </svg>
+  ),
+  // Equilateral triangle outline — the simplest geometric form
+  Shape: (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="w-full h-full"
+    >
+      <polygon
+        points="16,3 30,27 2,27"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  // 4-pointed star — a moment, an atmosphere
+  Theme: (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="w-full h-full"
+    >
+      <path
+        d="M16 2L18.2 13.8L30 16L18.2 18.2L16 30L13.8 18.2L2 16L13.8 13.8Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  // Location pin — find a specific thing
+  Object: (
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="w-full h-full"
+    >
+      <path
+        d="M16 2C10.48 2 6 6.48 6 12C6 19.5 16 30 16 30C16 30 26 19.5 26 12C26 6.48 21.52 2 16 2Z"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+        fill="currentColor"
+        fillOpacity="0.15"
+      />
+      <circle cx="16" cy="12" r="3.5" fill="currentColor" />
+    </svg>
+  ),
 };
 
 // kept for feed badges
@@ -89,12 +151,139 @@ const CATEGORY_EMOJI: Record<Category, string> = {
   Object: "📍",
 };
 
-const STAGGER = [
-  "animation-delay-75",
-  "animation-delay-150",
-  "animation-delay-225",
-  "animation-delay-300",
-];
+const DAILY_PICK_KEY = "tw_daily_pick";
+
+type DailyPick = { category: Category; label: string };
+type StoredPick = { date: string; category: Category; label: string };
+
+type GradeResult = {
+  score?: number;
+  found?: boolean;
+  confidence?: number;
+  dominantColor?: string;
+  feedback?: string;
+  error?: string;
+};
+
+function todayKey() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function loadDailyPick(): DailyPick | null {
+  try {
+    const raw = localStorage.getItem(DAILY_PICK_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as StoredPick;
+    return p.date === todayKey()
+      ? { category: p.category, label: p.label }
+      : null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+function saveDailyPick(topic: DailyPick) {
+  try {
+    localStorage.setItem(
+      DAILY_PICK_KEY,
+      JSON.stringify({ date: todayKey(), ...topic }),
+    );
+  } catch (_e) {}
+}
+
+function GradeCard({
+  result,
+  category,
+}: {
+  result: GradeResult;
+  category: Category;
+}) {
+  const s = CATEGORY_STYLE[category];
+
+  if (category === "Object") {
+    const found = result.found ?? false;
+    const pct = result.confidence ?? 0;
+    return (
+      <div
+        className={cn(
+          "animate-scale-in rounded-2xl border-2 p-4 space-y-2",
+          found
+            ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
+            : "border-destructive/30 bg-destructive/5",
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {found ? (
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : (
+            <XCircle className="h-5 w-5 text-destructive shrink-0" />
+          )}
+          <span
+            className={cn(
+              "font-semibold text-sm",
+              found
+                ? "text-emerald-700 dark:text-emerald-300"
+                : "text-destructive",
+            )}
+          >
+            {found
+              ? `Found! ${pct}% confidence`
+              : `Not found — ${pct}% confident`}
+          </span>
+        </div>
+        {result.feedback && (
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {result.feedback}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const score = result.score ?? 0;
+  return (
+    <div
+      className={cn(
+        "animate-scale-in rounded-2xl border-2 p-4 space-y-3",
+        s.wash,
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className={cn("h-4 w-4 shrink-0", s.accent)} />
+          <span className={cn("font-semibold text-sm", s.badge)}>AI Grade</span>
+        </div>
+        <span className={cn("font-bold text-lg tabular-nums", s.badge)}>
+          {score}
+          <span className="text-xs font-normal opacity-60">/100</span>
+        </span>
+      </div>
+      {/* Score bar */}
+      <div className="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-700",
+            s.dot,
+          )}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      {category === "Color" && result.dominantColor && (
+        <p className="text-xs text-muted-foreground">
+          Detected:{" "}
+          <span className="font-medium text-foreground">
+            {result.dominantColor}
+          </span>
+        </p>
+      )}
+      {result.feedback && (
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {result.feedback}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function WalkPage() {
   const supabase = createClient();
@@ -106,16 +295,43 @@ export default function WalkPage() {
     category: Category;
     label: string;
   } | null>(null);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [cardKey, setCardKey] = useState(0);
   const [feed, setFeed] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [grading, setGrading] = useState(false);
+  const [gradeResult, setGradeResult] = useState<GradeResult | null>(null);
   const [guestPhotos, setGuestPhotos] = useState<
     Array<{ url: string; label: string; category: Category }>
   >([]);
 
+  function handleCategoryPick(cat: Category) {
+    if (isLocked) return;
+    const topic = topics.find((t) => t.category === cat);
+    if (!topic) return;
+    setIsFlipped(false);
+    setSelectedTopic(topic);
+    setCardKey((k) => k + 1);
+    setTimeout(() => setIsFlipped(true), 60);
+  }
+
+  function handleConfirm() {
+    if (!selectedTopic || isLocked) return;
+    saveDailyPick(selectedTopic);
+    setIsLocked(true);
+  }
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
+    const saved = loadDailyPick();
+    if (saved) {
+      setSelectedTopic(saved);
+      setIsFlipped(true);
+      setIsLocked(true);
+    }
     const id = getIdentity() ?? saveGuestIdentity();
     setIdentity(id);
     if (id.isGuest) {
@@ -137,6 +353,30 @@ export default function WalkPage() {
       .order("submitted_at", { ascending: false });
     if (data) setFeed(data as Submission[]);
     setLoading(false);
+  }
+
+  async function gradePhoto(
+    imageUrl: string,
+    topic: { category: Category; label: string },
+  ) {
+    setGrading(true);
+    setGradeResult(null);
+    try {
+      const res = await fetch("/api/grade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl,
+          category: topic.category,
+          label: topic.label,
+        }),
+      });
+      const data = (await res.json()) as GradeResult;
+      setGradeResult(data);
+    } catch {
+      setGradeResult({ error: "Grading unavailable" });
+    }
+    setGrading(false);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -161,10 +401,10 @@ export default function WalkPage() {
       .upload(path, file, { upsert: false });
 
     if (!uploadErr) {
+      const publicUrl = supabase.storage.from("game-photos").getPublicUrl(path)
+        .data.publicUrl;
+
       if (identity.isGuest) {
-        const publicUrl = supabase.storage
-          .from("game-photos")
-          .getPublicUrl(path).data.publicUrl;
         setGuestPhotos((prev) => [
           {
             url: publicUrl,
@@ -184,8 +424,8 @@ export default function WalkPage() {
         });
         fetchFeed(identity);
       }
-      setSelectedTopic(null);
       if (fileRef.current) fileRef.current.value = "";
+      gradePhoto(publicUrl, selectedTopic);
     }
     setUploading(false);
   }
@@ -246,73 +486,171 @@ export default function WalkPage() {
       </div>
 
       {/* Topic picker */}
-      <div className="space-y-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-          Today&apos;s Topics
-        </h2>
-        <div className="flex flex-col gap-2">
-          {topics.map((t, i) => {
+      <div className="space-y-4">
+        {/* 2×2 category buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          {topics.map((t) => {
             const s = CATEGORY_STYLE[t.category];
-            const isSelected = selectedTopic?.label === t.label;
+            const isActive = selectedTopic?.category === t.category;
+            const isDisabled = isLocked && !isActive;
             return (
               <button
                 key={t.category}
                 type="button"
-                onClick={() => setSelectedTopic(isSelected ? null : t)}
+                onClick={() => handleCategoryPick(t.category)}
+                disabled={isDisabled}
                 className={cn(
-                  "animate-scale-in w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-200 flex items-center gap-4 active:scale-[0.985]",
-                  STAGGER[i],
-                  isSelected
-                    ? cn("shadow-sm", s.wash)
-                    : "border-border bg-card hover:bg-muted/50 hover:-translate-y-px",
+                  "rounded-2xl p-5 flex flex-col items-center gap-3 border-2 transition-all duration-200",
+                  isDisabled
+                    ? "opacity-25 cursor-not-allowed border-border bg-card"
+                    : isActive
+                      ? cn("shadow-md active:scale-95", s.wash)
+                      : "border-border bg-card hover:bg-muted/50 active:scale-95",
                 )}
               >
-                {/* Category icon */}
                 <div
                   className={cn(
-                    "h-11 w-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0",
+                    "h-16 w-16 rounded-2xl flex items-center justify-center p-4",
                     s.icon,
+                    s.accent,
                   )}
                 >
-                  {s.emoji}
+                  {CATEGORY_ICONS[t.category]}
                 </div>
-
-                {/* Text */}
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={cn(
-                      "text-[11px] font-semibold uppercase tracking-widest",
-                      s.badge,
-                    )}
-                  >
-                    {t.category}
-                  </p>
-                  <p className="font-semibold text-[15px] leading-snug mt-0.5 text-foreground">
-                    {t.label}
-                  </p>
-                </div>
-
-                {/* Selection ring */}
-                <div
+                <span
                   className={cn(
-                    "h-6 w-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                    isSelected
-                      ? cn("border-transparent", s.dot)
-                      : "border-border",
+                    "text-xs font-bold uppercase tracking-widest",
+                    isActive ? s.badge : "text-muted-foreground",
                   )}
                 >
-                  {isSelected && (
-                    <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
-                  )}
-                </div>
+                  {t.category}
+                </span>
               </button>
             );
           })}
         </div>
+
+        {/* Dispenser: mascot + flip card */}
+        <div className="flex items-center gap-4">
+          <div
+            className={cn(
+              "flex-shrink-0 transition-all duration-300",
+              selectedTopic ? "opacity-100 scale-100" : "opacity-30 scale-90",
+            )}
+          >
+            <div
+              key={cardKey}
+              className={cardKey > 0 ? "animate-mascot-flip" : ""}
+            >
+              <Image
+                src="/mascot-new.png"
+                width={80}
+                height={80}
+                alt="mascot"
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 h-[148px]" style={{ perspective: "900px" }}>
+            <div
+              key={cardKey}
+              className="w-full h-full relative"
+              style={{
+                transformStyle: "preserve-3d",
+                transform: isFlipped ? "rotateY(0deg)" : "rotateY(-180deg)",
+                transition: "transform 0.52s cubic-bezier(0.4,0,0.2,1)",
+              }}
+            >
+              {/* Front — topic text */}
+              <div
+                className="absolute inset-0 rounded-2xl bg-card border-2 border-border shadow-sm flex flex-col justify-center px-6"
+                style={{ backfaceVisibility: "hidden" }}
+              >
+                {selectedTopic && (
+                  <>
+                    <p
+                      className={cn(
+                        "text-[11px] font-bold uppercase tracking-widest mb-2",
+                        CATEGORY_STYLE[selectedTopic.category].badge,
+                      )}
+                    >
+                      {selectedTopic.category}
+                    </p>
+                    <p className="font-bold text-xl leading-snug text-foreground">
+                      {selectedTopic.label}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Back — category SVG icon */}
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-2",
+                  selectedTopic
+                    ? CATEGORY_STYLE[selectedTopic.category].icon
+                    : "bg-muted",
+                  selectedTopic
+                    ? CATEGORY_STYLE[selectedTopic.category].accent
+                    : "text-muted-foreground",
+                )}
+                style={{
+                  backfaceVisibility: "hidden",
+                  transform: "rotateY(180deg)",
+                }}
+              >
+                <div className="w-10 h-10">
+                  {selectedTopic ? (
+                    CATEGORY_ICONS[selectedTopic.category]
+                  ) : (
+                    <svg
+                      viewBox="0 0 32 32"
+                      fill="none"
+                      aria-hidden="true"
+                      className="w-full h-full"
+                    >
+                      <circle
+                        cx="16"
+                        cy="16"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <p className="text-[11px] font-bold uppercase tracking-widest opacity-70">
+                  {selectedTopic?.category ?? "Pick a category"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {isLocked && (
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            <span>Today&apos;s pick — resets at midnight</span>
+          </div>
+        )}
       </div>
 
-      {/* Photo submit */}
-      {selectedTopic && (
+      {/* Confirm pick or take photo */}
+      {selectedTopic && !isLocked && (
+        <div className="animate-scale-in">
+          <Button
+            className="w-full h-14 font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all rounded-2xl"
+            onClick={handleConfirm}
+          >
+            <Lock className="h-5 w-5 mr-2" />
+            Lock in {selectedTopic.category}
+          </Button>
+        </div>
+      )}
+
+      {isLocked && selectedTopic && (
         <div className="animate-scale-in space-y-3">
           <input
             ref={fileRef}
@@ -326,15 +664,38 @@ export default function WalkPage() {
             className="w-full h-14 font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all rounded-2xl"
             onClick={() => {
               setUploadError(null);
+              setGradeResult(null);
               fileRef.current?.click();
             }}
-            disabled={uploading}
+            disabled={uploading || grading}
           >
             <Camera className="h-5 w-5 mr-2" />
-            {uploading ? "Uploading…" : "Take / Upload Photo"}
+            {uploading
+              ? "Uploading…"
+              : grading
+                ? "Grading…"
+                : "Take / Upload Photo"}
           </Button>
           {uploadError && (
             <p className="text-xs text-destructive">{uploadError}</p>
+          )}
+
+          {/* AI grade result */}
+          {grading && (
+            <div className="animate-fade-in rounded-2xl border bg-muted/40 p-4 flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-primary shrink-0 animate-pulse" />
+              <p className="text-sm text-muted-foreground">
+                AI is grading your photo…
+              </p>
+            </div>
+          )}
+          {gradeResult && !grading && !gradeResult.error && (
+            <GradeCard result={gradeResult} category={selectedTopic.category} />
+          )}
+          {gradeResult?.error && (
+            <p className="text-xs text-muted-foreground text-center">
+              {gradeResult.error}
+            </p>
           )}
         </div>
       )}

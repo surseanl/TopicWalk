@@ -124,6 +124,26 @@
     transform: translateY(-8px);
   }
 }
+@keyframes tw-mascot-flip {
+  0% {
+    transform: rotate(0deg) translateY(0px);
+  }
+  12% {
+    transform: rotate(-9deg) translateY(-5px);
+  } /* wind-up */
+  30% {
+    transform: rotate(20deg) translateY(-2px);
+  } /* throw toward card */
+  58% {
+    transform: rotate(13deg) translateY(0px);
+  } /* follow-through */
+  80% {
+    transform: rotate(-4deg) translateY(1px);
+  } /* settle */
+  100% {
+    transform: rotate(0deg) translateY(0px);
+  }
+}
 
 /* ── Animation utility classes ─────────────────────── */
 @layer utilities {
@@ -138,6 +158,10 @@
   }
   .animate-float-slow {
     animation: tw-float 4.5s ease-in-out infinite;
+  }
+  .animate-mascot-flip {
+    animation: tw-mascot-flip 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transform-origin: bottom center;
   }
 
   /* Logo: quick fade-in then gentle perpetual float */
@@ -176,7 +200,8 @@
     .animate-fade-in,
     .animate-scale-in,
     .animate-float-slow,
-    .animate-logo {
+    .animate-logo,
+    .animate-mascot-flip {
       animation: none;
       opacity: 1;
       transform: none;
