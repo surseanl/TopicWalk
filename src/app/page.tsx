@@ -3,6 +3,8 @@
 import {
   Camera,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Crosshair,
   MapPin,
@@ -18,6 +20,148 @@ import { Button } from "~/components/ui/button";
 import { getIdentity, saveGuestIdentity } from "~/lib/identity";
 import { cn } from "~/lib/utils";
 
+// ── Phone cursor animation ───────────────────────────────────────────
+
+type CursorFrame = { x: number; y: number; t: number; click?: boolean };
+
+// y values are expressed as % of the 448px phone content area (phone height 512 - 32 notch - 32 bar)
+const CURSOR_SEQUENCES: Record<string, CursorFrame[][]> = {
+  "free-walk": [
+    // Step 0 — Pick a topic: tap the Color card (top-left, ~130px from top)
+    [
+      { x: 52, y: 75, t: 0 },
+      { x: 27, y: 29, t: 700 },
+      { x: 27, y: 29, t: 1100, click: true },
+      { x: 55, y: 55, t: 2100 },
+    ],
+    // Step 1 — Lock in: tap "Take / Upload Photo" button (~324px from top = 72%)
+    [
+      { x: 72, y: 18, t: 0 },
+      { x: 50, y: 72, t: 800 },
+      { x: 50, y: 72, t: 1200, click: true },
+      { x: 62, y: 45, t: 2100 },
+    ],
+    // Step 2 — AI scores: tap "Share to feed →" button (~85% from top)
+    [
+      { x: 28, y: 35, t: 0 },
+      { x: 50, y: 83, t: 800 },
+      { x: 50, y: 83, t: 1200, click: true },
+      { x: 65, y: 55, t: 2100 },
+    ],
+    // Step 3 — Feed: tap 🔥 reaction on the "You" post (~82%)
+    [
+      { x: 50, y: 12, t: 0 },
+      { x: 65, y: 82, t: 900 },
+      { x: 65, y: 82, t: 1300, click: true },
+      { x: 50, y: 55, t: 2200 },
+    ],
+  ],
+  "mascot-hunt": [
+    // Step 0 — Radius: tap "5 miles" button (~62%)
+    [
+      { x: 50, y: 15, t: 0 },
+      { x: 50, y: 62, t: 800 },
+      { x: 50, y: 62, t: 1200, click: true },
+      { x: 62, y: 40, t: 2100 },
+    ],
+    // Step 1 — Hide: tap "Take Photo Here" button (~72%)
+    [
+      { x: 30, y: 35, t: 0 },
+      { x: 50, y: 72, t: 800 },
+      { x: 50, y: 72, t: 1200, click: true },
+      { x: 65, y: 50, t: 2100 },
+    ],
+    // Step 2 — Tiles: tap a covered tile (top-left of the 3x3 grid, ~35%)
+    [
+      { x: 72, y: 18, t: 0 },
+      { x: 22, y: 35, t: 900 },
+      { x: 22, y: 35, t: 1300, click: true },
+      { x: 65, y: 50, t: 2200 },
+    ],
+    // Step 3 — Capture: tap "Capture!" button (~86%)
+    [
+      { x: 50, y: 15, t: 0 },
+      { x: 50, y: 86, t: 900 },
+      { x: 50, y: 86, t: 1300, click: true },
+      { x: 66, y: 55, t: 2200 },
+    ],
+  ],
+};
+
+function PhoneCursor({ stepIndex, mode }: { stepIndex: number; mode: string }) {
+  const [pos, setPos] = useState({ x: 50, y: 50 });
+  const [clicking, setClicking] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timers: ReturnType<typeof setTimeout>[] = [];
+
+    const sequence = CURSOR_SEQUENCES[mode]?.[stepIndex];
+    if (!sequence?.length) return;
+
+    function run() {
+      if (cancelled) return;
+      timers.forEach(clearTimeout);
+      timers = [];
+
+      setPos({ x: sequence[0].x, y: sequence[0].y });
+      setClicking(false);
+
+      for (let i = 1; i < sequence.length; i++) {
+        const frame = sequence[i];
+        const t = setTimeout(() => {
+          if (cancelled) return;
+          setPos({ x: frame.x, y: frame.y });
+          if (frame.click) {
+            setClicking(true);
+            const ct = setTimeout(() => {
+              if (!cancelled) setClicking(false);
+            }, 380);
+            timers.push(ct);
+          }
+        }, frame.t);
+        timers.push(t);
+      }
+
+      const last = sequence[sequence.length - 1];
+      const loop = setTimeout(run, last.t + 1400);
+      timers.push(loop);
+    }
+
+    const init = setTimeout(run, 500);
+    timers.push(init);
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [stepIndex, mode]);
+
+  return (
+    <div
+      className="absolute pointer-events-none z-50"
+      style={{
+        left: `${pos.x}%`,
+        top: `${(pos.y / 100) * 448}px`,
+        transition:
+          "left 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.2, 0.64, 1)",
+      }}
+    >
+      <div className="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8">
+        <div
+          className={cn(
+            "absolute inset-0 rounded-full bg-gray-900/55 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-150",
+            clicking ? "scale-75" : "scale-100",
+          )}
+        />
+        {clicking && (
+          <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
@@ -28,7 +172,10 @@ export default function LandingPage() {
     new Set(),
   );
   const [selectedStep, setSelectedStep] = useState(0);
-  const [selectedStep2, setSelectedStep2] = useState(0);
+  const [featureSlide, setFeatureSlide] = useState(0);
+  const [howItWorksMode, setHowItWorksMode] = useState<
+    "free-walk" | "mascot-hunt"
+  >("free-walk");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -57,6 +204,13 @@ export default function LandingPage() {
       observers.forEach((o) => {
         o.disconnect();
       });
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFeatureSlide((s) => (s + 1) % 3);
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -424,223 +578,6 @@ export default function LandingPage() {
 
       {/* ── Sections ─────────────────────────────────────── */}
       <div className="relative max-w-5xl mx-auto w-full isolate">
-        {/* ── Modes callout ────────────────────────────────── */}
-        <AnimateOnScroll className="px-5 pt-4 pb-10 w-full">
-          <div className="flex items-center gap-3 mb-4">
-            <div
-              ref={modesMarkerRef}
-              className={cn(
-                "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
-                visitedSections.has(1)
-                  ? "w-10 h-10 border-primary/50 shadow-sm"
-                  : "w-7 h-7 border-border bg-muted",
-              )}
-            >
-              {visitedSections.has(1) ? (
-                <Image
-                  src="/mascot-new.png"
-                  alt="TopicWalk mascot"
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-contain"
-                  unoptimized
-                />
-              ) : (
-                <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <p className="text-3xl font-extrabold tracking-tight">
-            2 modes - Endless reasons to go outside
-          </p>
-        </AnimateOnScroll>
-
-        {/* ── Modes phones ─────────────────────────────────── */}
-        <section className="px-5 pb-20 w-full">
-          <AnimateOnScroll>
-            <div className="relative rounded-3xl border border-border shadow-lg overflow-hidden bg-muted/20 py-14 px-6">
-              {/* dot grid */}
-              <div
-                className="absolute inset-0 pointer-events-none z-0"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle, oklch(0 0 0 / 0.05) 1px, transparent 1px)",
-                  backgroundSize: "20px 20px",
-                }}
-              />
-
-              <div className="relative z-10 flex items-end justify-center gap-4 md:gap-10">
-                {/* Free Walk phone */}
-                <div
-                  className="flex flex-col items-center gap-4"
-                  style={{
-                    transform:
-                      "perspective(600px) rotateY(10deg) rotateZ(-2deg)",
-                  }}
-                >
-                  <div className="w-56 md:w-72 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                    <div className="bg-foreground/5 flex justify-center py-2">
-                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                    </div>
-                    <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[520px]">
-                      <div className="flex items-center px-4 py-3 border-b border-border/40">
-                        <div>
-                          <p className="text-sm font-bold text-foreground leading-tight">
-                            Free Walk
-                          </p>
-                          <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-                            Pick a topic · Take a photo
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
-                        Today's Topics
-                      </p>
-                      <div className="grid grid-cols-2 gap-2.5 px-4">
-                        <div className="rounded-xl border-2 border-primary bg-primary/8 p-3">
-                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400">
-                            🎨 Color
-                          </span>
-                          <p className="mt-2 font-bold text-sm leading-tight">
-                            A red fire hydrant
-                          </p>
-                        </div>
-                        <div className="rounded-xl border-2 border-border p-3">
-                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
-                            🔷 Shape
-                          </span>
-                          <p className="mt-2 font-bold text-sm leading-tight">
-                            Manhole cover
-                          </p>
-                        </div>
-                        <div className="rounded-xl border-2 border-border p-3">
-                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400">
-                            🌿 Nature
-                          </span>
-                          <p className="mt-2 font-bold text-sm leading-tight">
-                            Dew on a leaf
-                          </p>
-                        </div>
-                        <div className="rounded-xl border-2 border-border p-3">
-                          <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                            🚪 Urban
-                          </span>
-                          <p className="mt-2 font-bold text-sm leading-tight">
-                            A colorful front door
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mx-4 mt-3 rounded-xl bg-primary/5 border border-primary/20 p-3">
-                        <button
-                          type="button"
-                          className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5"
-                        >
-                          <Camera className="h-3.5 w-3.5" />
-                          Take / Upload Photo
-                        </button>
-                      </div>
-                    </div>
-                    <div className="bg-background flex justify-center py-2">
-                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-extrabold text-sm">Free Walk</p>
-                    <p className="text-xs text-muted-foreground">
-                      Solo or group
-                    </p>
-                  </div>
-                </div>
-
-                {/* VS badge */}
-                <div className="shrink-0 self-center bg-card border-2 border-border rounded-full w-16 h-16 text-base font-extrabold flex items-center justify-center shadow-md text-muted-foreground">
-                  VS
-                </div>
-
-                {/* Hide & Seek phone */}
-                <div
-                  className="flex flex-col items-center gap-4"
-                  style={{
-                    transform:
-                      "perspective(600px) rotateY(-10deg) rotateZ(2deg)",
-                  }}
-                >
-                  <div className="w-56 md:w-72 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                    <div className="bg-foreground/5 flex justify-center py-2">
-                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                    </div>
-                    <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[520px]">
-                      <div className="flex items-center px-4 py-3 border-b border-border/40">
-                        <div>
-                          <p className="text-sm font-bold text-foreground leading-tight">
-                            Hide &amp; Seek
-                          </p>
-                          <p className="text-xs text-primary leading-tight mt-0.5">
-                            📍 GPS active
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mx-4 mt-3">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-xl py-2 text-[11px] font-bold bg-foreground text-background transition-all duration-200 hover:scale-[1.06] hover:shadow-lg"
-                        >
-                          Seek
-                        </button>
-                        <button
-                          type="button"
-                          className="flex-1 rounded-xl py-2 text-[11px] font-medium text-foreground/40 border border-border/50 transition-all duration-200 hover:border-foreground/40 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm"
-                        >
-                          Score
-                        </button>
-                      </div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-4 mt-3 mb-2">
-                        Active Mascots (1)
-                      </p>
-                      <div className="mx-4 rounded-xl border-2 border-primary overflow-hidden">
-                        <div className="relative">
-                          <Image
-                            src="/ny mascot.png"
-                            alt="TopicWalk mascot"
-                            width={400}
-                            height={260}
-                            unoptimized
-                            className="w-full"
-                          />
-                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            <span>📍</span>
-                            <span>38m away</span>
-                          </div>
-                        </div>
-                        <div className="p-3 bg-background space-y-2">
-                          <p className="font-semibold text-xs">Sean's mascot</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            1m 47s ago
-                          </p>
-                          <button
-                            type="button"
-                            className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold"
-                          >
-                            🎯 Capture!
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-background flex justify-center py-2">
-                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-extrabold text-sm">Hide & Seek</p>
-                    <p className="text-xs text-muted-foreground">Multiplayer</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </AnimateOnScroll>
-        </section>
-
         {/* ── Why ──────────────────────────────────────────── */}
         <section className="py-20 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
           <AnimateOnScroll className="mb-12">
@@ -671,6 +608,48 @@ export default function LandingPage() {
                 How it works
               </h2>
               <div className="flex-1 h-px bg-border" />
+            </div>
+          </AnimateOnScroll>
+
+          {/* ── Modes callout ────────────────────────────────── */}
+          <AnimateOnScroll className="px-5 pt-4 pb-10 w-full">
+            <div className="flex items-center gap-3 mb-8">
+              <div
+                ref={modesMarkerRef}
+                className={cn(
+                  "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
+                  visitedSections.has(1)
+                    ? "w-10 h-10 border-primary/50 shadow-sm"
+                    : "w-7 h-7 border-border bg-muted",
+                )}
+              >
+                {visitedSections.has(1) ? (
+                  <Image
+                    src="/mascot-new.png"
+                    alt="TopicWalk mascot"
+                    width={40}
+                    height={40}
+                    className="w-full h-full object-contain"
+                    unoptimized
+                  />
+                ) : (
+                  <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="text-center space-y-3">
+              <div className="inline-flex items-center gap-2">
+                <span className="h-px w-6 bg-primary/40" />
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  Two Modes
+                </p>
+                <span className="h-px w-6 bg-primary/40" />
+              </div>
+              <p className="font-display text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                Endless reasons to{" "}
+                <span className="text-secondary">go outside</span>
+              </p>
             </div>
           </AnimateOnScroll>
 
@@ -1183,7 +1162,10 @@ export default function LandingPage() {
                     <div className="bg-foreground/5 flex justify-center py-2 shrink-0">
                       <div className="w-12 h-1 bg-foreground/20 rounded-full" />
                     </div>
-                    <div className="flex-1">{active.screen}</div>
+                    <div className="flex-1 relative">
+                      {active.screen}
+                      <PhoneCursor stepIndex={step} mode={howItWorksMode} />
+                    </div>
                     <div className="bg-background flex justify-center py-2 shrink-0">
                       <div className="w-16 h-1 bg-foreground/15 rounded-full" />
                     </div>
@@ -1225,470 +1207,531 @@ export default function LandingPage() {
             };
 
             return (
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-10">
+                {/* Mode toggle */}
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { key: "free-walk", label: "Free Walk" },
+                      { key: "mascot-hunt", label: "Mascot Hunt" },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setHowItWorksMode(key);
+                        setSelectedStep(0);
+                      }}
+                      className={cn(
+                        "rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200",
+                        howItWorksMode === key
+                          ? "bg-foreground text-background hover:scale-[1.04] hover:shadow-lg"
+                          : "border border-border/50 text-foreground/40 hover:border-foreground/40 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {renderInstance(
-                  FREE_WALK_STEPS,
+                  howItWorksMode === "free-walk" ? FREE_WALK_STEPS : HUNT_STEPS,
                   selectedStep,
                   setSelectedStep,
                   false,
-                )}
-                <div className="h-px bg-border/60 my-12" />
-                {renderInstance(
-                  HUNT_STEPS,
-                  selectedStep2,
-                  setSelectedStep2,
-                  true,
                 )}
               </div>
             );
           })()}
         </section>
 
-        {/* ── Easily shareable ─────────────────────────────── */}
-        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
-          <div className="flex items-center justify-between gap-16">
-            <AnimateOnScroll
-              className="flex flex-col gap-4 max-w-2xl shrink-0"
-              variant="scale-in"
-            >
-              <h2 className="font-bold text-7xl leading-tight">
-                Easily shareable with friends
-              </h2>
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                Share a group code — everyone who joins sees each other's photos
-                the moment they're submitted. React, compare, see the same
-                streets through different eyes.
-              </p>
-            </AnimateOnScroll>
-
-            {/* Phone mockup: real walk feed */}
-            <AnimateOnScroll
-              className="shrink-0"
-              variant="scale-in"
-              delay={100}
-            >
-              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                <div className="bg-foreground/5 flex justify-center py-2.5">
-                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                </div>
-                <div className="flex-1 bg-background flex flex-col">
-                  <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-sm">Free Walk</p>
-                      <p className="text-xs text-muted-foreground">
-                        Today's Feed · 4 members
-                      </p>
+        {/* ── Features carousel ───────────────────────────── */}
+        <section className="border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 overflow-hidden">
+          <AnimateOnScroll>
+            <div className="overflow-hidden">
+              <div
+                className="flex transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${featureSlide * 100}%)` }}
+              >
+                {/* Slide 0 — Easily shareable */}
+                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
+                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
+                        01
+                      </span>
+                      <span className="h-px w-6 bg-border" />
+                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                        Share
+                      </span>
                     </div>
-                    <div className="bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1">
-                      <p className="text-xs font-mono font-bold text-primary tracking-widest">
-                        TRAIL7
-                      </p>
+                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
+                      Easily shareable with friends
+                    </h2>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      Share a group code — everyone who joins sees each other's
+                      photos the moment they're submitted. React, compare, see
+                      the same streets through different eyes.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-[26rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                    <div className="bg-foreground/5 flex justify-center py-2.5">
+                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                    </div>
+                    <div className="flex-1 bg-background flex flex-col">
+                      <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-sm">Free Walk</p>
+                          <p className="text-xs text-muted-foreground">
+                            Today's Feed · 4 members
+                          </p>
+                        </div>
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1">
+                          <p className="text-xs font-mono font-bold text-primary tracking-widest">
+                            TRAIL7
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3 p-4">
+                        {[
+                          {
+                            user: "Alex",
+                            topic: "Goldenrod #CA8A04",
+                            cat: "Color",
+                            photoBg:
+                              "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800",
+                            iconBg: "bg-orange-100 dark:bg-orange-900/40",
+                            catColor: "text-orange-500 dark:text-orange-400",
+                            reactions: [
+                              ["❤️", "3"],
+                              ["🔥", "1"],
+                            ],
+                          },
+                          {
+                            user: "Jordan",
+                            topic: "Perfect Circle",
+                            cat: "Shape",
+                            photoBg:
+                              "bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800",
+                            iconBg: "bg-sky-100 dark:bg-sky-900/40",
+                            catColor: "text-sky-500 dark:text-sky-400",
+                            reactions: [
+                              ["😮", "2"],
+                              ["❤️", "1"],
+                            ],
+                          },
+                          {
+                            user: "Sam",
+                            topic: "Morning Light",
+                            cat: "Theme",
+                            photoBg:
+                              "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800",
+                            iconBg: "bg-violet-100 dark:bg-violet-900/40",
+                            catColor: "text-violet-500 dark:text-violet-400",
+                            reactions: [
+                              ["👍", "1"],
+                              ["❤️", "2"],
+                            ],
+                          },
+                        ].map(
+                          ({
+                            user,
+                            topic,
+                            cat,
+                            photoBg,
+                            iconBg,
+                            catColor,
+                            reactions,
+                          }) => (
+                            <div
+                              key={user}
+                              className={`rounded-xl border overflow-hidden ${photoBg}`}
+                            >
+                              <div
+                                className={`h-20 flex items-center justify-center ${iconBg}`}
+                              >
+                                <Camera
+                                  className={`h-8 w-8 opacity-40 ${catColor}`}
+                                />
+                              </div>
+                              <div className="px-3 py-2">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-semibold">
+                                    {user}
+                                  </p>
+                                  <span
+                                    className={`text-[9px] font-bold uppercase tracking-widest ${catColor}`}
+                                  >
+                                    {cat}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {topic}
+                                </p>
+                                <div className="flex gap-1.5 mt-1.5">
+                                  {reactions.map(([r, n]) => (
+                                    <span
+                                      key={`${user}-${r}`}
+                                      className="text-[11px] bg-background/80 rounded-full px-2 py-0.5 border border-border/50"
+                                    >
+                                      {r} {n}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-background flex justify-center py-2">
+                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
                     </div>
                   </div>
-                  <div className="flex flex-col gap-3 p-4">
-                    {[
-                      {
-                        user: "Alex",
-                        topic: "Goldenrod #CA8A04",
-                        cat: "Color",
-                        photoBg:
-                          "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800",
-                        iconBg: "bg-orange-100 dark:bg-orange-900/40",
-                        catColor: "text-orange-500 dark:text-orange-400",
-                        reactions: [
-                          ["❤️", "3"],
-                          ["🔥", "1"],
-                        ],
-                      },
-                      {
-                        user: "Jordan",
-                        topic: "Perfect Circle",
-                        cat: "Shape",
-                        photoBg:
-                          "bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800",
-                        iconBg: "bg-sky-100 dark:bg-sky-900/40",
-                        catColor: "text-sky-500 dark:text-sky-400",
-                        reactions: [
-                          ["😮", "2"],
-                          ["❤️", "1"],
-                        ],
-                      },
-                      {
-                        user: "Sam",
-                        topic: "Morning Light",
-                        cat: "Theme",
-                        photoBg:
-                          "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800",
-                        iconBg: "bg-violet-100 dark:bg-violet-900/40",
-                        catColor: "text-violet-500 dark:text-violet-400",
-                        reactions: [
-                          ["👍", "1"],
-                          ["❤️", "2"],
-                        ],
-                      },
-                    ].map(
-                      ({
-                        user,
-                        topic,
-                        cat,
-                        photoBg,
-                        iconBg,
-                        catColor,
-                        reactions,
-                      }) => (
-                        <div
-                          key={user}
-                          className={`rounded-xl border overflow-hidden ${photoBg}`}
-                        >
-                          <div
-                            className={`h-20 flex items-center justify-center ${iconBg}`}
-                          >
-                            <Camera
-                              className={`h-8 w-8 opacity-40 ${catColor}`}
-                            />
+                </div>
+
+                {/* Slide 1 — Never gets repetitive */}
+                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
+                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
+                        02
+                      </span>
+                      <span className="h-px w-6 bg-border" />
+                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                        Fresh Daily
+                      </span>
+                    </div>
+                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
+                      Never gets repetitive
+                    </h2>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      Four fresh challenges drop every morning — a new color,
+                      shape, theme, and object. The topics are always specific:
+                      not just "something red", but "Goldenrod #CA8A04". No two
+                      days look the same.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-[26rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                    <div className="bg-foreground/5 flex justify-center py-2.5">
+                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                    </div>
+                    <div className="flex-1 bg-background flex flex-col">
+                      <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-sm">Free Walk</p>
+                          <p className="text-xs text-muted-foreground">
+                            Pick a topic · Take a photo
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Aug 13</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 p-4">
+                        <div className="rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 p-4 flex flex-col gap-2">
+                          <div className="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
+                            <svg
+                              viewBox="0 0 32 32"
+                              fill="none"
+                              aria-hidden="true"
+                              className="w-7 h-7 text-orange-500"
+                            >
+                              <circle
+                                cx="16"
+                                cy="16"
+                                r="11"
+                                fill="currentColor"
+                              />
+                            </svg>
                           </div>
-                          <div className="px-3 py-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold">{user}</p>
-                              <span
-                                className={`text-[9px] font-bold uppercase tracking-widest ${catColor}`}
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                            Color
+                          </p>
+                          <p className="font-bold text-sm leading-tight">
+                            Goldenrod #CA8A04
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-sky-50 dark:bg-sky-900/20 p-4 flex flex-col gap-2">
+                          <div className="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
+                            <svg
+                              viewBox="0 0 32 32"
+                              fill="none"
+                              aria-hidden="true"
+                              className="w-7 h-7 text-sky-500"
+                            >
+                              <polygon
+                                points="16,3 30,27 2,27"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
+                            Shape
+                          </p>
+                          <p className="font-bold text-sm leading-tight">
+                            Perfect Circle
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-violet-50 dark:bg-violet-900/20 p-4 flex flex-col gap-2">
+                          <div className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                            <svg
+                              viewBox="0 0 32 32"
+                              fill="none"
+                              aria-hidden="true"
+                              className="w-7 h-7 text-violet-500"
+                            >
+                              <path
+                                d="M16 2L18.2 13.8L30 16L18.2 18.2L16 30L13.8 18.2L2 16L13.8 13.8Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                          </div>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+                            Theme
+                          </p>
+                          <p className="font-bold text-sm leading-tight">
+                            Morning Light
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-emerald-50 dark:bg-emerald-900/20 p-4 flex flex-col gap-2">
+                          <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                            <svg
+                              viewBox="0 0 32 32"
+                              fill="none"
+                              aria-hidden="true"
+                              className="w-7 h-7 text-emerald-500"
+                            >
+                              <path
+                                d="M16 2C10.48 2 6 6.48 6 12C6 19.5 16 30 16 30C16 30 26 19.5 26 12C26 6.48 21.52 2 16 2Z"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinejoin="round"
+                                fill="currentColor"
+                                fillOpacity="0.15"
+                              />
+                              <circle
+                                cx="16"
+                                cy="12"
+                                r="3"
+                                fill="currentColor"
+                              />
+                            </svg>
+                          </div>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                            Object
+                          </p>
+                          <p className="font-bold text-sm leading-tight">
+                            Found Art
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-center text-xs text-muted-foreground pb-5">
+                        🔁 Refreshes tomorrow at midnight
+                      </p>
+                    </div>
+                    <div className="bg-background flex justify-center py-2">
+                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 2 — Explore places */}
+                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
+                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
+                        03
+                      </span>
+                      <span className="h-px w-6 bg-border" />
+                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                        Discover
+                      </span>
+                    </div>
+                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
+                      Explore places you've never gone to
+                    </h2>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      Every walk gets logged in your archive. Watch your streak
+                      grow as the topics pull you down streets you'd normally
+                      walk straight past.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-[26rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
+                    <div className="bg-foreground/5 flex justify-center py-2.5">
+                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                    </div>
+                    <div className="flex-1 bg-background flex flex-col">
+                      <div className="px-5 pt-4 pb-3 border-b border-border/40">
+                        <p className="font-bold text-sm">My Archive</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your Free Walk history
+                        </p>
+                      </div>
+                      <div className="px-5 pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="font-semibold text-sm">August 2026</p>
+                          <p className="text-xs text-muted-foreground">
+                            14 walks this month
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-7 mb-1">
+                          {(
+                            [
+                              "Sun",
+                              "Mon",
+                              "Tue",
+                              "Wed",
+                              "Thu",
+                              "Fri",
+                              "Sat",
+                            ] as const
+                          ).map((d) => (
+                            <p
+                              key={d}
+                              className="text-center text-[10px] font-medium text-muted-foreground py-1"
+                            >
+                              {d.charAt(0)}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-y-0.5">
+                          {(["b1", "b2", "b3", "b4", "b5", "b6"] as const).map(
+                            (k) => (
+                              <div key={k} />
+                            ),
+                          )}
+                          {Array.from({ length: 31 }, (_, i) => {
+                            const day = i + 1;
+                            const walked = [
+                              1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15, 18, 19,
+                              20, 21, 22, 25, 26, 27, 28,
+                            ].includes(day);
+                            const isToday = day === 13;
+                            const dotColors = [
+                              "bg-orange-400",
+                              "bg-sky-400",
+                              "bg-violet-400",
+                              "bg-emerald-400",
+                              "bg-primary",
+                            ];
+                            const dot = dotColors[(day * 3) % dotColors.length];
+                            return (
+                              <div
+                                key={`day-${day}`}
+                                className={cn(
+                                  "flex flex-col items-center py-0.5 rounded",
+                                  isToday ? "bg-primary/10" : "",
+                                )}
                               >
-                                {cat}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                                <p
+                                  className={cn(
+                                    "text-[11px] leading-tight",
+                                    isToday
+                                      ? "font-bold text-primary"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {day}
+                                </p>
+                                {walked && (
+                                  <div
+                                    className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dot}`}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="px-5 pt-3 pb-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                          Recent Walks
+                        </p>
+                        {[
+                          {
+                            label: "Today",
+                            topic: "Goldenrod #CA8A04",
+                            cat: "Color",
+                            dot: "bg-orange-400",
+                          },
+                          {
+                            label: "Yesterday",
+                            topic: "Perfect Circle",
+                            cat: "Shape",
+                            dot: "bg-sky-400",
+                          },
+                          {
+                            label: "Aug 11",
+                            topic: "Morning Light",
+                            cat: "Theme",
+                            dot: "bg-violet-400",
+                          },
+                        ].map(({ label, topic, cat, dot }) => (
+                          <div
+                            key={label}
+                            className="flex items-center gap-2.5 py-1.5 border-b border-border/40 last:border-0"
+                          >
+                            <div
+                              className={`w-2 h-2 rounded-full shrink-0 ${dot}`}
+                            />
+                            <p className="text-xs font-semibold flex-1 truncate">
                               {topic}
                             </p>
-                            <div className="flex gap-1.5 mt-1.5">
-                              {reactions.map(([r, n]) => (
-                                <span
-                                  key={`${user}-${r}`}
-                                  className="text-[11px] bg-background/80 rounded-full px-2 py-0.5 border border-border/50"
-                                >
-                                  {r} {n}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-                <div className="bg-background flex justify-center py-2">
-                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
-                </div>
-              </div>
-            </AnimateOnScroll>
-          </div>
-        </section>
-
-        {/* ── Never gets repetitive ─────────────────────────── */}
-        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
-          <div className="flex items-center justify-between gap-16">
-            {/* Phone mockup: real category picker — LEFT */}
-            <AnimateOnScroll
-              className="shrink-0"
-              variant="scale-in"
-              delay={100}
-            >
-              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                <div className="bg-foreground/5 flex justify-center py-2.5">
-                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                </div>
-                <div className="flex-1 bg-background flex flex-col">
-                  <div className="px-5 pt-4 pb-3 border-b border-border/40 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-sm">Free Walk</p>
-                      <p className="text-xs text-muted-foreground">
-                        Pick a topic · Take a photo
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Aug 13</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 p-4">
-                    {/* Color — solid circle icon */}
-                    <div className="rounded-xl border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 p-4 flex flex-col gap-2">
-                      <div className="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
-                        <svg
-                          viewBox="0 0 32 32"
-                          fill="none"
-                          aria-hidden="true"
-                          className="w-7 h-7 text-orange-500"
-                        >
-                          <circle cx="16" cy="16" r="11" fill="currentColor" />
-                        </svg>
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">
-                        Color
-                      </p>
-                      <p className="font-bold text-sm leading-tight">
-                        Goldenrod #CA8A04
-                      </p>
-                    </div>
-                    {/* Shape — triangle outline icon */}
-                    <div className="rounded-xl border border-border bg-sky-50 dark:bg-sky-900/20 p-4 flex flex-col gap-2">
-                      <div className="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
-                        <svg
-                          viewBox="0 0 32 32"
-                          fill="none"
-                          aria-hidden="true"
-                          className="w-7 h-7 text-sky-500"
-                        >
-                          <polygon
-                            points="16,3 30,27 2,27"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
-                        Shape
-                      </p>
-                      <p className="font-bold text-sm leading-tight">
-                        Perfect Circle
-                      </p>
-                    </div>
-                    {/* Theme — 4-pointed star icon */}
-                    <div className="rounded-xl border border-border bg-violet-50 dark:bg-violet-900/20 p-4 flex flex-col gap-2">
-                      <div className="w-11 h-11 rounded-xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                        <svg
-                          viewBox="0 0 32 32"
-                          fill="none"
-                          aria-hidden="true"
-                          className="w-7 h-7 text-violet-500"
-                        >
-                          <path
-                            d="M16 2L18.2 13.8L30 16L18.2 18.2L16 30L13.8 18.2L2 16L13.8 13.8Z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
-                        Theme
-                      </p>
-                      <p className="font-bold text-sm leading-tight">
-                        Morning Light
-                      </p>
-                    </div>
-                    {/* Object — map pin icon */}
-                    <div className="rounded-xl border border-border bg-emerald-50 dark:bg-emerald-900/20 p-4 flex flex-col gap-2">
-                      <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                        <svg
-                          viewBox="0 0 32 32"
-                          fill="none"
-                          aria-hidden="true"
-                          className="w-7 h-7 text-emerald-500"
-                        >
-                          <path
-                            d="M16 2C10.48 2 6 6.48 6 12C6 19.5 16 30 16 30C16 30 26 19.5 26 12C26 6.48 21.52 2 16 2Z"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinejoin="round"
-                            fill="currentColor"
-                            fillOpacity="0.15"
-                          />
-                          <circle cx="16" cy="12" r="3" fill="currentColor" />
-                        </svg>
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                        Object
-                      </p>
-                      <p className="font-bold text-sm leading-tight">
-                        Found Art
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-center text-xs text-muted-foreground pb-5">
-                    🔁 Refreshes tomorrow at midnight
-                  </p>
-                </div>
-                <div className="bg-background flex justify-center py-2">
-                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
-                </div>
-              </div>
-            </AnimateOnScroll>
-
-            {/* Text — RIGHT */}
-            <AnimateOnScroll
-              className="flex flex-col gap-4 max-w-2xl shrink-0"
-              variant="scale-in"
-            >
-              <h2 className="font-bold text-7xl leading-tight">
-                Never gets repetitive
-              </h2>
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                Four fresh challenges drop every morning — a new color, shape,
-                theme, and object. The topics are always specific: not just
-                "something red", but "Goldenrod #CA8A04". No two days look the
-                same.
-              </p>
-            </AnimateOnScroll>
-          </div>
-        </section>
-
-        {/* ── Explore places ───────────────────────────────── */}
-        <section className="py-16 border-t border-border/60 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
-          <div className="flex items-center justify-between gap-16">
-            {/* Text — LEFT */}
-            <AnimateOnScroll
-              className="flex flex-col gap-4 max-w-2xl shrink-0"
-              variant="scale-in"
-            >
-              <h2 className="font-bold text-7xl leading-tight">
-                Explore places you've never gone to
-              </h2>
-              <p className="text-xl text-muted-foreground leading-relaxed">
-                Every walk gets logged in your archive. Watch your streak grow
-                as the topics pull you down streets you'd normally walk straight
-                past.
-              </p>
-            </AnimateOnScroll>
-
-            {/* Phone mockup: real archive calendar — RIGHT */}
-            <AnimateOnScroll
-              className="shrink-0"
-              variant="scale-in"
-              delay={100}
-            >
-              <div className="w-[30rem] rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col">
-                <div className="bg-foreground/5 flex justify-center py-2.5">
-                  <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                </div>
-                <div className="flex-1 bg-background flex flex-col">
-                  <div className="px-5 pt-4 pb-3 border-b border-border/40">
-                    <p className="font-bold text-sm">My Archive</p>
-                    <p className="text-xs text-muted-foreground">
-                      Your Free Walk history
-                    </p>
-                  </div>
-                  {/* Calendar */}
-                  <div className="px-5 pt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-semibold text-sm">August 2026</p>
-                      <p className="text-xs text-muted-foreground">
-                        14 walks this month
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-7 mb-1">
-                      {(
-                        [
-                          "Sun",
-                          "Mon",
-                          "Tue",
-                          "Wed",
-                          "Thu",
-                          "Fri",
-                          "Sat",
-                        ] as const
-                      ).map((d) => (
-                        <p
-                          key={d}
-                          className="text-center text-[10px] font-medium text-muted-foreground py-1"
-                        >
-                          {d.charAt(0)}
-                        </p>
-                      ))}
-                    </div>
-                    {/* Aug 2026 starts on a Saturday — 6 leading blanks */}
-                    <div className="grid grid-cols-7 gap-y-0.5">
-                      {(["b1", "b2", "b3", "b4", "b5", "b6"] as const).map(
-                        (k) => (
-                          <div key={k} />
-                        ),
-                      )}
-                      {Array.from({ length: 31 }, (_, i) => {
-                        const day = i + 1;
-                        const walked = [
-                          1, 2, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15, 18, 19, 20,
-                          21, 22, 25, 26, 27, 28,
-                        ].includes(day);
-                        const isToday = day === 13;
-                        const dotColors = [
-                          "bg-orange-400",
-                          "bg-sky-400",
-                          "bg-violet-400",
-                          "bg-emerald-400",
-                          "bg-primary",
-                        ];
-                        const dot = dotColors[(day * 3) % dotColors.length];
-                        return (
-                          <div
-                            key={`day-${day}`}
-                            className={cn(
-                              "flex flex-col items-center py-0.5 rounded",
-                              isToday ? "bg-primary/10" : "",
-                            )}
-                          >
-                            <p
-                              className={cn(
-                                "text-[11px] leading-tight",
-                                isToday
-                                  ? "font-bold text-primary"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {day}
+                            <p className="text-[10px] text-muted-foreground shrink-0">
+                              {label} · {cat}
                             </p>
-                            {walked && (
-                              <div
-                                className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dot}`}
-                              />
-                            )}
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-background flex justify-center py-2">
+                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
                     </div>
                   </div>
-                  {/* Recent walks */}
-                  <div className="px-5 pt-3 pb-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                      Recent Walks
-                    </p>
-                    {[
-                      {
-                        label: "Today",
-                        topic: "Goldenrod #CA8A04",
-                        cat: "Color",
-                        dot: "bg-orange-400",
-                      },
-                      {
-                        label: "Yesterday",
-                        topic: "Perfect Circle",
-                        cat: "Shape",
-                        dot: "bg-sky-400",
-                      },
-                      {
-                        label: "Aug 11",
-                        topic: "Morning Light",
-                        cat: "Theme",
-                        dot: "bg-violet-400",
-                      },
-                    ].map(({ label, topic, cat, dot }) => (
-                      <div
-                        key={label}
-                        className="flex items-center gap-2.5 py-1.5 border-b border-border/40 last:border-0"
-                      >
-                        <div
-                          className={`w-2 h-2 rounded-full shrink-0 ${dot}`}
-                        />
-                        <p className="text-xs font-semibold flex-1 truncate">
-                          {topic}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground shrink-0">
-                          {label} · {cat}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-background flex justify-center py-2">
-                  <div className="w-16 h-1 bg-foreground/15 rounded-full" />
                 </div>
               </div>
-            </AnimateOnScroll>
-          </div>
+            </div>
+
+            {/* Nav: arrows + dots inline */}
+            <div className="flex items-center justify-center gap-4 pb-10">
+              <button
+                type="button"
+                onClick={() => setFeatureSlide((s) => Math.max(0, s - 1))}
+                disabled={featureSlide === 0}
+                className="w-9 h-9 rounded-full border border-border bg-background flex items-center justify-center shadow-sm transition-all duration-200 hover:border-foreground/30 hover:shadow-md disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label="Previous"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="flex gap-2">
+                {([0, 1, 2] as const).map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setFeatureSlide(i)}
+                    aria-label={`Go to slide ${i + 1}`}
+                    className={cn(
+                      "rounded-full transition-all duration-300",
+                      featureSlide === i
+                        ? "w-6 h-2 bg-foreground"
+                        : "w-2 h-2 bg-foreground/25 hover:bg-foreground/50",
+                    )}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeatureSlide((s) => Math.min(2, s + 1))}
+                disabled={featureSlide === 2}
+                className="w-9 h-9 rounded-full border border-border bg-background flex items-center justify-center shadow-sm transition-all duration-200 hover:border-foreground/30 hover:shadow-md disabled:opacity-25 disabled:cursor-not-allowed"
+                aria-label="Next"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </AnimateOnScroll>
         </section>
 
         {/* ── Get Started CTA ──────────────────────────────── */}
