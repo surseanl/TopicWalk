@@ -145,8 +145,30 @@
   }
 }
 
+@keyframes tw-click-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.7);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px) scale(1.1);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.9);
+  }
+}
+
 /* ── Animation utility classes ─────────────────────── */
 @layer utilities {
+  .animate-click-pop {
+    animation: tw-click-pop 0.5s ease-out forwards;
+  }
   .animate-fade-in-up {
     animation: tw-fade-in-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
