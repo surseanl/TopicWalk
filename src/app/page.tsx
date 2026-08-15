@@ -5,11 +5,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Compass,
-  Crosshair,
   MapPin,
-  Search,
-  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -157,6 +153,436 @@ function PhoneCursor({ stepIndex, mode }: { stepIndex: number; mode: string }) {
         {clicking && (
           <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Hero phone animations ─────────────────────────────────────────────
+
+function HeroPhoneLeft() {
+  const [phase, setPhase] = useState(0);
+  const [cx, setCx] = useState(142);
+  const [cy, setCy] = useState(420);
+  const [clicking, setClicking] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const T: ReturnType<typeof setTimeout>[] = [];
+
+    function clearAll() {
+      T.forEach(clearTimeout);
+      T.length = 0;
+    }
+
+    function sched(fn: () => void, ms: number) {
+      T.push(setTimeout(fn, ms));
+    }
+
+    function runPhase(p: number) {
+      if (!alive) return;
+      clearAll();
+      setPhase(p);
+      setClicking(false);
+      if (p === 0) {
+        setCx(142);
+        setCy(420);
+        sched(() => {
+          setCx(76);
+          setCy(112);
+        }, 600);
+        sched(() => setClicking(true), 1250);
+        sched(() => setClicking(false), 1650);
+        sched(() => runPhase(1), 2200);
+      } else if (p === 1) {
+        setCx(230);
+        setCy(60);
+        sched(() => {
+          setCx(142);
+          setCy(355);
+        }, 700);
+        sched(() => setClicking(true), 1350);
+        sched(() => setClicking(false), 1750);
+        sched(() => runPhase(2), 2300);
+      } else {
+        setCx(50);
+        setCy(100);
+        sched(() => {
+          setCx(142);
+          setCy(390);
+        }, 700);
+        sched(() => setClicking(true), 1350);
+        sched(() => setClicking(false), 1750);
+        sched(() => runPhase(0), 2800);
+      }
+    }
+
+    T.push(setTimeout(() => runPhase(0), 800));
+
+    return () => {
+      alive = false;
+      T.forEach(clearTimeout);
+    };
+  }, []);
+
+  const screens = [
+    /* Phase 0 – topic picker */
+    <div key="p0" className="flex flex-col h-full">
+      <div className="px-4 pt-4 pb-3 border-b border-border/40">
+        <p className="font-bold text-sm">Free Walk</p>
+        <p className="text-xs text-muted-foreground">
+          Pick a topic · Take a photo
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 p-4">
+        <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col items-center gap-2">
+          <div className="w-11 h-11 rounded-xl bg-amber-400/90 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-orange-600" />
+          </div>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">
+            Color
+          </p>
+        </div>
+        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
+          <div className="w-11 h-11 rounded-xl bg-sky-400/80 flex items-center justify-center">
+            <div className="w-0 h-0 border-l-[9px] border-r-[9px] border-b-[15px] border-l-transparent border-r-transparent border-b-sky-700" />
+          </div>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600">
+            Shape
+          </p>
+        </div>
+        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
+          <div className="w-11 h-11 rounded-xl bg-violet-400/80 flex items-center justify-center">
+            <span className="text-violet-900 font-black text-xl leading-none">
+              +
+            </span>
+          </div>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600">
+            Theme
+          </p>
+        </div>
+        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
+          <div className="w-11 h-11 rounded-xl bg-emerald-400/80 flex items-center justify-center">
+            <MapPin className="h-5 w-5 text-emerald-800" />
+          </div>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+            Object
+          </p>
+        </div>
+      </div>
+      <div className="mx-4 rounded-xl bg-muted/40 p-3 text-center">
+        <p className="text-[11px] text-muted-foreground">
+          Tap a category to begin
+        </p>
+      </div>
+    </div>,
+    /* Phase 1 – color selected + camera */
+    <div key="p1" className="flex flex-col h-full">
+      <div className="px-4 pt-4 pb-3 border-b border-border/40">
+        <p className="font-bold text-sm">Free Walk</p>
+        <p className="text-xs text-muted-foreground">
+          Pick a topic · Take a photo
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 px-4 pt-3 pb-2 opacity-50">
+        <div className="rounded-xl border-2 border-primary p-2 flex items-center gap-2 bg-primary/5">
+          <div className="w-7 h-7 rounded-lg bg-amber-400 shrink-0 flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-orange-600" />
+          </div>
+          <p className="text-[10px] font-bold text-orange-600">Color</p>
+        </div>
+        {(["Shape", "Theme", "Object"] as const).map((l) => (
+          <div
+            key={l}
+            className="rounded-xl border border-border p-2 flex items-center gap-2"
+          >
+            <div className="w-7 h-7 rounded-lg bg-muted shrink-0" />
+            <p className="text-[10px] text-muted-foreground">{l}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mx-4 mt-2 rounded-xl bg-card border border-border shadow-sm p-3 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+          <div className="w-4 h-4 rounded-full bg-orange-600" />
+        </div>
+        <div>
+          <p className="text-[9px] font-bold text-orange-600 uppercase tracking-widest">
+            Color · Today
+          </p>
+          <p className="font-bold text-sm leading-tight">Goldenrod #CA8A04</p>
+        </div>
+      </div>
+      <p className="text-[10px] text-center text-muted-foreground mt-2 px-4">
+        🔒 Today's pick — resets at midnight
+      </p>
+      <div className="px-4 mt-3">
+        <div className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2">
+          <Camera className="h-4 w-4" />
+          Take / Upload Photo
+        </div>
+      </div>
+    </div>,
+    /* Phase 2 – AI result */
+    <div key="p2" className="flex flex-col h-full">
+      <div className="relative h-36 bg-amber-100 dark:bg-amber-900/25 flex items-center justify-center overflow-hidden shrink-0">
+        <Camera className="h-16 w-16 text-amber-300" />
+        <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+          Color · Goldenrod
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-1 pt-4 pb-3 shrink-0">
+        <div className="text-5xl font-extrabold text-primary leading-none">
+          87
+        </div>
+        <p className="text-xs text-muted-foreground font-medium">out of 100</p>
+      </div>
+      <div className="mx-4 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+          ✓ Confident match!
+        </p>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          The warm amber hue clearly matches Goldenrod. Great find!
+        </p>
+      </div>
+      <div className="px-4 mt-3">
+        <div className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
+          Share to feed →
+        </div>
+      </div>
+    </div>,
+  ];
+
+  return (
+    <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
+      <div
+        className="relative bg-background rounded-[2rem] overflow-hidden"
+        style={{ height: "530px" }}
+      >
+        <div className="bg-foreground/5 flex justify-center py-3">
+          <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
+        </div>
+        <div className="relative overflow-hidden" style={{ height: "458px" }}>
+          {screens[phase]}
+          <div
+            className="absolute pointer-events-none z-50"
+            style={{
+              left: cx,
+              top: cy,
+              transition:
+                "left 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.2, 0.64, 1)",
+            }}
+          >
+            <div className="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8">
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-full bg-gray-900/55 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-150",
+                  clicking ? "scale-75" : "scale-100",
+                )}
+              />
+              {clicking && (
+                <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+const HUNT_TILES_FAR = [
+  { k: "f0", r: false },
+  { k: "f1", r: false },
+  { k: "f2", r: true },
+  { k: "f3", r: false },
+  { k: "f4", r: false },
+  { k: "f5", r: true },
+  { k: "f6", r: true },
+  { k: "f7", r: false },
+  { k: "f8", r: false },
+];
+const HUNT_TILES_NEAR = [
+  { k: "n0", r: true },
+  { k: "n1", r: true },
+  { k: "n2", r: true },
+  { k: "n3", r: true },
+  { k: "n4", r: true },
+  { k: "n5", r: true },
+  { k: "n6", r: true },
+  { k: "n7", r: false },
+  { k: "n8", r: true },
+];
+
+function HeroPhoneRight() {
+  const [phase, setPhase] = useState(0);
+  const [cx, setCx] = useState(200);
+  const [cy, setCy] = useState(380);
+  const [clicking, setClicking] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const T: ReturnType<typeof setTimeout>[] = [];
+
+    function clearAll() {
+      T.forEach(clearTimeout);
+      T.length = 0;
+    }
+
+    function sched(fn: () => void, ms: number) {
+      T.push(setTimeout(fn, ms));
+    }
+
+    function runPhase(p: number) {
+      if (!alive) return;
+      clearAll();
+      setPhase(p);
+      setClicking(false);
+      if (p === 0) {
+        setCx(200);
+        setCy(380);
+        sched(() => {
+          setCx(58);
+          setCy(110);
+        }, 600);
+        sched(() => {
+          setCx(226);
+          setCy(194);
+        }, 1700);
+        sched(() => {
+          setCx(58);
+          setCy(278);
+        }, 2700);
+        sched(() => runPhase(1), 3900);
+      } else {
+        setCx(60);
+        setCy(140);
+        sched(() => {
+          setCx(142);
+          setCy(355);
+        }, 700);
+        sched(() => setClicking(true), 1350);
+        sched(() => setClicking(false), 1750);
+        sched(() => runPhase(0), 2800);
+      }
+    }
+
+    T.push(setTimeout(() => runPhase(0), 1200));
+
+    return () => {
+      alive = false;
+      T.forEach(clearTimeout);
+    };
+  }, []);
+
+  const screens = [
+    /* Phase 0 – hunting */
+    <div key="h0" className="flex flex-col h-full">
+      <div className="px-4 pt-4 pb-3 border-b border-border/40">
+        <p className="font-bold text-sm">Sean's mascot</p>
+        <p className="text-xs text-secondary font-semibold">📍 280m away</p>
+      </div>
+      <div className="px-4 pt-3">
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-amber-50 dark:bg-amber-950/30">
+          <div className="absolute inset-0 flex items-center justify-center opacity-20">
+            <Camera className="h-14 w-14 text-amber-700" />
+          </div>
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+            {HUNT_TILES_FAR.map(({ k, r }) => (
+              <div
+                key={k}
+                className={cn(
+                  "border border-background/20",
+                  r ? "bg-transparent" : "bg-gray-800/80",
+                )}
+              />
+            ))}
+          </div>
+          <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            2 / 9
+          </div>
+        </div>
+      </div>
+      <div className="mx-4 mt-3 rounded-xl bg-muted/50 p-3">
+        <p className="text-[9px] font-bold text-secondary uppercase tracking-widest mb-0.5">
+          Clue #2
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          "There's outdoor seating nearby and open sky above."
+        </p>
+      </div>
+    </div>,
+    /* Phase 1 – in range, capture */
+    <div key="h1" className="flex flex-col h-full">
+      <div className="px-4 pt-4 pb-3 border-b border-border/40">
+        <p className="font-bold text-sm">Sean's mascot</p>
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+          📍 18m — in range!
+        </p>
+      </div>
+      <div className="px-4 pt-3">
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-amber-50 dark:bg-amber-950/30">
+          <div className="absolute inset-0 flex items-center justify-center opacity-45">
+            <Camera className="h-14 w-14 text-amber-700" />
+          </div>
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+            {HUNT_TILES_NEAR.map(({ k, r }) => (
+              <div
+                key={k}
+                className={cn(
+                  "border border-background/20",
+                  r ? "bg-transparent" : "bg-gray-800/80",
+                )}
+              />
+            ))}
+          </div>
+          <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            8 / 9
+          </div>
+        </div>
+      </div>
+      <div className="px-4 mt-3">
+        <div className="w-full h-11 rounded-xl bg-secondary text-secondary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md">
+          🎯 Capture!
+        </div>
+      </div>
+    </div>,
+  ];
+
+  return (
+    <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
+      <div
+        className="relative bg-background rounded-[2rem] overflow-hidden"
+        style={{ height: "530px" }}
+      >
+        <div className="bg-foreground/5 flex justify-center py-3">
+          <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
+        </div>
+        <div className="relative overflow-hidden" style={{ height: "458px" }}>
+          {screens[phase]}
+          <div
+            className="absolute pointer-events-none z-50"
+            style={{
+              left: cx,
+              top: cy,
+              transition:
+                "left 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.2, 0.64, 1)",
+            }}
+          >
+            <div className="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8">
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-full bg-gray-900/55 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-150",
+                  clicking ? "scale-75" : "scale-100",
+                )}
+              />
+              {clicking && (
+                <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
       </div>
     </div>
   );
@@ -438,42 +864,7 @@ export default function LandingPage() {
         />
         {/* Left phone mockup */}
         <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
-            <div
-              className="relative bg-background rounded-[2rem] overflow-hidden"
-              style={{ height: "530px" }}
-            >
-              <div className="bg-foreground/5 flex justify-center py-3">
-                <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
-              </div>
-              <div className="flex-1 bg-secondary/[0.07] p-5 flex flex-col gap-5">
-                <div className="bg-secondary/20 rounded-xl p-3.5 border border-secondary/30">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    Today's Topic
-                  </p>
-                  <p className="text-lg font-bold mt-1 text-secondary">
-                    Red Things
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 flex-1">
-                  <div className="bg-secondary/20 rounded-xl flex items-center justify-center">
-                    <MapPin className="h-8 w-8 text-secondary" />
-                  </div>
-                  <div className="bg-secondary/10 rounded-xl" />
-                  <div className="bg-secondary/10 rounded-xl" />
-                  <div className="bg-secondary/20 rounded-xl flex items-center justify-center">
-                    <Compass className="h-8 w-8 text-secondary/60" />
-                  </div>
-                </div>
-                <div className="flex justify-center">
-                  <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center shadow-md">
-                    <Camera className="h-7 w-7 text-secondary-foreground" />
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
-            </div>
-          </div>
+          <HeroPhoneLeft />
         </div>
 
         <div className="shrink-0 flex flex-col items-center text-center gap-6 animate-fade-in-up animation-delay-100">
@@ -533,38 +924,7 @@ export default function LandingPage() {
 
         {/* Right phone mockup */}
         <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
-            <div
-              className="relative bg-background rounded-[2rem] overflow-hidden"
-              style={{ height: "530px" }}
-            >
-              <div className="bg-foreground/5 flex justify-center py-3">
-                <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
-              </div>
-              <div className="flex-1 bg-secondary/[0.07] p-5 flex flex-col gap-5">
-                <div className="bg-secondary/20 rounded-xl p-3.5 border border-secondary/30">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    Clue dropped!
-                  </p>
-                  <p className="text-lg font-bold mt-1 text-secondary">
-                    Find them →
-                  </p>
-                </div>
-                <div className="flex-1 bg-secondary/10 rounded-xl flex items-center justify-center">
-                  <Crosshair className="h-24 w-24 text-secondary/40" />
-                </div>
-                <div className="flex gap-3">
-                  <div className="flex-1 h-14 bg-secondary/20 rounded-xl flex items-center justify-center">
-                    <Users className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div className="flex-1 h-14 bg-secondary rounded-xl flex items-center justify-center shadow-sm">
-                    <Search className="h-6 w-6 text-secondary-foreground" />
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
-            </div>
-          </div>
+          <HeroPhoneRight />
         </div>
 
         {/* Scroll hint */}
