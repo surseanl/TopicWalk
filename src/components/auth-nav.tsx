@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { LogoutButton } from "~/components/logout-button";
+import { Button } from "~/components/ui/button";
 import { createClient } from "~/lib/supabase/server";
 
 export async function AuthNav() {
@@ -12,31 +14,45 @@ export async function AuthNav() {
     (user?.user_metadata?.username as string | undefined) ?? null;
 
   return (
-    <div className="border-b border-border/40 bg-background px-4 py-1.5 flex items-center justify-end gap-3 text-sm">
-      {username ? (
-        <>
-          <span className="text-muted-foreground">
-            <span className="text-foreground font-medium">{username}</span>
-          </span>
-          <span className="text-border">·</span>
-          <LogoutButton />
-        </>
-      ) : (
-        <>
-          <Link
-            href="/auth"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Log In
-          </Link>
-          <Link
-            href="/auth"
-            className="font-medium hover:text-primary transition-colors"
-          >
-            Sign Up
-          </Link>
-        </>
-      )}
-    </div>
+    <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-md">
+      <div className="flex items-center justify-between px-5 py-4 max-w-5xl mx-auto">
+        <Link href="/" className="flex-shrink-0">
+          <Image
+            src="/image-1786109910251.png"
+            alt="TopicWalk"
+            height={32}
+            width={140}
+            className="object-contain h-8 w-auto"
+            priority
+          />
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {username ? (
+            <>
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                Hi,{" "}
+                <span className="font-medium text-foreground">{username}</span>
+              </span>
+              <LogoutButton />
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Link href="/auth">Log In</Link>
+              </Button>
+              <Button size="sm" asChild className="font-semibold shadow-sm">
+                <Link href="/auth">Sign Up</Link>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }

@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* TopicWalk — Orange + Sky brand system */
+  /* Fonts */
+  --font-display: var(--font-paytone), sans-serif;
+
+  /* TopicWalk — Yellow + Sky brand system */
 
   /* Surface */
   --color-background: oklch(0.99 0.004 85);
@@ -17,9 +20,9 @@
   --color-border: oklch(0.9 0.008 85);
   --color-input: oklch(0.9 0.008 85);
 
-  /* Primary — Orange ("Walk" in logo) */
-  --color-primary: oklch(0.72 0.194 47);
-  --color-primary-foreground: oklch(1 0 0);
+  /* Primary — Yellow ("Walk" in logo, sampled #FFBE59) */
+  --color-primary: oklch(0.83 0.17 78);
+  --color-primary-foreground: oklch(0.14 0.015 255);
 
   /* Secondary — Sky/Teal ("Topic" in logo) */
   --color-secondary: oklch(0.65 0.172 216);
@@ -33,7 +36,7 @@
   --color-destructive: oklch(0.577 0.245 27.325);
 
   /* Focus ring */
-  --color-ring: oklch(0.72 0.194 47);
+  --color-ring: oklch(0.83 0.17 78);
 
   /* Radius scale */
   --radius-sm: 0.375rem;
@@ -61,14 +64,14 @@
   --color-muted-foreground: oklch(0.65 0.02 255);
   --color-border: oklch(0.28 0.02 255);
   --color-input: oklch(0.28 0.02 255);
-  --color-primary: oklch(0.77 0.19 47);
+  --color-primary: oklch(0.86 0.17 78);
   --color-primary-foreground: oklch(0.14 0.015 255);
   --color-secondary: oklch(0.7 0.17 216);
   --color-secondary-foreground: oklch(0.14 0.015 255);
   --color-accent: oklch(0.7 0.17 216);
   --color-accent-foreground: oklch(0.14 0.015 255);
   --color-destructive: oklch(0.5 0.2 27);
-  --color-ring: oklch(0.77 0.19 47);
+  --color-ring: oklch(0.86 0.17 78);
 }
 
 @layer base {
@@ -121,6 +124,26 @@
     transform: translateY(-8px);
   }
 }
+@keyframes tw-mascot-flip {
+  0% {
+    transform: rotate(0deg) translateY(0px);
+  }
+  12% {
+    transform: rotate(-9deg) translateY(-5px);
+  } /* wind-up */
+  30% {
+    transform: rotate(20deg) translateY(-2px);
+  } /* throw toward card */
+  58% {
+    transform: rotate(13deg) translateY(0px);
+  } /* follow-through */
+  80% {
+    transform: rotate(-4deg) translateY(1px);
+  } /* settle */
+  100% {
+    transform: rotate(0deg) translateY(0px);
+  }
+}
 
 /* ── Animation utility classes ─────────────────────── */
 @layer utilities {
@@ -135,6 +158,10 @@
   }
   .animate-float-slow {
     animation: tw-float 4.5s ease-in-out infinite;
+  }
+  .animate-mascot-flip {
+    animation: tw-mascot-flip 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transform-origin: bottom center;
   }
 
   /* Logo: quick fade-in then gentle perpetual float */
@@ -173,7 +200,8 @@
     .animate-fade-in,
     .animate-scale-in,
     .animate-float-slow,
-    .animate-logo {
+    .animate-logo,
+    .animate-mascot-flip {
       animation: none;
       opacity: 1;
       transform: none;

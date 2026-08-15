@@ -125,10 +125,10 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold leading-tight">
-                    Hide &amp; Seek
+                    Mascot Hunt
                   </h2>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Hide a mascot using your GPS. Hunt for others.
+                    Hide the mascot. Unlock tiles by walking. Capture first!
                   </p>
                 </div>
               </div>
