@@ -8,6 +8,7 @@ import { Button } from "~/components/ui/button";
 import type { Identity } from "~/lib/identity";
 import { getIdentity } from "~/lib/identity";
 import { createClient } from "~/lib/supabase/client";
+import { syncIdentityFromSupabase } from "~/lib/sync-identity";
 import { cn } from "~/lib/utils";
 
 type Submission = {
@@ -47,14 +48,24 @@ export default function ArchivePage() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
-    const id = getIdentity();
-    if (!id) {
-      router.replace("/");
-      return;
+    async function init() {
+      let id = getIdentity();
+      if (!id || id.isGuest) {
+        const synced = await syncIdentityFromSupabase(supabase);
+        if (!synced) {
+          router.replace("/auth?tab=login");
+          return;
+        }
+        id = getIdentity();
+      }
+      if (!id || id.isGuest) {
+        router.replace("/auth?tab=login");
+        return;
+      }
+      setIdentity(id);
+      fetchAll(id);
     }
-    setIdentity(id);
-    if (!id.isGuest) fetchAll(id);
-    else setLoading(false);
+    void init();
   }, []);
 
   async function fetchAll(id: Identity) {
@@ -130,27 +141,6 @@ export default function ArchivePage() {
           </p>
         </div>
       </div>
-
-      {identity.isGuest && (
-        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm space-y-2">
-          <p className="font-medium">Guest submissions aren&apos;t saved</p>
-          <p className="text-xs text-muted-foreground">
-            Sign up to keep your walk history across sessions.
-          </p>
-          <div className="flex gap-2 pt-1">
-            <Link href="/auth" className="flex-1">
-              <Button size="sm" className="w-full">
-                Sign Up
-              </Button>
-            </Link>
-            <Link href="/auth" className="flex-1">
-              <Button size="sm" variant="outline" className="w-full">
-                Log In
-              </Button>
-            </Link>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="icon" onClick={prevMonth}>

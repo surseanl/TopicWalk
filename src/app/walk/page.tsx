@@ -16,6 +16,7 @@ import { Button } from "~/components/ui/button";
 import type { Identity } from "~/lib/identity";
 import { getIdentity, saveGuestIdentity } from "~/lib/identity";
 import { createClient } from "~/lib/supabase/client";
+import { syncIdentityFromSupabase } from "~/lib/sync-identity";
 import type { Category } from "~/lib/topics";
 import { getTodayTopics } from "~/lib/topics";
 import { imageExt, validateImage } from "~/lib/upload";
@@ -332,15 +333,23 @@ export default function WalkPage() {
       setIsFlipped(true);
       setIsLocked(true);
     }
-    const id = getIdentity() ?? saveGuestIdentity();
-    setIdentity(id);
-    if (id.isGuest) {
-      setLoading(false);
-      return;
+    async function init() {
+      let id = getIdentity();
+      if (!id || id.isGuest) {
+        await syncIdentityFromSupabase(supabase);
+        id = getIdentity();
+      }
+      const finalId = id ?? saveGuestIdentity();
+      setIdentity(finalId);
+      if (finalId.isGuest) {
+        setLoading(false);
+        return;
+      }
+      fetchFeed(finalId);
+      const interval = setInterval(() => fetchFeed(finalId), 8000);
+      return () => clearInterval(interval);
     }
-    fetchFeed(id);
-    const interval = setInterval(() => fetchFeed(id), 8000);
-    return () => clearInterval(interval);
+    void init();
   }, []);
 
   async function fetchFeed(id: Identity) {
@@ -700,7 +709,7 @@ export default function WalkPage() {
         </div>
       )}
 
-      {/* Guest: own photos + sign-up prompt */}
+      {/* Feed — locked for guests */}
       {identity.isGuest ? (
         <div className="space-y-4">
           {guestPhotos.length > 0 && (
@@ -734,19 +743,26 @@ export default function WalkPage() {
               ))}
             </div>
           )}
-          <div className="rounded-xl border bg-muted/40 p-5 space-y-3 text-center">
-            <p className="font-semibold text-sm">See what your friends found</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Sign up to share photos with friends, react to their finds, and
-              save your walk history.
-            </p>
+          <div className="rounded-xl border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="font-semibold text-sm">Community Feed</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Sign in to see what your friends photographed today and react to
+                their finds.
+              </p>
+            </div>
             <div className="flex gap-2">
-              <Link href="/auth" className="flex-1">
+              <Link href="/auth?tab=signup" className="flex-1">
                 <Button className="w-full shadow-sm hover:shadow-md hover:-translate-y-px transition-all">
                   Sign Up
                 </Button>
               </Link>
-              <Link href="/auth" className="flex-1">
+              <Link href="/auth?tab=login" className="flex-1">
                 <Button
                   variant="outline"
                   className="w-full hover:-translate-y-px transition-all"

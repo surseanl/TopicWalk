@@ -28,12 +28,32 @@ export async function AuthNav() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {username ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Link href="/walk">Walk</Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Link href="/seek">Hunt</Link>
+          </Button>
+          {user ? (
             <>
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                Hi,{" "}
-                <span className="font-medium text-foreground">{username}</span>
-              </span>
+              {username && (
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Hi,{" "}
+                  <span className="font-medium text-foreground">
+                    {username}
+                  </span>
+                </span>
+              )}
               <LogoutButton />
             </>
           ) : (
@@ -44,10 +64,10 @@ export async function AuthNav() {
                 asChild
                 className="text-muted-foreground hover:text-foreground"
               >
-                <Link href="/auth">Log In</Link>
+                <Link href="/auth?tab=login">Log In</Link>
               </Button>
               <Button size="sm" asChild className="font-semibold shadow-sm">
-                <Link href="/auth">Sign Up</Link>
+                <Link href="/auth?tab=signup">Sign Up</Link>
               </Button>
             </>
           )}
