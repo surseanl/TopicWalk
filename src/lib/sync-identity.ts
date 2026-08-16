@@ -4,43 +4,72 @@ import { getIdentity, saveIdentity } from "./identity";
 export async function syncIdentityFromSupabase(
   supabase: SupabaseClient,
 ): Promise<boolean> {
+  // getSession reads from cookies without a network call — correct for client components.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return false;
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.user) return false;
+
+  const user = session.user;
 
   const existing = getIdentity();
   if (existing && !existing.isGuest) return true;
 
-  const { data: userData } = await supabase
+  let { data: userData } = await supabase
     .from("tw_users")
     .select("username")
     .eq("id", user.id)
     .maybeSingle();
 
+  // Row missing — user signed up before the callback upsert was in place.
+  // Create it now from auth metadata so they aren't permanently locked out.
+  if (!userData) {
+    const metaUsername =
+      (user.user_metadata?.username as string | undefined) ?? "";
+    let username = metaUsername || `user_${user.id.slice(0, 8)}`;
+
+    const { data: conflict } = await supabase
+      .from("tw_users")
+      .select("id")
+      .eq("username", username)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (conflict) username = `${username}_${user.id.slice(0, 4)}`;
+
+    await supabase
+      .from("tw_users")
+      .upsert(
+        { id: user.id, username, email: user.email ?? "" },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+
+    const { data: refreshed } = await supabase
+      .from("tw_users")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    userData = refreshed;
+  }
+
   if (!userData) return false;
 
-  // Each user's personal group uses their auth ID as the group ID.
-  // First 8 hex chars of UUID → readable group code (4B+ combinations).
   const groupId = user.id;
   const derivedCode = user.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 
-  // Create personal group if it doesn't exist yet (ignore duplicate errors).
   await supabase.from("tw_groups").insert({ id: groupId, code: derivedCode });
 
-  // Fetch actual code in case the row already existed with a different code.
   const { data: group } = await supabase
     .from("tw_groups")
     .select("code")
     .eq("id", groupId)
     .maybeSingle();
 
-  const groupCode = group?.code ?? derivedCode;
-
   saveIdentity({
     userId: user.id,
     displayName: userData.username,
-    groupCode,
+    groupCode: group?.code ?? derivedCode,
     groupId,
     isGuest: false,
   });
