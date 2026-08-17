@@ -11,7 +11,7 @@ import { Label } from "~/components/ui/label";
 import { clearIdentity, getIdentity } from "~/lib/identity";
 import { createClient } from "~/lib/supabase/client";
 import { syncIdentityFromSupabase } from "~/lib/sync-identity";
-import { cn } from "~/lib/utils";
+import { validateUsername } from "~/lib/username-filter";
 
 export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
   const router = useRouter();
@@ -73,12 +73,9 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
     const name = username.trim().toLowerCase();
     const emailVal = email.trim().toLowerCase();
 
-    if (name.length < 3) {
-      setError("Username must be at least 3 characters.");
-      return;
-    }
-    if (!/^[a-z0-9_]+$/.test(name)) {
-      setError("Username: letters, numbers, and underscores only.");
+    const usernameCheck = validateUsername(name);
+    if (!usernameCheck.ok) {
+      setError(usernameCheck.reason);
       return;
     }
     if (!emailVal.includes("@") || !emailVal.includes(".")) {
@@ -184,7 +181,7 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
               reset();
             }}
           >
-            Back to Log In
+            Back to Sign In
           </Button>
         </div>
       </div>
@@ -211,6 +208,10 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
       />
 
       <div className="w-full max-w-sm animate-scale-in animation-delay-75 bg-card rounded-2xl border shadow-md p-6 space-y-5">
+        <h1 className="text-xl font-bold">
+          {tab === "login" ? "Sign in" : "Create account"}
+        </h1>
+
         {/* Google sign-in */}
         <button
           type="button"
@@ -243,39 +244,10 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-border" />
           <span className="text-xs text-muted-foreground">or</span>
           <div className="flex-1 h-px bg-border" />
-        </div>
-
-        {/* Tab switcher */}
-        <div className="relative flex rounded-xl bg-muted p-1">
-          <div
-            className={cn(
-              "absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm transition-all duration-200",
-              tab === "login" ? "left-1" : "left-[calc(50%+3px)]",
-            )}
-          />
-          {(["login", "signup"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => {
-                setTab(t);
-                reset();
-              }}
-              className={cn(
-                "relative z-10 flex-1 rounded-md py-1.5 text-sm font-medium transition-colors duration-200",
-                tab === t
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70",
-              )}
-            >
-              {t === "login" ? "Log In" : "Sign Up"}
-            </button>
-          ))}
         </div>
 
         <div className="space-y-4">
@@ -351,14 +323,14 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
             {loading
               ? "Please wait…"
               : tab === "login"
-                ? "Log In"
-                : "Create Account"}
+                ? "Sign in"
+                : "Create account"}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
             {tab === "login" ? (
               <>
-                No account?{" "}
+                Don&apos;t have an account?{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -367,12 +339,12 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
                   }}
                   className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
                 >
-                  Sign Up
+                  Sign up
                 </button>
               </>
             ) : (
               <>
-                Already have one?{" "}
+                Already have an account?{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -381,7 +353,7 @@ export function AuthForm({ defaultTab }: { defaultTab: "login" | "signup" }) {
                   }}
                   className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
                 >
-                  Log In
+                  Sign in
                 </button>
               </>
             )}

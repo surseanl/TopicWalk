@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  CalendarDays,
-  Camera,
-  CheckCircle2,
-  Lock,
-  Sparkles,
-  XCircle,
-} from "lucide-react";
+import { ArrowLeft, CalendarDays, Camera, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +17,7 @@ import { cn } from "~/lib/utils";
 const EMOJIS = ["👍", "❤️", "😂", "🔥", "😮"];
 
 type Reaction = { emoji: string; user_id: string };
+type Rating = { user_id: string; score: number };
 type Submission = {
   id: string;
   user_id: string;
@@ -34,6 +27,7 @@ type Submission = {
   photo_path: string;
   submitted_at: string;
   tw_reactions: Reaction[];
+  tw_ratings: Rating[];
 };
 
 const CATEGORY_STYLE: Record<
@@ -70,9 +64,7 @@ const CATEGORY_STYLE: Record<
   },
 };
 
-// Simplistic SVG symbols — one distinct mark per category
 const CATEGORY_ICONS = {
-  // Solid circle — a pigment dot, pure colour
   Color: (
     <svg
       viewBox="0 0 32 32"
@@ -83,7 +75,6 @@ const CATEGORY_ICONS = {
       <circle cx="16" cy="16" r="11" fill="currentColor" />
     </svg>
   ),
-  // Equilateral triangle outline — the simplest geometric form
   Shape: (
     <svg
       viewBox="0 0 32 32"
@@ -99,7 +90,6 @@ const CATEGORY_ICONS = {
       />
     </svg>
   ),
-  // 4-pointed star — a moment, an atmosphere
   Theme: (
     <svg
       viewBox="0 0 32 32"
@@ -113,7 +103,6 @@ const CATEGORY_ICONS = {
       />
     </svg>
   ),
-  // Location pin — find a specific thing
   Object: (
     <svg
       viewBox="0 0 32 32"
@@ -134,7 +123,6 @@ const CATEGORY_ICONS = {
   ),
 };
 
-// kept for feed badges
 const CATEGORY_COLORS: Record<Category, string> = {
   Color:
     "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
@@ -153,18 +141,8 @@ const CATEGORY_EMOJI: Record<Category, string> = {
 };
 
 const DAILY_PICK_KEY = "tw_daily_pick";
-
 type DailyPick = { category: Category; label: string };
 type StoredPick = { date: string; category: Category; label: string };
-
-type GradeResult = {
-  score?: number;
-  found?: boolean;
-  confidence?: number;
-  dominantColor?: string;
-  feedback?: string;
-  error?: string;
-};
 
 function todayKey() {
   return new Date().toISOString().split("T")[0];
@@ -192,95 +170,122 @@ function saveDailyPick(topic: DailyPick) {
   } catch (_e) {}
 }
 
-function GradeCard({
-  result,
-  category,
-}: {
-  result: GradeResult;
-  category: Category;
-}) {
-  const s = CATEGORY_STYLE[category];
+// Star path used for both filled and empty stars
+const STAR_PATH =
+  "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
 
-  if (category === "Object") {
-    const found = result.found ?? false;
-    const pct = result.confidence ?? 0;
-    return (
-      <div
-        className={cn(
-          "animate-scale-in rounded-2xl border-2 p-4 space-y-2",
-          found
-            ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
-            : "border-destructive/30 bg-destructive/5",
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {found ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          ) : (
-            <XCircle className="h-5 w-5 text-destructive shrink-0" />
-          )}
-          <span
-            className={cn(
-              "font-semibold text-sm",
-              found
-                ? "text-emerald-700 dark:text-emerald-300"
-                : "text-destructive",
-            )}
-          >
-            {found
-              ? `Found! ${pct}% confidence`
-              : `Not found — ${pct}% confident`}
-          </span>
-        </div>
-        {result.feedback && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {result.feedback}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  const score = result.score ?? 0;
+function StarIcon({ className }: { className?: string }) {
   return (
-    <div
-      className={cn(
-        "animate-scale-in rounded-2xl border-2 p-4 space-y-3",
-        s.wash,
-      )}
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("w-full h-full", className)}
+      aria-hidden="true"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className={cn("h-4 w-4 shrink-0", s.accent)} />
-          <span className={cn("font-semibold text-sm", s.badge)}>AI Grade</span>
-        </div>
-        <span className={cn("font-bold text-lg tabular-nums", s.badge)}>
-          {score}
-          <span className="text-xs font-normal opacity-60">/100</span>
+      <path d={STAR_PATH} fill="currentColor" />
+    </svg>
+  );
+}
+
+// Static star display — shows average score
+function StarDisplay({ ratings }: { ratings: Rating[] }) {
+  if (ratings.length === 0) {
+    return <p className="text-xs text-muted-foreground">No ratings yet</p>;
+  }
+  const avg = ratings.reduce((s, r) => s + Number(r.score), 0) / ratings.length;
+  const rounded = Math.round(avg * 2) / 2; // round to nearest 0.5
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) => {
+          const fill: 0 | 0.5 | 1 =
+            rounded >= i ? 1 : rounded >= i - 0.5 ? 0.5 : 0;
+          return (
+            <div key={i} className="relative w-4 h-4">
+              <div className="text-border/40">
+                <StarIcon />
+              </div>
+              {fill > 0 && (
+                <div
+                  className="absolute inset-0 overflow-hidden text-amber-400"
+                  style={{ width: fill === 0.5 ? "50%" : "100%" }}
+                >
+                  <div className="w-4 h-4">
+                    <StarIcon />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {avg.toFixed(1)} ({ratings.length})
+      </span>
+    </div>
+  );
+}
+
+// Interactive star rating widget
+function StarRatingWidget({
+  submissionId,
+  myScore,
+  onRate,
+}: {
+  submissionId: string;
+  myScore: number | null;
+  onRate: (id: string, score: number) => void;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const display = hover ?? myScore ?? 0;
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) => {
+          const fill: 0 | 0.5 | 1 =
+            display >= i ? 1 : display >= i - 0.5 ? 0.5 : 0;
+          return (
+            <div key={i} className="relative w-6 h-6">
+              <div className="text-border/40">
+                <StarIcon />
+              </div>
+              {fill > 0 && (
+                <div
+                  className="absolute inset-0 overflow-hidden text-amber-400"
+                  style={{ width: fill === 0.5 ? "50%" : "100%" }}
+                >
+                  <div className="w-6 h-6">
+                    <StarIcon />
+                  </div>
+                </div>
+              )}
+              {/* Left half — i - 0.5 */}
+              <button
+                type="button"
+                className="absolute inset-y-0 left-0 w-1/2 h-full"
+                onMouseEnter={() => setHover(i - 0.5)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => onRate(submissionId, i - 0.5)}
+                aria-label={`${i - 0.5} stars`}
+              />
+              {/* Right half — i */}
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 w-1/2 h-full"
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => onRate(submissionId, i)}
+                aria-label={`${i} stars`}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {myScore !== null && (
+        <span className="text-xs text-muted-foreground tabular-nums ml-0.5">
+          {myScore % 1 === 0 ? myScore.toFixed(0) : myScore.toFixed(1)}★
         </span>
-      </div>
-      {/* Score bar */}
-      <div className="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all duration-700",
-            s.dot,
-          )}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-      {category === "Color" && result.dominantColor && (
-        <p className="text-xs text-muted-foreground">
-          Detected:{" "}
-          <span className="font-medium text-foreground">
-            {result.dominantColor}
-          </span>
-        </p>
-      )}
-      {result.feedback && (
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {result.feedback}
-        </p>
       )}
     </div>
   );
@@ -303,8 +308,6 @@ export default function WalkPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [grading, setGrading] = useState(false);
-  const [gradeResult, setGradeResult] = useState<GradeResult | null>(null);
   const [guestPhotos, setGuestPhotos] = useState<
     Array<{ url: string; label: string; category: Category }>
   >([]);
@@ -356,36 +359,12 @@ export default function WalkPage() {
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("tw_submissions")
-      .select("*, tw_reactions(*)")
+      .select("*, tw_reactions(*), tw_ratings(*)")
       .eq("group_id", id.groupId)
       .gte("submitted_at", `${today}T00:00:00`)
       .order("submitted_at", { ascending: false });
     if (data) setFeed(data as Submission[]);
     setLoading(false);
-  }
-
-  async function gradePhoto(
-    imageUrl: string,
-    topic: { category: Category; label: string },
-  ) {
-    setGrading(true);
-    setGradeResult(null);
-    try {
-      const res = await fetch("/api/grade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl,
-          category: topic.category,
-          label: topic.label,
-        }),
-      });
-      const data = (await res.json()) as GradeResult;
-      setGradeResult(data);
-    } catch {
-      setGradeResult({ error: "Grading unavailable" });
-    }
-    setGrading(false);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -434,7 +413,6 @@ export default function WalkPage() {
         fetchFeed(identity);
       }
       if (fileRef.current) fileRef.current.value = "";
-      gradePhoto(publicUrl, selectedTopic);
     }
     setUploading(false);
   }
@@ -457,6 +435,17 @@ export default function WalkPage() {
           { onConflict: "submission_id,user_id" },
         );
     }
+    fetchFeed(identity);
+  }
+
+  async function rateSubmission(submissionId: string, score: number) {
+    if (!identity) return;
+    await supabase
+      .from("tw_ratings")
+      .upsert(
+        { submission_id: submissionId, user_id: identity.userId, score },
+        { onConflict: "submission_id,user_id" },
+      );
     fetchFeed(identity);
   }
 
@@ -496,7 +485,6 @@ export default function WalkPage() {
 
       {/* Topic picker */}
       <div className="space-y-4">
-        {/* 2×2 category buttons */}
         <div className="grid grid-cols-2 gap-3">
           {topics.map((t) => {
             const s = CATEGORY_STYLE[t.category];
@@ -673,38 +661,15 @@ export default function WalkPage() {
             className="w-full h-14 font-semibold text-base shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all rounded-2xl"
             onClick={() => {
               setUploadError(null);
-              setGradeResult(null);
               fileRef.current?.click();
             }}
-            disabled={uploading || grading}
+            disabled={uploading}
           >
             <Camera className="h-5 w-5 mr-2" />
-            {uploading
-              ? "Uploading…"
-              : grading
-                ? "Grading…"
-                : "Take / Upload Photo"}
+            {uploading ? "Uploading…" : "Take / Upload Photo"}
           </Button>
           {uploadError && (
             <p className="text-xs text-destructive">{uploadError}</p>
-          )}
-
-          {/* AI grade result */}
-          {grading && (
-            <div className="animate-fade-in rounded-2xl border bg-muted/40 p-4 flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-primary shrink-0 animate-pulse" />
-              <p className="text-sm text-muted-foreground">
-                AI is grading your photo…
-              </p>
-            </div>
-          )}
-          {gradeResult && !grading && !gradeResult.error && (
-            <GradeCard result={gradeResult} category={selectedTopic.category} />
-          )}
-          {gradeResult?.error && (
-            <p className="text-xs text-muted-foreground text-center">
-              {gradeResult.error}
-            </p>
           )}
         </div>
       )}
@@ -774,7 +739,6 @@ export default function WalkPage() {
           </div>
         </div>
       ) : (
-        /* Social feed */
         <div className="space-y-3">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
             Today&apos;s Feed
@@ -803,6 +767,11 @@ export default function WalkPage() {
               const url = supabase.storage
                 .from("game-photos")
                 .getPublicUrl(sub.photo_path).data.publicUrl;
+              const isOwn = sub.user_id === identity.userId;
+              const myRating = sub.tw_ratings.find(
+                (r) => r.user_id === identity.userId,
+              );
+
               return (
                 <div
                   key={sub.id}
@@ -832,6 +801,24 @@ export default function WalkPage() {
                         {sub.topic_category}
                       </span>
                     </div>
+
+                    {/* Star rating */}
+                    <div className="flex items-center justify-between gap-2">
+                      {isOwn ? (
+                        <StarDisplay ratings={sub.tw_ratings} />
+                      ) : (
+                        <StarRatingWidget
+                          submissionId={sub.id}
+                          myScore={myRating ? Number(myRating.score) : null}
+                          onRate={rateSubmission}
+                        />
+                      )}
+                      {!isOwn && sub.tw_ratings.length > 0 && (
+                        <StarDisplay ratings={sub.tw_ratings} />
+                      )}
+                    </div>
+
+                    {/* Emoji reactions */}
                     <div className="flex gap-1.5 flex-wrap">
                       {EMOJIS.map((emoji) => {
                         const count = sub.tw_reactions.filter(

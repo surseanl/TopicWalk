@@ -44,6 +44,14 @@ export async function AuthNav() {
           >
             <Link href="/seek">Hunt</Link>
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Link href="/friends">Friends</Link>
+          </Button>
           {user ? (
             <>
               {username && (

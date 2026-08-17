@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "TopicWalk",
+    "slug": "topicwalk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "topicwalk",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.topicwalk.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "package": "com.topicwalk.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TopicWalk needs access to your photos to share walk photos.",
+          "cameraPermission": "TopicWalk needs your camera to take walk photos."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
