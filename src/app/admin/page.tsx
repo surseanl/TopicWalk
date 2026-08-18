@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { env } from "~/env";
 import { createClient } from "~/lib/supabase/server";
+import { deleteMascot, deleteSubmission } from "./actions";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -88,6 +89,20 @@ export default async function AdminPage() {
                       year: "numeric",
                     })}
                   </p>
+                  <form action={deleteSubmission}>
+                    <input type="hidden" name="id" value={sub.id} />
+                    <input
+                      type="hidden"
+                      name="photoPath"
+                      value={sub.photo_path ?? ""}
+                    />
+                    <button
+                      type="submit"
+                      className="mt-1 w-full text-xs text-destructive font-medium hover:underline text-left"
+                    >
+                      Delete
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}
@@ -149,6 +164,25 @@ export default async function AdminPage() {
                       year: "numeric",
                     })}
                   </p>
+                  <form action={deleteMascot}>
+                    <input type="hidden" name="id" value={m.id} />
+                    <input
+                      type="hidden"
+                      name="photoPath"
+                      value={m.photo_path}
+                    />
+                    <input
+                      type="hidden"
+                      name="finderPhotoPath"
+                      value={m.finder_photo_path ?? ""}
+                    />
+                    <button
+                      type="submit"
+                      className="mt-1 w-full text-xs text-destructive font-medium hover:underline text-left"
+                    >
+                      Delete
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}

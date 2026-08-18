@@ -131,8 +131,10 @@ function normalize(s: string): string {
     .replace(/3/g, "e")
     .replace(/4/g, "a")
     .replace(/5/g, "s")
+    .replace(/6/g, "g")
     .replace(/7/g, "t")
     .replace(/8/g, "b")
+    .replace(/9/g, "g")
     .replace(/_+/g, "")
     .replace(/\s+/g, "");
 }

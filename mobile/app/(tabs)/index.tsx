@@ -1,13 +1,21 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { CalendarDays, Camera, Lock } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import {
+  CalendarDays,
+  Camera,
+  ChevronLeft,
+  Lock,
+  RotateCcw,
+} from "lucide-react-native";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Easing,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,7 +24,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Path, Polygon } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polygon, Rect } from "react-native-svg";
 import { StarDisplay, StarRatingWidget } from "../../components/Stars";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
@@ -131,6 +139,277 @@ function CategoryIcon({
   );
 }
 
+// ── Topic visual sample (shown on photo confirmation) ─────────────────────────
+
+const OBJECT_EMOJI: Record<string, string> = {
+  "A payphone or call box": "📞",
+  "A bicycle locked to a post": "🚲",
+  "Tree roots cracking pavement": "🌳",
+  "A faded hopscotch grid": "🪀",
+  "A convex traffic mirror": "🪞",
+  "A street art sticker": "🎨",
+  "A worn stone doorstep": "🪨",
+  "A water meter cover": "💧",
+  "Coins in a fountain": "🪙",
+  "A newspaper box": "📰",
+  "A construction sawhorse": "🚧",
+  "A broken umbrella left behind": "☂️",
+};
+
+function TopicSample({
+  category,
+  label,
+  size = 52,
+  strokeColor = "rgba(255,255,255,0.9)",
+  borderColor = "rgba(255,255,255,0.45)",
+}: {
+  category: Category;
+  label: string;
+  size?: number;
+  strokeColor?: string;
+  borderColor?: string;
+}) {
+  if (category === "Color") {
+    const match = label.match(/#[A-Fa-f0-9]{6}/);
+    const hex = match ? match[0] : "#888888";
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: hex,
+          borderWidth: 3,
+          borderColor,
+        }}
+      />
+    );
+  }
+
+  if (category === "Shape") {
+    const c = strokeColor;
+    const sw = 6;
+    let inner: ReactElement | null = null;
+
+    if (label === "A circle") {
+      inner = (
+        <Circle
+          cx="50"
+          cy="50"
+          r="38"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+        />
+      );
+    } else if (label === "A triangle") {
+      inner = (
+        <Polygon
+          points="50,8 92,85 8,85"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+      );
+    } else if (label === "A grid of rectangles") {
+      inner = (
+        <>
+          <Rect
+            x="8"
+            y="8"
+            width="37"
+            height="37"
+            fill="none"
+            stroke={c}
+            strokeWidth={sw}
+            rx="4"
+          />
+          <Rect
+            x="55"
+            y="8"
+            width="37"
+            height="37"
+            fill="none"
+            stroke={c}
+            strokeWidth={sw}
+            rx="4"
+          />
+          <Rect
+            x="8"
+            y="55"
+            width="37"
+            height="37"
+            fill="none"
+            stroke={c}
+            strokeWidth={sw}
+            rx="4"
+          />
+          <Rect
+            x="55"
+            y="55"
+            width="37"
+            height="37"
+            fill="none"
+            stroke={c}
+            strokeWidth={sw}
+            rx="4"
+          />
+        </>
+      );
+    } else if (label === "A spiral") {
+      inner = (
+        <Path
+          d="M 50,16 C 74,16 85,37 82,55 C 79,73 63,82 46,79 C 29,76 20,62 23,47 C 26,32 39,24 52,27 C 65,30 72,43 70,56 C 68,69 55,76 43,72"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinecap="round"
+        />
+      );
+    } else if (label === "An arch or arc") {
+      inner = (
+        <Path
+          d="M 12,82 C 12,28 88,28 88,82"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinecap="round"
+        />
+      );
+    } else if (label === "Parallel lines") {
+      inner = (
+        <>
+          <Line
+            x1="12"
+            y1="22"
+            x2="88"
+            y2="22"
+            stroke={c}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+          <Line
+            x1="12"
+            y1="40"
+            x2="88"
+            y2="40"
+            stroke={c}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+          <Line
+            x1="12"
+            y1="58"
+            x2="88"
+            y2="58"
+            stroke={c}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+          <Line
+            x1="12"
+            y1="76"
+            x2="88"
+            y2="76"
+            stroke={c}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        </>
+      );
+    } else if (label === "A diamond") {
+      inner = (
+        <Polygon
+          points="50,8 92,50 50,92 8,50"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+      );
+    } else if (label === "A starburst or star") {
+      inner = (
+        <Polygon
+          points="50,8 61,35 90,37 67,56 75,84 50,68 25,84 33,56 10,37 39,35"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+      );
+    } else if (label === "A wave or curve") {
+      inner = (
+        <Path
+          d="M 5,50 C 20,20 35,20 50,50 C 65,80 80,80 95,50"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+          strokeLinecap="round"
+        />
+      );
+    } else if (label === "Concentric rings") {
+      inner = (
+        <>
+          <Circle
+            cx="50"
+            cy="50"
+            r="42"
+            fill="none"
+            stroke={c}
+            strokeWidth="4"
+          />
+          <Circle
+            cx="50"
+            cy="50"
+            r="28"
+            fill="none"
+            stroke={c}
+            strokeWidth="4"
+          />
+          <Circle
+            cx="50"
+            cy="50"
+            r="14"
+            fill="none"
+            stroke={c}
+            strokeWidth="4"
+          />
+        </>
+      );
+    } else {
+      inner = (
+        <Circle
+          cx="50"
+          cy="50"
+          r="38"
+          fill="none"
+          stroke={c}
+          strokeWidth={sw}
+        />
+      );
+    }
+
+    return (
+      <Svg width={size} height={size} viewBox="0 0 100 100">
+        {inner}
+      </Svg>
+    );
+  }
+
+  if (category === "Object") {
+    return (
+      <Text
+        style={{ fontSize: size * 0.72, lineHeight: size, textAlign: "center" }}
+      >
+        {OBJECT_EMOJI[label] ?? "📍"}
+      </Text>
+    );
+  }
+
+  return null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Reaction = { emoji: string; user_id: string };
@@ -165,6 +444,8 @@ export default function WalkScreen() {
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cardVisible, setCardVisible] = useState(false);
+  const [pendingAsset, setPendingAsset] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
 
   // Animation values
   const mascotY = useRef(new Animated.Value(0)).current;
@@ -236,10 +517,25 @@ export default function WalkScreen() {
 
   async function fetchFeed(uid: string) {
     const today = new Date().toISOString().split("T")[0];
+
+    // Collect accepted friend IDs (user appears as either requester or addressee)
+    const { data: friendships } = await supabase
+      .from("tw_friendships")
+      .select("requester_id, addressee_id")
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`);
+
+    const friendIds = (friendships ?? []).map((f) =>
+      f.requester_id === uid ? f.addressee_id : f.requester_id,
+    );
+
+    // Show own feed submissions + friends' feed submissions
+    const groupIds = [uid, ...friendIds];
+
     const { data } = await supabase
       .from("tw_submissions")
       .select("*, tw_reactions(*), tw_ratings(*)")
-      .eq("group_id", uid)
+      .in("group_id", groupIds)
       .gte("submitted_at", `${today}T00:00:00`)
       .order("submitted_at", { ascending: false });
     if (data) setFeed(data as Submission[]);
@@ -359,42 +655,61 @@ export default function WalkScreen() {
     if (!selectedTopic || !userId) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.85 });
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      base64: true,
+    });
     if (result.canceled) return;
-    await uploadPhoto(result.assets[0]);
+    setPendingAsset(result.assets[0]);
   }
 
   async function pickFromGallery() {
     if (!selectedTopic || !userId) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.85 });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.8,
+      base64: true,
+    });
     if (result.canceled) return;
-    await uploadPhoto(result.assets[0]);
+    setPendingAsset(result.assets[0]);
   }
 
-  async function uploadPhoto(asset: ImagePicker.ImagePickerAsset) {
-    if (!selectedTopic || !userId) return;
+  async function uploadPhoto(
+    asset: ImagePicker.ImagePickerAsset,
+    shareToFeed: boolean,
+  ) {
+    if (!selectedTopic || !userId || !asset.base64) return;
     setUploading(true);
+    setPendingAsset(null);
     try {
-      const ext = asset.uri.split(".").pop() ?? "jpg";
+      const ext = asset.mimeType?.split("/")[1] ?? "jpg";
       const path = `${userId}/${Date.now()}.${ext}`;
-      const resp = await fetch(asset.uri);
-      const blob = await resp.blob();
+      const binaryString = atob(asset.base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
       const { error } = await supabase.storage
         .from("game-photos")
-        .upload(path, blob, { contentType: asset.mimeType ?? "image/jpeg" });
-      if (!error) {
-        await supabase.from("tw_submissions").insert({
-          group_id: userId,
-          user_id: userId,
-          display_name: displayName,
-          topic_category: selectedTopic.category,
-          topic_label: selectedTopic.label,
-          photo_path: path,
-        });
-        await fetchFeed(userId);
+        .upload(path, bytes, { contentType: asset.mimeType ?? "image/jpeg" });
+      if (error) {
+        Alert.alert("Upload failed", error.message);
+        return;
       }
+      const { error: dbError } = await supabase.from("tw_submissions").insert({
+        group_id: shareToFeed ? userId : null,
+        user_id: userId,
+        display_name: displayName,
+        topic_category: selectedTopic.category,
+        topic_label: selectedTopic.label,
+        photo_path: path,
+      });
+      if (dbError) {
+        Alert.alert("Save failed", dbError.message);
+        return;
+      }
+      if (shareToFeed) await fetchFeed(userId);
     } finally {
       setUploading(false);
     }
@@ -446,6 +761,81 @@ export default function WalkScreen() {
 
   return (
     <SafeAreaView edges={["bottom"]} style={s.safe}>
+      {/* Photo confirmation modal */}
+      <Modal
+        visible={!!pendingAsset}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => pendingAsset && uploadPhoto(pendingAsset, false)}
+      >
+        <View style={s.confirmModal}>
+          {pendingAsset && (
+            <Image
+              source={{ uri: pendingAsset.uri }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+          )}
+          <View style={s.confirmTop}>
+            <TouchableOpacity
+              onPress={() => pendingAsset && uploadPhoto(pendingAsset, false)}
+              style={s.confirmBack}
+            >
+              <ChevronLeft size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={s.confirmBottom}>
+            {selectedTopic && (
+              <View style={s.confirmTopicRow}>
+                <View style={s.confirmTopicSwatch}>
+                  <TopicSample
+                    category={selectedTopic.category}
+                    label={selectedTopic.label}
+                    size={50}
+                  />
+                </View>
+                <View style={s.confirmTopicText}>
+                  <Text style={s.confirmTopicCat}>
+                    {selectedTopic.category}
+                  </Text>
+                  <Text style={s.confirmTopicLabel} numberOfLines={2}>
+                    {selectedTopic.category === "Color"
+                      ? selectedTopic.label.replace(/ #[A-Fa-f0-9]{6}$/, "")
+                      : selectedTopic.label}
+                  </Text>
+                </View>
+              </View>
+            )}
+            <Text style={s.confirmPrompt}>Save this photo?</Text>
+            <TouchableOpacity
+              onPress={() => pendingAsset && uploadPhoto(pendingAsset, true)}
+              disabled={uploading}
+              style={[s.confirmPrimaryBtn, { opacity: uploading ? 0.6 : 1 }]}
+            >
+              <Text style={s.confirmPrimaryBtnText}>
+                {uploading ? "Saving…" : "Share to Feed"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => pendingAsset && uploadPhoto(pendingAsset, false)}
+              disabled={uploading}
+              style={[s.confirmSecondaryBtn, { opacity: uploading ? 0.6 : 1 }]}
+            >
+              <Text style={s.confirmSecondaryBtnText}>
+                Save to Archive Only
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setPendingAsset(null)}
+              style={s.confirmRetakeBtn}
+            >
+              <RotateCcw size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={s.confirmRetakeText}>Retake</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={s.content}
@@ -464,7 +854,7 @@ export default function WalkScreen() {
             <Text style={s.pageSub}>Pick a topic · Take a photo</Text>
           </View>
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/home")}
+            onPress={() => router.push("/archive")}
             style={s.calBtn}
           >
             <CalendarDays size={20} color={colors.foreground} />
@@ -547,13 +937,26 @@ export default function WalkScreen() {
             ]}
           >
             {selectedTopic && cat ? (
-              <View style={{ gap: 6 }}>
-                <Text style={[s.topicCatLabel, { color: cat.badge }]}>
-                  {selectedTopic.category}
-                </Text>
-                <Text style={s.topicLabel} numberOfLines={3}>
-                  {selectedTopic.label}
-                </Text>
+              <View style={s.topicCardInner}>
+                <View style={s.topicCardVisual}>
+                  <TopicSample
+                    category={selectedTopic.category}
+                    label={selectedTopic.label}
+                    size={selectedTopic.category === "Object" ? 40 : 48}
+                    strokeColor={cat.badge}
+                    borderColor="transparent"
+                  />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={[s.topicCatLabel, { color: cat.badge }]}>
+                    {selectedTopic.category}
+                  </Text>
+                  <Text style={s.topicLabel} numberOfLines={2}>
+                    {selectedTopic.category === "Color"
+                      ? selectedTopic.label.replace(/ #[A-Fa-f0-9]{6}$/, "")
+                      : selectedTopic.label}
+                  </Text>
+                </View>
               </View>
             ) : (
               <>
@@ -813,6 +1216,17 @@ const s = StyleSheet.create({
     overflow: "hidden",
     gap: 4,
   },
+  topicCardInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  topicCardVisual: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
   topicPlaceholderIcon: { marginBottom: 6 },
   topicCatLabel: {
     fontSize: 9,
@@ -821,9 +1235,9 @@ const s = StyleSheet.create({
     letterSpacing: 2.5,
   },
   topicLabel: {
-    fontSize: 21,
+    fontSize: 17,
     fontWeight: "800",
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
     color: colors.foreground,
     lineHeight: 27,
   },
@@ -954,6 +1368,114 @@ const s = StyleSheet.create({
   },
   pillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
   muted: { fontSize: 14, color: colors.mutedForeground },
+
+  // ── Photo confirmation modal ──────────────────────────────────────────────
+  confirmModal: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  confirmTop: {
+    position: "absolute",
+    top: 56,
+    left: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  confirmBack: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+    paddingTop: 32,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    gap: 12,
+  },
+  confirmTopicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingBottom: 6,
+  },
+  confirmTopicSwatch: {
+    width: 54,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmTopicText: {
+    flex: 1,
+    gap: 3,
+  },
+  confirmTopicCat: {
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 2.5,
+    color: "rgba(255,255,255,0.55)",
+  },
+  confirmTopicLabel: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.3,
+    lineHeight: 22,
+  },
+  confirmPrompt: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.4,
+    marginBottom: 4,
+  },
+  confirmPrimaryBtn: {
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmPrimaryBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.2,
+  },
+  confirmSecondaryBtn: {
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmSecondaryBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  confirmRetakeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  confirmRetakeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.75)",
+  },
 
   reactionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   reactionBtn: {

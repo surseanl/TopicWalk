@@ -78,8 +78,8 @@ const s = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   logo: {
-    height: 30,
-    width: 130,
+    height: 36,
+    width: 156,
   },
   actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   outlineBtn: {

@@ -27,6 +27,12 @@
       "expo-web-browser",
       "expo-secure-store",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "TopicWalk needs your camera to scan friend QR codes."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "TopicWalk needs access to your photos to share walk photos.",
