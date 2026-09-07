@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -42,6 +43,51 @@ const AVATAR_COLORS = [
   "#ec4899",
 ];
 
+const SNAPPY_COLORS = [
+  "#22c55e",
+  "#16a34a",
+  "#3b82f6",
+  "#f97316",
+  "#f43f5e",
+  "#8b5cf6",
+  "#eab308",
+  "#06b6d4",
+];
+
+const SNAPPY_ACCESSORIES = ["", "🎩", "😎", "⭐", "🎀", "👑", "🔥", "🐾"];
+
+function SnappyCharacter({
+  color,
+  accessory,
+  size = 120,
+}: {
+  color: string;
+  accessory: string;
+  size?: number;
+}) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      {accessory ? (
+        <Text
+          style={{
+            fontSize: Math.round(size * 0.38),
+            lineHeight: Math.round(size * 0.44),
+            marginBottom: -Math.round(size * 0.08),
+            zIndex: 2,
+          }}
+        >
+          {accessory}
+        </Text>
+      ) : null}
+      <Image
+        source={require("../../assets/mascot.png")}
+        style={{ width: size, height: size, tintColor: color }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
@@ -67,9 +113,14 @@ export default function ProfileScreen() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupSubmitting, setSetupSubmitting] = useState(false);
 
+  const [snappyColor, setSnappyColor] = useState(SNAPPY_COLORS[0]);
+  const [snappyAccessory, setSnappyAccessory] = useState("");
+
   const [showEdit, setShowEdit] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editColor, setEditColor] = useState(AVATAR_COLORS[0]);
+  const [editSnappyColor, setEditSnappyColor] = useState(SNAPPY_COLORS[0]);
+  const [editSnappyAccessory, setEditSnappyAccessory] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
@@ -90,15 +141,18 @@ export default function ProfileScreen() {
   }, []);
 
   async function loadProfile(uid: string) {
+    // Use select("*") so the query succeeds even before the snappy migration is applied
     const { data } = await supabase
       .from("tw_users")
-      .select("username, bio, avatar_color")
+      .select("*")
       .eq("id", uid)
       .maybeSingle();
     if (data?.username) {
       setUsername(data.username);
       setBio(data.bio ?? "");
       setAvatarColor(data.avatar_color ?? AVATAR_COLORS[0]);
+      setSnappyColor(data.snappy_color ?? SNAPPY_COLORS[0]);
+      setSnappyAccessory(data.snappy_accessory ?? "");
       setNeedsUsername(false);
     } else {
       setNeedsUsername(true);
@@ -273,15 +327,23 @@ export default function ProfileScreen() {
   async function handleSaveProfile() {
     if (!session?.user) return;
     setEditSaving(true);
+    // Base fields always exist
+    await supabase
+      .from("tw_users")
+      .update({ bio: editBio.trim(), avatar_color: editColor })
+      .eq("id", session.user.id);
+    // Snappy fields — safe-ignore error if migration not yet applied
     await supabase
       .from("tw_users")
       .update({
-        bio: editBio.trim(),
-        avatar_color: editColor,
+        snappy_color: editSnappyColor,
+        snappy_accessory: editSnappyAccessory,
       })
       .eq("id", session.user.id);
     setBio(editBio.trim());
     setAvatarColor(editColor);
+    setSnappyColor(editSnappyColor);
+    setSnappyAccessory(editSnappyAccessory);
     setShowEdit(false);
     setEditSaving(false);
   }
@@ -289,6 +351,8 @@ export default function ProfileScreen() {
   function openEdit() {
     setEditBio(bio);
     setEditColor(avatarColor);
+    setEditSnappyColor(snappyColor);
+    setEditSnappyAccessory(snappyAccessory);
     setShowEdit(true);
   }
 
@@ -429,6 +493,61 @@ export default function ProfileScreen() {
                   />
                 </View>
 
+                {/* Snappy the Mascot */}
+                <View
+                  style={{
+                    height: StyleSheet.hairlineWidth,
+                    backgroundColor: colors.border,
+                  }}
+                />
+                <Text style={s.snappySectionHeader}>
+                  Snappy — your hunt mascot
+                </Text>
+
+                {/* Live character preview */}
+                <View style={{ alignItems: "center", paddingVertical: 8 }}>
+                  <SnappyCharacter
+                    color={editSnappyColor}
+                    accessory={editSnappyAccessory}
+                    size={130}
+                  />
+                </View>
+
+                <View style={{ gap: 10 }}>
+                  <Text style={s.fieldLabel}>Color</Text>
+                  <View style={s.colorRow}>
+                    {SNAPPY_COLORS.map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        onPress={() => setEditSnappyColor(c)}
+                        style={[
+                          s.colorSwatch,
+                          { backgroundColor: c },
+                          editSnappyColor === c && s.colorSwatchSelected,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={{ gap: 10 }}>
+                  <Text style={s.fieldLabel}>Accessory</Text>
+                  <View style={s.accessoryRow}>
+                    {SNAPPY_ACCESSORIES.map((a) => (
+                      <TouchableOpacity
+                        key={a || "none"}
+                        onPress={() => setEditSnappyAccessory(a)}
+                        style={[
+                          s.accessoryBtn,
+                          editSnappyAccessory === a && s.accessoryBtnActive,
+                        ]}
+                      >
+                        <Text style={s.accessoryEmoji}>{a || "✕"}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
                 <TouchableOpacity
                   onPress={handleSaveProfile}
                   disabled={editSaving}
@@ -467,6 +586,26 @@ export default function ProfileScreen() {
               <Text style={s.editBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Snappy */}
+          <TouchableOpacity
+            onPress={openEdit}
+            style={s.snappyCard}
+            activeOpacity={0.8}
+          >
+            <SnappyCharacter
+              color={snappyColor}
+              accessory={snappyAccessory}
+              size={48}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={s.snappyCardTitle}>Snappy</Text>
+              <Text style={s.snappyCardSub}>
+                Your hunt mascot · tap to customize
+              </Text>
+            </View>
+            <Pencil size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
 
           {/* Menu */}
           <View style={s.menuCard}>
@@ -905,4 +1044,46 @@ const s = StyleSheet.create({
     color: colors.foreground,
     textAlignVertical: "top",
   },
+
+  // ── Snappy ─────────────────────────────────────────────────────────────────
+  snappyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  snappyCardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  snappyCardSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 2 },
+
+  // ── Snappy edit modal ──────────────────────────────────────────────────────
+  snappySectionHeader: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  accessoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  accessoryBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accessoryBtnActive: {
+    borderColor: colors.foreground,
+    borderWidth: 2.5,
+  },
+  accessoryEmoji: { fontSize: 22 },
 });

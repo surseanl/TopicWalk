@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { colors } from "../lib/theme";
+import { WALK_COLORS } from "../lib/topics";
 
 type Submission = {
   id: string;
@@ -55,11 +56,12 @@ const CATEGORY_WASH: Record<string, string> = {
   Object: "#f0fdf4",
 };
 
+function colorHex(name: string): string {
+  return WALK_COLORS.find((c) => c.name === name)?.hex ?? "#f97316";
+}
+
 function cellAccent(category: string, label: string): string {
-  if (category === "Color") {
-    const match = label.match(/#[A-Fa-f0-9]{6}/);
-    if (match) return match[0];
-  }
+  if (category === "Color") return colorHex(label);
   return CATEGORY_COLORS[category] ?? "#6366f1";
 }
 
@@ -153,9 +155,10 @@ export default function ArchiveScreen() {
   const detailAccent = detailSub0
     ? cellAccent(detailSub0.topic_category, detailSub0.topic_label)
     : colors.primary;
-  const detailWash = detailSub0
-    ? (CATEGORY_WASH[detailSub0.topic_category] ?? colors.muted)
-    : colors.muted;
+  const detailWash =
+    detailSub0?.topic_category === "Color"
+      ? `${colorHex(detailSub0.topic_label)}1A`
+      : (CATEGORY_WASH[detailSub0?.topic_category ?? ""] ?? colors.muted);
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
@@ -256,10 +259,7 @@ export default function ArchiveScreen() {
                   hasEntry && firstSub
                     ? cellAccent(firstSub.topic_category, firstSub.topic_label)
                     : null;
-                const dotColor =
-                  hasEntry && firstSub
-                    ? (CATEGORY_COLORS[firstSub.topic_category] ?? "#6366f1")
-                    : null;
+                const dotColor = accent;
 
                 return (
                   <TouchableOpacity

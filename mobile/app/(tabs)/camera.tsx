@@ -1,13 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { Camera } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera, ChevronLeft } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -20,31 +21,53 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import WebView from "react-native-webview";
+import { LEAFLET_HTML } from "../../lib/leaflet-html";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const CAPTURE_RADIUS = 100;
-const TILE_IDS = Array.from({ length: 9 }, (_, i) => `tile-${i}`);
-const TILE_REVEAL_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#f43f5e",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#06b6d4",
-  "#10b981",
-];
+const _CAPTURE_RADIUS = 100;
 const TILE_WALK_METERS = 300;
-const TILE_WALK_SOLO = 1609.34;
 const AUTO_TILE_MS = 5 * 60 * 1000;
 const TOTAL_TILES = 9;
-const MIN_TILES_CAPTURE = 3;
+const _MIN_TILES_CAPTURE = 3;
 const MILES_TO_METERS = 1609.34;
 const TILE_SIZE = (Dimensions.get("window").width - 32) / 3;
+const MAP_H = 280;
+const SLOT_ITEM_H = 88;
+const SOLO_DAILY_KEY = "tw_solo_object_v1";
+
+const SOLO_OBJECTS = [
+  { emoji: "🦋", label: "Butterfly" },
+  { emoji: "🍄", label: "Mushroom" },
+  { emoji: "🐛", label: "Caterpillar" },
+  { emoji: "🐦", label: "Bird" },
+  { emoji: "🦎", label: "Lizard" },
+  { emoji: "🌈", label: "Rainbow" },
+  { emoji: "⛲", label: "Fountain" },
+  { emoji: "🌵", label: "Cactus" },
+  { emoji: "🐸", label: "Frog" },
+  { emoji: "🦚", label: "Peacock" },
+  { emoji: "🌸", label: "Cherry blossom" },
+  { emoji: "🐇", label: "Rabbit" },
+  { emoji: "🌲", label: "Tree" },
+  { emoji: "🌰", label: "Acorn" },
+  { emoji: "🦔", label: "Hedgehog" },
+  { emoji: "🌿", label: "Clover" },
+  { emoji: "🍃", label: "Leaves" },
+  { emoji: "🐾", label: "Paw prints" },
+  { emoji: "🌙", label: "Moon" },
+  { emoji: "🦜", label: "Parrot" },
+  { emoji: "⚓", label: "Anchor" },
+  { emoji: "🌺", label: "Flower" },
+  { emoji: "🐝", label: "Bee" },
+  { emoji: "🗿", label: "Stone statue" },
+  { emoji: "🌊", label: "Water" },
+];
+
+const SOLO_DRUM = Array.from({ length: 6 }, () => SOLO_OBJECTS).flat();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,13 +89,6 @@ type Mascot = {
   center_lng: number | null;
 };
 
-type LeaderRow = {
-  name: string;
-  hidden: number;
-  found: number;
-  survivalMs: number;
-};
-
 type TileProgress = {
   revealed: number;
   metersSinceTile: number;
@@ -86,6 +102,9 @@ type HuntGroup = {
   invite_code: string;
   created_by: string;
   created_at: string;
+  radius_miles: number | null;
+  center_lat: number | null;
+  center_lng: number | null;
 };
 
 type HuntMember = {
@@ -122,7 +141,7 @@ function haversineDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function bearing(
+function _bearing(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -138,17 +157,17 @@ function bearing(
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-function bearingArrow(deg: number): string {
+function _bearingArrow(deg: number): string {
   const dirs = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
   return dirs[Math.round(deg / 45) % 8] ?? "↑";
 }
 
-function formatDist(m: number): string {
+function _formatDist(m: number): string {
   if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
   return `${Math.round(m)} m`;
 }
 
-function elapsed(iso: string): string {
+function _elapsed(iso: string): string {
   const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -166,20 +185,22 @@ function survivalStr(ms: number): string {
   return `${sec}s`;
 }
 
-// ── Tile helpers ──────────────────────────────────────────────────────────────
-
-function makeTileOrder(seed: string): number[] {
-  const tiles = Array.from({ length: TOTAL_TILES }, (_, i) => i);
-  let h = 5381;
-  for (let i = 0; i < seed.length; i++)
-    h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
-  for (let i = tiles.length - 1; i > 0; i--) {
-    h = (h * 1664525 + 1013904223) >>> 0;
-    const j = h % (i + 1);
-    [tiles[i], tiles[j]] = [tiles[j] as number, tiles[i] as number];
-  }
-  return tiles;
+function todaySoloStr(): string {
+  return new Date().toISOString().split("T")[0] ?? "";
 }
+
+function dailySoloObjIndices(): [number, number] {
+  const d = new Date();
+  const dayOfYear = Math.floor(
+    (d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86_400_000,
+  );
+  const a = dayOfYear % SOLO_OBJECTS.length;
+  const b =
+    (dayOfYear + Math.floor(SOLO_OBJECTS.length / 2) + 1) % SOLO_OBJECTS.length;
+  return [a, b === a ? (b + 1) % SOLO_OBJECTS.length : b];
+}
+
+// ── Tile helpers ──────────────────────────────────────────────────────────────
 
 function generateInviteCode(): string {
   const chars = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
@@ -213,382 +234,539 @@ function saveTileProgress(mascotId: string, uid: string, p: TileProgress) {
   );
 }
 
-// ── MascotTileFlip ────────────────────────────────────────────────────────────
+// ── Play area map ─────────────────────────────────────────────────────────────
 
-function MascotTileFlip({
-  row,
-  col,
-  gridPos,
-  photoUrl,
-  revealed,
+function PlayMap({
+  myPos,
+  center,
+  radiusMiles,
+  markersJson = "[]",
 }: {
-  row: number;
-  col: number;
-  gridPos: number;
-  photoUrl: string;
-  revealed: boolean;
+  myPos: Pos | null;
+  center: Pos | null;
+  radiusMiles: number;
+  markersJson?: string;
 }) {
-  const [face, setFace] = useState<"covered" | "revealed">(
-    revealed ? "revealed" : "covered",
-  );
-  const scaleX = useRef(new Animated.Value(1)).current;
-  const prevRevealedRef = useRef(revealed);
+  const webRef = useRef<WebView>(null);
+  const readyRef = useRef(false);
 
   useEffect(() => {
-    if (revealed && !prevRevealedRef.current) {
-      prevRevealedRef.current = true;
-      Animated.sequence([
-        Animated.delay(gridPos * 60),
-        Animated.timing(scaleX, {
-          toValue: 0,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setFace("revealed");
-        Animated.timing(scaleX, {
-          toValue: 1,
-          duration: 160,
-          useNativeDriver: true,
-        }).start();
-      });
-    }
-  }, [revealed, gridPos, scaleX]);
+    if (!readyRef.current || !myPos || !center) return;
+    webRef.current?.injectJavaScript(
+      `updateMap(${myPos.lat},${myPos.lng},${center.lat},${center.lng},${radiusMiles});true;`,
+    );
+  }, [myPos, center, radiusMiles]);
+
+  useEffect(() => {
+    if (!readyRef.current) return;
+    webRef.current?.injectJavaScript(`setMarkers(${markersJson});true;`);
+  }, [markersJson]);
+
+  function onReady() {
+    readyRef.current = true;
+    setTimeout(() => {
+      if (myPos && center) {
+        webRef.current?.injectJavaScript(
+          `updateMap(${myPos.lat},${myPos.lng},${center.lat},${center.lng},${radiusMiles});true;`,
+        );
+      }
+      if (markersJson !== "[]") {
+        webRef.current?.injectJavaScript(`setMarkers(${markersJson});true;`);
+      }
+    }, 200);
+  }
 
   return (
-    <Animated.View
-      style={{
-        width: TILE_SIZE,
-        height: TILE_SIZE,
-        overflow: "hidden",
-        transform: [{ scaleX }],
-      }}
-    >
-      {face === "covered" ? (
-        <View style={s.tileFlipCovered}>
-          <Text style={s.tileFlipQuestion}>?</Text>
-        </View>
-      ) : (
-        <Image
-          source={{ uri: photoUrl }}
-          style={{
-            width: TILE_SIZE * 3,
-            height: TILE_SIZE * 3,
-            marginLeft: -col * TILE_SIZE,
-            marginTop: -row * TILE_SIZE,
-          }}
-          resizeMode="cover"
-        />
-      )}
-    </Animated.View>
-  );
-}
-
-// ── MascotTileGrid ────────────────────────────────────────────────────────────
-
-function MascotTileGrid({
-  mascotId,
-  photoUrl,
-  revealed,
-}: {
-  mascotId: string;
-  photoUrl: string;
-  revealed: number;
-}) {
-  const order = useMemo(() => makeTileOrder(mascotId), [mascotId]);
-  const revealedSet = useMemo(
-    () => new Set(order.slice(0, revealed)),
-    [order, revealed],
-  );
-
-  return (
-    <View style={{ width: "100%", aspectRatio: 1 }}>
-      {[0, 3, 6].map((rowStart) => (
-        <View key={rowStart} style={{ flexDirection: "row" }}>
-          {[rowStart, rowStart + 1, rowStart + 2].map((gridPos) => (
-            <MascotTileFlip
-              key={TILE_IDS[gridPos]}
-              row={Math.floor(gridPos / 3)}
-              col={gridPos % 3}
-              gridPos={gridPos}
-              photoUrl={photoUrl}
-              revealed={revealedSet.has(gridPos)}
-            />
-          ))}
-        </View>
-      ))}
+    <View style={s.mapBox}>
+      <WebView
+        ref={webRef}
+        originWhitelist={["*"]}
+        source={{ html: LEAFLET_HTML }}
+        javaScriptEnabled
+        domStorageEnabled
+        onLoadEnd={onReady}
+        style={{ flex: 1 }}
+      />
     </View>
   );
 }
 
-// ── SoloTile ──────────────────────────────────────────────────────────────────
+// ── Area picker map (pan to position circle, tap chips to resize, lock) ──────
 
-function SoloTile({ index, revealed }: { index: number; revealed: boolean }) {
-  const [face, setFace] = useState<"covered" | "revealed">(
-    revealed ? "revealed" : "covered",
-  );
-  const scaleX = useRef(new Animated.Value(1)).current;
-  const prevRevealedRef = useRef(revealed);
-
-  useEffect(() => {
-    if (revealed && !prevRevealedRef.current) {
-      prevRevealedRef.current = true;
-      Animated.sequence([
-        Animated.delay(index * 80),
-        Animated.timing(scaleX, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setFace("revealed");
-        Animated.timing(scaleX, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }).start();
-      });
-    }
-  }, [revealed, index, scaleX]);
+function AreaPickerMap({
+  initialPos,
+  initialRadiusMiles,
+  onConfirm,
+  onCancel,
+}: {
+  initialPos: Pos | null;
+  initialRadiusMiles: 2 | 4 | 6 | 8 | 10;
+  onConfirm: (center: Pos, radius: 2 | 4 | 6 | 8 | 10) => void;
+  onCancel?: () => void;
+}) {
+  const webRef = useRef<WebView>(null);
+  const [radius, setRadius] = useState<2 | 4 | 6 | 8 | 10>(initialRadiusMiles);
+  const lat = initialPos?.lat ?? 37;
+  const lng = initialPos?.lng ?? -95;
 
   return (
-    <Animated.View
-      style={[
-        s.soloTile,
-        face === "revealed" && {
-          backgroundColor: TILE_REVEAL_COLORS[index],
-          borderColor: TILE_REVEAL_COLORS[index],
-        },
-        { transform: [{ scaleX }] },
-      ]}
-    >
-      {face === "covered" ? (
-        <Text style={s.soloTileCovered}>?</Text>
-      ) : (
-        <Text style={{ fontSize: 26 }}>⭐</Text>
+    <View style={{ gap: 12 }}>
+      <View style={s.mapBox}>
+        <WebView
+          ref={webRef}
+          originWhitelist={["*"]}
+          source={{ html: LEAFLET_HTML }}
+          javaScriptEnabled
+          domStorageEnabled
+          onLoadEnd={() =>
+            setTimeout(
+              () =>
+                webRef.current?.injectJavaScript(
+                  `enterPickMode(${lat},${lng},${radius});true;`,
+                ),
+              200,
+            )
+          }
+          onMessage={(e) => {
+            try {
+              const pos = JSON.parse(e.nativeEvent.data) as Pos;
+              onConfirm(pos, radius);
+            } catch {}
+          }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { alignItems: "center", justifyContent: "center" },
+          ]}
+        >
+          <Text style={s.crosshairText}>⊕</Text>
+        </View>
+      </View>
+
+      {/* Radius chips — tap to resize the circle live */}
+      <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+        {([2, 4, 6, 8, 10] as const).map((r) => (
+          <TouchableOpacity
+            key={r}
+            onPress={() => {
+              setRadius(r);
+              webRef.current?.injectJavaScript(
+                `if(ac)ac.setRadius(${r}*1609.34);true;`,
+              );
+            }}
+            style={[s.radiusChip, radius === r && s.radiusChipActive]}
+          >
+            <Text
+              style={[s.radiusChipText, radius === r && s.radiusChipTextActive]}
+            >
+              {r} mi
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={[s.muted, { textAlign: "center" }]}>
+        Pan the map to position the circle, then lock it.
+      </Text>
+      <TouchableOpacity
+        onPress={() => webRef.current?.injectJavaScript("confirmPick();true;")}
+        style={s.primaryBtn}
+      >
+        <Text style={s.primaryBtnText}>Lock Play Area</Text>
+      </TouchableOpacity>
+      {onCancel && (
+        <TouchableOpacity onPress={onCancel} style={s.outlineBtn}>
+          <Text style={s.outlineBtnText}>Cancel</Text>
+        </TouchableOpacity>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
-// ── MascotCard ────────────────────────────────────────────────────────────────
+// ── Mascot hunt detail ────────────────────────────────────────────────────────
 
-function MascotCard({
+function MascotHuntModal({
   mascot,
   myPos,
-  userId,
-  prog,
-  captureTarget,
+  onClose,
   onCapture,
 }: {
   mascot: Mascot;
   myPos: Pos | null;
-  userId: string;
-  prog: TileProgress;
-  captureTarget: string | null;
+  onClose: () => void;
   onCapture: (id: string) => void;
 }) {
+  const [tilesRevealed, setTilesRevealed] = useState<Set<number>>(new Set());
+  const [lettersRevealed, setLettersRevealed] = useState(0);
   const [address, setAddress] = useState<string | null>(null);
-
-  useEffect(() => {
-    Location.reverseGeocodeAsync({
-      latitude: mascot.lat,
-      longitude: mascot.lng,
-    })
-      .then((results) => {
-        const r = results[0];
-        if (!r) return;
-        const parts = [r.streetNumber, r.street, r.city].filter(Boolean);
-        setAddress(parts.join(", ") || null);
-      })
-      .catch(() => {});
-  }, [mascot.lat, mascot.lng]);
-
-  const url = supabase.storage
+  const SCREEN_W = Dimensions.get("window").width;
+  const PHOTO_SIZE = SCREEN_W - 48;
+  const TILE_SIZE = PHOTO_SIZE / 3;
+  const photoUrl = supabase.storage
     .from("game-photos")
     .getPublicUrl(mascot.photo_path).data.publicUrl;
-  const dist = myPos
-    ? haversineDistance(myPos.lat, myPos.lng, mascot.lat, mascot.lng)
-    : null;
-  const dir = myPos
-    ? bearing(myPos.lat, myPos.lng, mascot.lat, mascot.lng)
-    : null;
-  const close = dist !== null && dist <= CAPTURE_RADIUS;
-  const isOwn = mascot.hider_user_id === userId;
-  const canCapture = close && !isOwn && prog.revealed >= MIN_TILES_CAPTURE;
-  const tilesLeft = Math.max(0, MIN_TILES_CAPTURE - prog.revealed);
-  const addressClue = !isOwn && address && prog.revealed >= 3 ? address : null;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once per mascot
+  useEffect(() => {
+    async function init() {
+      const key = `tw_hunt_${mascot.id}`;
+      const saved = await AsyncStorage.getItem(key);
+      if (saved) {
+        try {
+          const p = JSON.parse(saved) as { tiles: number[]; letters: number };
+          setTilesRevealed(new Set(p.tiles));
+          setLettersRevealed(p.letters);
+        } catch {}
+      }
+      try {
+        const results = await Location.reverseGeocodeAsync({
+          latitude: mascot.lat,
+          longitude: mascot.lng,
+        });
+        const r = results[0];
+        if (r) {
+          const parts = [r.streetNumber, r.street, r.city].filter(Boolean);
+          setAddress(parts.join(" "));
+        }
+      } catch {}
+    }
+    void init();
+  }, [mascot.id]);
+
+  async function save(tiles: Set<number>, letters: number) {
+    await AsyncStorage.setItem(
+      `tw_hunt_${mascot.id}`,
+      JSON.stringify({ tiles: [...tiles], letters }),
+    );
+  }
+
+  function flipRandomTile() {
+    const remaining = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(
+      (i) => !tilesRevealed.has(i),
+    );
+    if (remaining.length === 0) return;
+    const pick = remaining[Math.floor(Math.random() * remaining.length)] ?? 0;
+    const next = new Set(tilesRevealed);
+    next.add(pick);
+    setTilesRevealed(next);
+    void save(next, lettersRevealed);
+  }
+
+  function revealLetters() {
+    const next = lettersRevealed + 2;
+    setLettersRevealed(next);
+    void save(tilesRevealed, next);
+  }
+
+  function maskedAddress(addr: string, revealed: number): string {
+    let count = 0;
+    return addr
+      .split("")
+      .map((c) => {
+        if (/[a-zA-Z0-9]/.test(c)) {
+          count++;
+          return count <= revealed ? c : "_";
+        }
+        return c;
+      })
+      .join("");
+  }
+
+  const CAPTURE_RADIUS_M = 100;
+  const allRevealed = tilesRevealed.size === 9;
+  const distanceMeters =
+    myPos != null
+      ? haversineDistance(myPos.lat, myPos.lng, mascot.lat, mascot.lng)
+      : null;
+  const inRange = distanceMeters != null && distanceMeters <= CAPTURE_RADIUS_M;
 
   return (
-    <View style={[s.mascotCard, canCapture && s.mascotCardActive]}>
-      <View>
-        <MascotTileGrid
-          mascotId={mascot.id}
-          photoUrl={url}
-          revealed={isOwn ? TOTAL_TILES : prog.revealed}
-        />
-        <View style={s.badgeRight}>
-          <Text style={s.badgeText}>
-            {prog.revealed}/{TOTAL_TILES} tiles
-          </Text>
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView
+        edges={["top", "bottom"]}
+        style={{ flex: 1, backgroundColor: colors.background }}
+      >
+        <View style={ms.header}>
+          <TouchableOpacity onPress={onClose} style={ms.backBtn}>
+            <ChevronLeft size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={ms.title}>{mascot.hider_name}'s Mascot</Text>
+          <View style={{ width: 44 }} />
         </View>
-        {isOwn && (
-          <View style={s.badgeLeft}>
-            <Text style={s.badgeText}>Your mascot</Text>
-          </View>
-        )}
-        {mascot.radius_miles && (
-          <View style={[s.badgeLeft, isOwn && { top: 36 }]}>
-            <Text style={s.badgeText}>📍 {mascot.radius_miles} mi</Text>
-          </View>
-        )}
-      </View>
 
-      <View style={s.mascotInfo}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
+        <ScrollView
+          contentContainerStyle={ms.content}
+          showsVerticalScrollIndicator={false}
         >
-          <View>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: colors.foreground,
-              }}
+          {/* 3×3 tiled photo */}
+          <View
+            style={{
+              width: PHOTO_SIZE,
+              height: PHOTO_SIZE,
+              borderRadius: 18,
+              overflow: "hidden",
+              alignSelf: "center",
+              backgroundColor: colors.muted,
+            }}
+          >
+            <Image
+              source={{ uri: photoUrl }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+            <View
+              style={[
+                StyleSheet.absoluteFillObject,
+                { flexDirection: "row", flexWrap: "wrap" },
+              ]}
             >
-              {mascot.hider_name}
-            </Text>
-            <Text style={s.muted}>{elapsed(mascot.hidden_at)} ago</Text>
-          </View>
-          {dist !== null && (
-            <View style={{ alignItems: "flex-end" }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "700",
-                  color: colors.primary,
-                }}
-              >
-                {prog.revealed === 0 ? "???" : formatDist(dist)}
-              </Text>
-              {dir !== null && prog.revealed >= 6 && (
-                <Text style={{ fontSize: 20 }}>{bearingArrow(dir)}</Text>
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
+                tilesRevealed.has(i) ? (
+                  <View
+                    key={i}
+                    style={{ width: TILE_SIZE, height: TILE_SIZE }}
+                  />
+                ) : (
+                  <View
+                    key={i}
+                    style={{
+                      width: TILE_SIZE,
+                      height: TILE_SIZE,
+                      backgroundColor: colors.card,
+                      borderWidth: 2,
+                      borderColor: colors.background,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        color: colors.mutedForeground,
+                      }}
+                    >
+                      ?
+                    </Text>
+                  </View>
+                ),
               )}
             </View>
+          </View>
+
+          {/* Address clue */}
+          <View style={ms.addressCard}>
+            <Text style={ms.addressLabel}>LOCATION</Text>
+            <Text style={ms.addressText} numberOfLines={2}>
+              {address === null
+                ? "Fetching address…"
+                : lettersRevealed === 0
+                  ? "_ _ _ _ _ _ _ _ _"
+                  : maskedAddress(address, lettersRevealed)}
+            </Text>
+          </View>
+
+          {/* Clue actions */}
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <TouchableOpacity
+              onPress={flipRandomTile}
+              disabled={allRevealed}
+              style={[ms.actionBtn, { opacity: allRevealed ? 0.4 : 1 }]}
+            >
+              <Text style={ms.actionBtnEmoji}>🎲</Text>
+              <Text style={ms.actionBtnLabel}>Flip a Tile</Text>
+              <Text style={ms.actionBtnSub}>{9 - tilesRevealed.size} left</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={revealLetters} style={ms.actionBtn}>
+              <Text style={ms.actionBtnEmoji}>🔤</Text>
+              <Text style={ms.actionBtnLabel}>Show 2 Letters</Text>
+              <Text style={ms.actionBtnSub}>of address</Text>
+            </TouchableOpacity>
+          </View>
+
+          {inRange && (
+            <TouchableOpacity
+              onPress={() => onCapture(mascot.id)}
+              style={ms.captureBtn}
+            >
+              <Camera color="#fff" size={20} />
+              <Text style={ms.captureBtnText}>Found It! Take Photo</Text>
+            </TouchableOpacity>
           )}
-        </View>
 
-        {addressClue && (
-          <View style={s.addressClue}>
-            <Text style={s.addressClueIcon}>📍</Text>
-            <Text style={s.addressClueText}>{addressClue}</Text>
-          </View>
-        )}
-
-        {!isOwn && (
-          <View style={{ gap: 8 }}>
-            <View style={s.tileDots}>
-              {TILE_IDS.map((id, i) => (
-                <View
-                  key={id}
-                  style={[
-                    s.tileDot,
-                    i < prog.revealed && s.tileDotFilled,
-                    i === MIN_TILES_CAPTURE - 1 &&
-                      i >= prog.revealed &&
-                      s.tileDotThreshold,
-                  ]}
-                />
-              ))}
-            </View>
-            <View style={s.progressBar}>
-              <View
-                style={[
-                  s.progressFill,
-                  {
-                    width: `${(prog.metersSinceTile / TILE_WALK_METERS) * 100}%`,
-                  },
-                ]}
-              />
-            </View>
-            {canCapture ? (
-              <TouchableOpacity
-                onPress={() => onCapture(mascot.id)}
-                disabled={captureTarget === mascot.id}
-                style={[
-                  s.primaryBtn,
-                  s.captureBtn,
-                  { opacity: captureTarget === mascot.id ? 0.6 : 1 },
-                ]}
-              >
-                <Camera color="#fff" size={16} />
-                <Text style={s.primaryBtnText}>
-                  {captureTarget === mascot.id
-                    ? "Uploading…"
-                    : "📸 Capture Mascot!"}
-                </Text>
-              </TouchableOpacity>
-            ) : close && tilesLeft > 0 ? (
-              <Text style={[s.muted, { textAlign: "center" }]}>
-                You're close! {tilesLeft} more tile
-                {tilesLeft !== 1 ? "s" : ""} to unlock capture
-              </Text>
-            ) : !close ? (
-              <Text style={[s.muted, { textAlign: "center" }]}>
-                Walk within {CAPTURE_RADIUS}m to capture
-              </Text>
-            ) : null}
-          </View>
-        )}
-      </View>
-    </View>
+          <Text style={[ms.hint, { textAlign: "center" }]}>
+            Hidden{" "}
+            {new Date(mascot.hidden_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {distanceMeters != null
+              ? distanceMeters <= CAPTURE_RADIUS_M
+                ? " · You're here! Take the photo."
+                : ` · ${Math.round(distanceMeters)} m away (need < 100 m)`
+              : " · Getting your location…"}
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
+
+const ms = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: -0.3,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 48,
+    gap: 20,
+  },
+  addressCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: 20,
+    gap: 8,
+  },
+  addressLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.mutedForeground,
+    letterSpacing: 1.2,
+  },
+  addressText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: 2,
+    lineHeight: 30,
+  },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingVertical: 18,
+    alignItems: "center",
+    gap: 4,
+  },
+  actionBtnEmoji: { fontSize: 28 },
+  actionBtnLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  actionBtnSub: { fontSize: 11, color: colors.mutedForeground },
+  hint: { fontSize: 12, color: colors.mutedForeground },
+  captureBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#16a34a",
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  captureBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.3,
+  },
+});
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function HuntScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [tab, setTab] = useState<"hunt" | "solo" | "leaderboard">("hunt");
+  const [snappyColor, setSnappyColor] = useState("#22c55e");
+  const [snappyAccessory, setSnappyAccessory] = useState("");
+  const [tab, setTab] = useState<"hunt" | "solo">("solo");
   const [mascots, setMascots] = useState<Mascot[]>([]);
   const [myPos, setMyPos] = useState<Pos | null>(null);
   const [posError, setPosError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [captureTarget, setCaptureTarget] = useState<string | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
-  const [progress, setProgress] = useState<Record<string, TileProgress>>({});
+  const [_captureTarget, setCaptureTarget] = useState<string | null>(null);
+  const [_progress, setProgress] = useState<Record<string, TileProgress>>({});
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [celebrationMascot, setCelebrationMascot] = useState<Mascot | null>(
     null,
   );
-  const [showRadiusPicker, setShowRadiusPicker] = useState(false);
-  const [soloTotalWalked, setSoloTotalWalked] = useState(0);
-  const [soloTiles, setSoloTiles] = useState(0);
-  const [soloMetersSince, setSoloMetersSince] = useState(0);
+  const [pendingHidePhoto, setPendingHidePhoto] = useState<{
+    uri: string;
+    base64: string;
+    mimeType: string;
+  } | null>(null);
   const [huntGroup, setHuntGroup] = useState<HuntGroup | null>(null);
   const [huntMembers, setHuntMembers] = useState<HuntMember[]>([]);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [groupModalMode, setGroupModalMode] = useState<
-    "create" | "join" | "invite"
-  >("create");
+  const [groupModalMode, setGroupModalMode] = useState<"create" | "invite">(
+    "create",
+  );
   const [groupName, setGroupName] = useState("");
-  const [joinCode, setJoinCode] = useState("");
   const [groupLoading, setGroupLoading] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<HuntInvite[]>([]);
   const [inviteUsername, setInviteUsername] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [soloRadius, setSoloRadius] = useState<2 | 4 | 6 | 8 | 10 | null>(null);
+  const [soloCenter, setSoloCenter] = useState<Pos | null>(null);
+  const [isOutsideGroupArea, setIsOutsideGroupArea] = useState(false);
+  const [isOutsideSoloArea, setIsOutsideSoloArea] = useState(false);
+  const [newGroupRadius, setNewGroupRadius] = useState<2 | 4 | 6 | 8 | 10>(2);
+  const [showMembersSheet, setShowMembersSheet] = useState(false);
+  const [showSoloPicker, setShowSoloPicker] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [selectedMascot, setSelectedMascot] = useState<Mascot | null>(null);
+  const [soloObjIndices, setSoloObjIndices] = useState<[number, number] | null>(
+    null,
+  );
+  const [soloObjRevealed, setSoloObjRevealed] = useState(false);
+  const [soloObjSpinning, setSoloObjSpinning] = useState(false);
+  const [soloPhotoDone, setSoloPhotoDone] = useState<[boolean, boolean]>([
+    false,
+    false,
+  ]);
+  const [soloFoundLocs, setSoloFoundLocs] = useState<Pos[]>([]);
+  const [soloPhotoUploading, setSoloPhotoUploading] = useState<0 | 1 | null>(
+    null,
+  );
 
+  const soloSlotY0 = useRef(new Animated.Value(0)).current;
+  const soloSlotY1 = useRef(new Animated.Value(0)).current;
   const prevPosRef = useRef<Pos | null>(null);
   const mascotsRef = useRef<Mascot[]>([]);
   const userIdRef = useRef<string | null>(null);
   const progressRef = useRef<Record<string, TileProgress>>({});
   const huntGroupRef = useRef<HuntGroup | null>(null);
+  const soloCenterRef = useRef<Pos | null>(null);
+  const soloRadiusRef = useRef<2 | 4 | 6 | 8 | 10 | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -636,6 +814,50 @@ export default function HuntScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    async function loadSoloSettings() {
+      const r = await AsyncStorage.getItem("tw_solo_radius");
+      const c = await AsyncStorage.getItem("tw_solo_center");
+      if (["2", "4", "6", "8", "10"].includes(r ?? "")) {
+        const rad = Number(r) as 2 | 4 | 6 | 8 | 10;
+        setSoloRadius(rad);
+        soloRadiusRef.current = rad;
+      }
+      if (c) {
+        try {
+          const pos = JSON.parse(c) as Pos;
+          setSoloCenter(pos);
+          soloCenterRef.current = pos;
+        } catch {}
+      }
+    }
+    async function restoreSoloObject() {
+      try {
+        const raw = await AsyncStorage.getItem(SOLO_DAILY_KEY);
+        if (!raw) return;
+        const p = JSON.parse(raw) as {
+          date: string;
+          indices: [number, number];
+          done: [boolean, boolean];
+          foundLocs?: Pos[];
+        };
+        if (p.date !== todaySoloStr()) return;
+        setSoloObjIndices(p.indices);
+        setSoloObjRevealed(true);
+        setSoloPhotoDone(p.done ?? [false, false]);
+        if (p.foundLocs) setSoloFoundLocs(p.foundLocs);
+        soloSlotY0.setValue(
+          -((3 * SOLO_OBJECTS.length + p.indices[0]) * SLOT_ITEM_H),
+        );
+        soloSlotY1.setValue(
+          -((3 * SOLO_OBJECTS.length + p.indices[1]) * SLOT_ITEM_H),
+        );
+      } catch {}
+    }
+    void loadSoloSettings();
+    void restoreSoloObject();
+  }, [soloSlotY0, soloSlotY1]);
+
   async function startGps() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -658,16 +880,6 @@ export default function HuntScreen() {
     if (prev) {
       const delta = haversineDistance(prev.lat, prev.lng, pos.lat, pos.lng);
       if (delta > 2 && delta < 500) {
-        setSoloTotalWalked((w) => w + delta);
-        setSoloMetersSince((m) => {
-          const next = m + delta;
-          if (next >= TILE_WALK_SOLO) {
-            setSoloTiles((t) => Math.min(TOTAL_TILES, t + 1));
-            return next - TILE_WALK_SOLO;
-          }
-          return next;
-        });
-
         const uid = userIdRef.current;
         if (uid) {
           let changed = false;
@@ -699,6 +911,23 @@ export default function HuntScreen() {
         }
       }
     }
+    const g = huntGroupRef.current;
+    if (g?.center_lat != null && g?.center_lng != null) {
+      const dist = haversineDistance(
+        pos.lat,
+        pos.lng,
+        g.center_lat,
+        g.center_lng,
+      );
+      setIsOutsideGroupArea(dist > (g.radius_miles ?? 5) * MILES_TO_METERS);
+    }
+    const sc = soloCenterRef.current;
+    const sr = soloRadiusRef.current;
+    if (sc && sr) {
+      const dist = haversineDistance(pos.lat, pos.lng, sc.lat, sc.lng);
+      setIsOutsideSoloArea(dist > sr * MILES_TO_METERS);
+    }
+
     prevPosRef.current = pos;
   }
 
@@ -714,10 +943,12 @@ export default function HuntScreen() {
     userIdRef.current = session.user.id;
     const { data } = await supabase
       .from("tw_users")
-      .select("username")
+      .select("username, snappy_color, snappy_accessory")
       .eq("id", session.user.id)
       .maybeSingle();
     setDisplayName(data?.username ?? "");
+    setSnappyColor(data?.snappy_color ?? "#22c55e");
+    setSnappyAccessory(data?.snappy_accessory ?? "");
     void loadInvites(session.user.id);
     const group = await loadHuntGroup(session.user.id);
     await fetchMascots(session.user.id, group);
@@ -762,7 +993,14 @@ export default function HuntScreen() {
     const invite_code = generateInviteCode();
     const { data: group, error: ge } = await supabase
       .from("tw_hunt_groups")
-      .insert({ name: groupName.trim(), invite_code, created_by: userId })
+      .insert({
+        name: groupName.trim(),
+        invite_code,
+        created_by: userId,
+        radius_miles: newGroupRadius,
+        center_lat: null,
+        center_lng: null,
+      })
       .select()
       .single();
     if (ge || !group) {
@@ -795,41 +1033,7 @@ export default function HuntScreen() {
     setGroupName("");
     setShowGroupModal(false);
     setGroupLoading(false);
-    await fetchMascots(userId, g);
-  }
-
-  async function joinGroup() {
-    if (!userId || !joinCode.trim()) return;
-    setGroupLoading(true);
-    const code = joinCode.trim().toUpperCase();
-    const { data: group } = await supabase
-      .from("tw_hunt_groups")
-      .select("*")
-      .eq("invite_code", code)
-      .maybeSingle();
-    if (!group) {
-      Alert.alert("Invalid code", "No group found with that invite code.");
-      setGroupLoading(false);
-      return;
-    }
-    const { error: me } = await supabase
-      .from("tw_hunt_members")
-      .upsert(
-        { group_id: group.id, user_id: userId, display_name: displayName },
-        { onConflict: "group_id,user_id" },
-      );
-    if (me) {
-      Alert.alert("Error", me.message);
-      setGroupLoading(false);
-      return;
-    }
-    const g = group as HuntGroup;
-    setHuntGroup(g);
-    huntGroupRef.current = g;
-    await loadMembers(group.id);
-    setJoinCode("");
-    setShowGroupModal(false);
-    setGroupLoading(false);
+    setShowGroupPicker(true);
     await fetchMascots(userId, g);
   }
 
@@ -952,6 +1156,92 @@ export default function HuntScreen() {
     setInviteLoading(false);
   }
 
+  function spinSoloObject() {
+    if (soloObjSpinning || soloObjRevealed) return;
+    const indices = dailySoloObjIndices();
+    setSoloObjSpinning(true);
+    soloSlotY0.setValue(0);
+    soloSlotY1.setValue(0);
+    Animated.parallel([
+      Animated.timing(soloSlotY0, {
+        toValue: -((3 * SOLO_OBJECTS.length + indices[0]) * SLOT_ITEM_H),
+        duration: 3400,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+      Animated.timing(soloSlotY1, {
+        toValue: -((3 * SOLO_OBJECTS.length + indices[1]) * SLOT_ITEM_H),
+        duration: 3900,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setSoloObjSpinning(false);
+      setSoloObjIndices(indices);
+      setSoloObjRevealed(true);
+      void AsyncStorage.setItem(
+        SOLO_DAILY_KEY,
+        JSON.stringify({
+          date: todaySoloStr(),
+          indices,
+          done: [false, false],
+        }),
+      );
+    });
+  }
+
+  async function takeSoloPhoto(which: 0 | 1) {
+    if (!userId || !soloObjIndices) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("Permission needed", "Camera access required.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset.base64) return;
+    setSoloPhotoUploading(which);
+    try {
+      const ext = asset.mimeType?.split("/")[1] ?? "jpg";
+      const path = `${userId}/solo-${Date.now()}.${ext}`;
+      const bin = atob(asset.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const { error } = await supabase.storage
+        .from("game-photos")
+        .upload(path, bytes, { contentType: asset.mimeType ?? "image/jpeg" });
+      if (error) {
+        Alert.alert("Upload failed", error.message);
+        return;
+      }
+      const next: [boolean, boolean] = [soloPhotoDone[0], soloPhotoDone[1]];
+      next[which] = true;
+      setSoloPhotoDone(next);
+      const nextLocs = myPos ? [...soloFoundLocs, myPos] : soloFoundLocs;
+      setSoloFoundLocs(nextLocs);
+      await AsyncStorage.setItem(
+        SOLO_DAILY_KEY,
+        JSON.stringify({
+          date: todaySoloStr(),
+          indices: soloObjIndices,
+          done: next,
+          foundLocs: nextLocs,
+        }),
+      );
+      showAlert(
+        next[0] && next[1]
+          ? "Both objects found! Great hunt!"
+          : "Nice find! One more to go.",
+      );
+    } finally {
+      setSoloPhotoUploading(null);
+    }
+  }
+
   async function fetchMascots(uid: string, group: HuntGroup | null) {
     if (!group) {
       setLoading(false);
@@ -966,7 +1256,6 @@ export default function HuntScreen() {
       const rows = data as Mascot[];
       mascotsRef.current = rows;
       setMascots(rows);
-      buildLeaderboard(rows);
       const now = Date.now();
       const pMap: Record<string, TileProgress> = {};
       for (const m of rows.filter((r) => !r.found_at)) {
@@ -985,49 +1274,48 @@ export default function HuntScreen() {
     setLoading(false);
   }
 
-  function buildLeaderboard(rows: Mascot[]) {
-    const map = new Map<string, LeaderRow>();
-    for (const m of rows) {
-      if (!map.has(m.hider_name))
-        map.set(m.hider_name, {
-          name: m.hider_name,
-          hidden: 0,
-          found: 0,
-          survivalMs: 0,
-        });
-      const h = map.get(m.hider_name);
-      if (h) {
-        h.hidden++;
-        if (m.found_at)
-          h.survivalMs +=
-            new Date(m.found_at).getTime() - new Date(m.hidden_at).getTime();
-      }
-      if (m.finder_name) {
-        if (!map.has(m.finder_name))
-          map.set(m.finder_name, {
-            name: m.finder_name,
-            hidden: 0,
-            found: 0,
-            survivalMs: 0,
-          });
-        const f = map.get(m.finder_name);
-        if (f) f.found++;
-      }
-    }
-    setLeaderboard(
-      [...map.values()].sort(
-        (a, b) => b.found - a.found || b.survivalMs - a.survivalMs,
-      ),
-    );
-  }
-
   function showAlert(msg: string) {
     setAlertMsg(msg);
     setTimeout(() => setAlertMsg(null), 4000);
   }
 
-  async function hideMascot(radius: 5 | 10) {
-    setShowRadiusPicker(false);
+  async function setSoloPlayArea(radius: 2 | 4 | 6 | 8 | 10, center: Pos) {
+    setSoloRadius(radius);
+    setSoloCenter(center);
+    soloRadiusRef.current = radius;
+    soloCenterRef.current = center;
+    setIsOutsideSoloArea(false);
+    await AsyncStorage.setItem("tw_solo_radius", String(radius));
+    await AsyncStorage.setItem("tw_solo_center", JSON.stringify(center));
+  }
+
+  async function updateGroupPlayArea(radius: 2 | 4 | 6 | 8 | 10, center: Pos) {
+    if (!huntGroup || !userId || huntGroup.created_by !== userId) return;
+    const { error } = await supabase
+      .from("tw_hunt_groups")
+      .update({
+        radius_miles: radius,
+        center_lat: center.lat,
+        center_lng: center.lng,
+      })
+      .eq("id", huntGroup.id);
+    if (error) {
+      Alert.alert("Error", error.message);
+      return;
+    }
+    const updated = {
+      ...huntGroup,
+      radius_miles: radius,
+      center_lat: center.lat,
+      center_lng: center.lng,
+    };
+    setHuntGroup(updated);
+    huntGroupRef.current = updated;
+    setIsOutsideGroupArea(false);
+    setShowGroupPicker(false);
+  }
+
+  async function startHideMascot() {
     if (!myPos || !userId || !huntGroupRef.current) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -1039,20 +1327,31 @@ export default function HuntScreen() {
       base64: true,
     });
     if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset.base64) return;
+    setPendingHidePhoto({
+      uri: asset.uri,
+      base64: asset.base64,
+      mimeType: asset.mimeType ?? "image/jpeg",
+    });
+  }
+
+  async function confirmHideMascot() {
+    if (!pendingHidePhoto || !myPos || !userId || !huntGroupRef.current) return;
+    const radius = huntGroupRef.current.radius_miles ?? 5;
     setUploading(true);
+    setPendingHidePhoto(null);
     try {
-      const asset = result.assets[0];
-      if (!asset.base64) return;
-      const ext = asset.mimeType?.split("/")[1] ?? "jpg";
+      const ext = pendingHidePhoto.mimeType.split("/")[1] ?? "jpg";
       const path = `${userId}/mascot-${Date.now()}.${ext}`;
-      const binaryString = atob(asset.base64);
+      const binaryString = atob(pendingHidePhoto.base64);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       const { error } = await supabase.storage
         .from("game-photos")
-        .upload(path, bytes, { contentType: asset.mimeType ?? "image/jpeg" });
+        .upload(path, bytes, { contentType: pendingHidePhoto.mimeType });
       if (error) {
         Alert.alert("Upload failed", error.message);
         return;
@@ -1195,63 +1494,171 @@ export default function HuntScreen() {
       </Modal>
 
       <Modal
-        visible={showRadiusPicker}
+        visible={!!pendingHidePhoto}
+        animationType="slide"
+        onRequestClose={() => setPendingHidePhoto(null)}
+      >
+        <SafeAreaView
+          edges={["top", "bottom"]}
+          style={{ flex: 1, backgroundColor: "#000" }}
+        >
+          {pendingHidePhoto && (
+            <>
+              <Image
+                source={{ uri: pendingHidePhoto.uri }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+              />
+              {/* Top instruction banner */}
+              <View
+                style={{
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  gap: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "800",
+                    color: "#fff",
+                    letterSpacing: -0.3,
+                  }}
+                >
+                  Does your photo show all three?
+                </Text>
+                <View style={{ flexDirection: "row", gap: 16, marginTop: 4 }}>
+                  {["☁️ Sky", "🌿 Ground", "📍 Distinctive feature"].map(
+                    (label) => (
+                      <Text
+                        key={label}
+                        style={{
+                          fontSize: 13,
+                          color: "rgba(255,255,255,0.85)",
+                        }}
+                      >
+                        {label}
+                      </Text>
+                    ),
+                  )}
+                </View>
+              </View>
+
+              {/* Bottom actions */}
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  padding: 20,
+                  gap: 12,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => void confirmHideMascot()}
+                  style={{
+                    height: 56,
+                    borderRadius: 18,
+                    backgroundColor: "#16a34a",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 17,
+                      fontWeight: "800",
+                      color: "#fff",
+                      letterSpacing: -0.3,
+                    }}
+                  >
+                    Hide Mascot Here
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setPendingHidePhoto(null);
+                    void startHideMascot();
+                  }}
+                  style={{
+                    height: 48,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: "rgba(255,255,255,0.4)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}
+                  >
+                    Retake Photo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Members sheet ───────────────────────────────────────────────────── */}
+      <Modal
+        visible={showMembersSheet}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowRadiusPicker(false)}
+        onRequestClose={() => setShowMembersSheet(false)}
       >
         <TouchableOpacity
           style={s.backdrop}
           activeOpacity={1}
-          onPress={() => setShowRadiusPicker(false)}
+          onPress={() => setShowMembersSheet(false)}
         >
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text
-              style={[s.pageTitle, { textAlign: "center", marginBottom: 4 }]}
+              style={[s.pageTitle, { textAlign: "center", marginBottom: 16 }]}
             >
-              Choose play radius
+              {huntGroup?.name ?? "Group"}
             </Text>
-            <Text style={[s.muted, { textAlign: "center", marginBottom: 20 }]}>
-              Friends must find your mascot within this distance.
-            </Text>
-            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
-              {([5, 10] as const).map((miles) => (
-                <TouchableOpacity
-                  key={miles}
-                  onPress={() => hideMascot(miles)}
-                  style={s.radiusCard}
-                >
-                  <Text
-                    style={{
-                      fontSize: 32,
-                      fontWeight: "900",
-                      color: colors.primary,
-                    }}
-                  >
-                    {miles}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: colors.foreground,
-                    }}
-                  >
-                    miles
-                  </Text>
-                  <Text style={s.muted}>
-                    {miles === 5 ? "≈ 8 km" : "≈ 16 km"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            {huntMembers.map((m) => {
+              const isFounder = m.user_id === huntGroup?.created_by;
+              return (
+                <View key={m.id || m.user_id} style={s.memberRow}>
+                  <Text style={s.memberName}>{m.display_name}</Text>
+                  {isFounder && (
+                    <View style={s.founderBadge}>
+                      <Text style={s.founderBadgeText}>Founder</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+            <View style={{ gap: 10, marginTop: 20 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMembersSheet(false);
+                  setGroupModalMode("invite");
+                  setShowGroupModal(true);
+                }}
+                style={s.primaryBtn}
+              >
+                <Text style={s.primaryBtnText}>+ Invite Member</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMembersSheet(false);
+                  leaveGroup();
+                }}
+                style={[s.outlineBtn, { borderColor: colors.destructive }]}
+              >
+                <Text style={[s.outlineBtnText, { color: colors.destructive }]}>
+                  Leave Group
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={() => setShowRadiusPicker(false)}
-              style={s.outlineBtn}
-            >
-              <Text style={s.outlineBtnText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1288,8 +1695,8 @@ export default function HuntScreen() {
                   <Text
                     style={[s.muted, { textAlign: "center", marginBottom: 16 }]}
                   >
-                    Give your hunt group a name. You'll get an invite code to
-                    share with friends.
+                    Give your hunt group a name. Invite friends by username once
+                    it's created.
                   </Text>
                   <TextInput
                     style={s.textInput}
@@ -1302,6 +1709,56 @@ export default function HuntScreen() {
                     returnKeyType="done"
                     onSubmitEditing={createGroup}
                   />
+                  <Text
+                    style={[s.sectionLabel, { marginTop: 12, marginBottom: 8 }]}
+                  >
+                    Play area radius
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {([2, 4, 6, 8, 10] as const).map((r) => (
+                      <TouchableOpacity
+                        key={r}
+                        onPress={() => setNewGroupRadius(r)}
+                        style={[
+                          s.radiusCard,
+                          { flexBasis: "28%", flexGrow: 1 },
+                          newGroupRadius === r && {
+                            borderColor: colors.primary,
+                            backgroundColor: `${colors.primary}1A`,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 24,
+                            fontWeight: "900",
+                            color:
+                              newGroupRadius === r
+                                ? colors.primary
+                                : colors.mutedForeground,
+                          }}
+                        >
+                          {r}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "600",
+                            color: colors.foreground,
+                          }}
+                        >
+                          mi
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                   <TouchableOpacity
                     onPress={createGroup}
                     disabled={!groupName.trim() || groupLoading}
@@ -1315,70 +1772,6 @@ export default function HuntScreen() {
                   >
                     <Text style={s.primaryBtnText}>
                       {groupLoading ? "Creating…" : "Create Group"}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setGroupModalMode("join")}
-                    style={s.outlineBtn}
-                  >
-                    <Text style={s.outlineBtnText}>
-                      Have a code? Join instead
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {groupModalMode === "join" && (
-                <>
-                  <Text
-                    style={[
-                      s.pageTitle,
-                      { textAlign: "center", marginBottom: 4 },
-                    ]}
-                  >
-                    Join Group
-                  </Text>
-                  <Text
-                    style={[s.muted, { textAlign: "center", marginBottom: 16 }]}
-                  >
-                    Enter the 6-character invite code from your friend.
-                  </Text>
-                  <TextInput
-                    style={[
-                      s.textInput,
-                      { letterSpacing: 8, textAlign: "center", fontSize: 24 },
-                    ]}
-                    placeholder="ABCDEF"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={joinCode}
-                    onChangeText={(t) => setJoinCode(t.toUpperCase())}
-                    maxLength={6}
-                    autoCapitalize="characters"
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={joinGroup}
-                  />
-                  <TouchableOpacity
-                    onPress={joinGroup}
-                    disabled={joinCode.length < 6 || groupLoading}
-                    style={[
-                      s.primaryBtn,
-                      {
-                        opacity: joinCode.length < 6 || groupLoading ? 0.5 : 1,
-                        marginTop: 8,
-                      },
-                    ]}
-                  >
-                    <Text style={s.primaryBtnText}>
-                      {groupLoading ? "Joining…" : "Join Group"}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setGroupModalMode("create")}
-                    style={s.outlineBtn}
-                  >
-                    <Text style={s.outlineBtnText}>
-                      Create a new group instead
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -1462,14 +1855,14 @@ export default function HuntScreen() {
         </View>
 
         <View style={{ flexDirection: "row", gap: 8 }}>
-          {(["hunt", "solo", "leaderboard"] as const).map((t) => (
+          {(["solo", "hunt"] as const).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setTab(t)}
               style={[s.subTab, tab === t && s.subTabActive]}
             >
               <Text style={[s.subTabText, tab === t && s.subTabTextActive]}>
-                {t === "hunt" ? "Hunt" : t === "solo" ? "Solo" : "Board"}
+                {t === "hunt" ? "Group" : "Solo"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -1508,131 +1901,289 @@ export default function HuntScreen() {
 
         {tab === "hunt" &&
           (!huntGroup ? (
-            <>
-              <TouchableOpacity
-                onPress={() => {
-                  setGroupModalMode("create");
-                  setShowGroupModal(true);
-                }}
-                style={s.primaryBtn}
-              >
-                <Text style={s.primaryBtnText}>Create Group</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setGroupModalMode("join");
-                  setShowGroupModal(true);
-                }}
-                style={s.outlineBtn}
-              >
-                <Text style={s.outlineBtnText}>Join with Code</Text>
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity
+              onPress={() => {
+                setGroupModalMode("create");
+                setShowGroupModal(true);
+              }}
+              style={s.primaryBtn}
+            >
+              <Text style={s.primaryBtnText}>Create Group</Text>
+            </TouchableOpacity>
           ) : (
             <>
-              {/* Group header */}
-              <View style={s.groupHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.groupName}>{huntGroup.name}</Text>
-                  <Text style={s.muted}>
-                    {huntMembers.length} member
-                    {huntMembers.length !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    setGroupModalMode("invite");
-                    setShowGroupModal(true);
-                  }}
-                  style={s.codeChip}
-                >
-                  <Text style={s.codeChipText}>+ Invite</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={leaveGroup} style={s.leaveBtn}>
-                  <Text style={s.leaveBtnText}>Leave</Text>
-                </TouchableOpacity>
-              </View>
-
+              {/* ── Group banner ── */}
               <TouchableOpacity
-                onPress={() => setShowRadiusPicker(true)}
-                disabled={uploading || !myPos}
-                style={[
-                  s.primaryBtn,
-                  { opacity: uploading || !myPos ? 0.5 : 1 },
-                ]}
+                style={s.groupBanner}
+                onPress={() => setShowMembersSheet(true)}
+                activeOpacity={0.8}
               >
-                <Camera color="#fff" size={18} />
-                <Text style={s.primaryBtnText}>
-                  {uploading ? "Saving…" : "Hide Mascot Here"}
-                </Text>
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={s.groupBannerName}>{huntGroup.name}</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Text style={s.groupBannerSub}>
+                      {huntMembers.length}{" "}
+                      {huntMembers.length === 1 ? "member" : "members"}
+                    </Text>
+                    <View style={s.inviteCodePill}>
+                      <Text style={s.inviteCodePillText}>
+                        {huntGroup.invite_code}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={s.groupAvatarStack}>
+                  {huntMembers.slice(0, 3).map((m, i) => (
+                    <View
+                      key={m.id || m.user_id}
+                      style={[
+                        s.groupAvatar,
+                        { zIndex: 3 - i, marginLeft: i > 0 ? -10 : 0 },
+                      ]}
+                    >
+                      <Text style={s.groupAvatarLetter}>
+                        {m.display_name[0]?.toUpperCase() ?? "?"}
+                      </Text>
+                    </View>
+                  ))}
+                  {huntMembers.length > 3 && (
+                    <View
+                      style={[
+                        s.groupAvatar,
+                        { marginLeft: -10, backgroundColor: colors.muted },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.groupAvatarLetter,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        +{huntMembers.length - 3}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
 
-              <Text style={s.sectionLabel}>Active ({active.length})</Text>
-
-              {loading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : active.length === 0 ? (
-                <View style={s.emptyState}>
-                  <Text style={s.muted}>
-                    No mascots hidden yet — be the first!
-                  </Text>
-                </View>
+              {showGroupPicker ? (
+                <AreaPickerMap
+                  initialPos={myPos}
+                  initialRadiusMiles={
+                    (huntGroup.radius_miles as 2 | 4 | 6 | 8 | 10) ?? 2
+                  }
+                  onConfirm={async (center, radius) => {
+                    await updateGroupPlayArea(radius, center);
+                  }}
+                  onCancel={() => setShowGroupPicker(false)}
+                />
               ) : (
-                active.map((m) => (
-                  <MascotCard
-                    key={m.id}
-                    mascot={m}
-                    myPos={myPos}
-                    userId={userId ?? ""}
-                    prog={
-                      progress[m.id] ?? {
-                        revealed: 0,
-                        metersSinceTile: 0,
-                        totalWalked: 0,
-                        lastAutoMs: 0,
-                      }
-                    }
-                    captureTarget={captureTarget}
-                    onCapture={captureMascot}
-                  />
-                ))
-              )}
-
-              {found.length > 0 && (
                 <>
-                  <Text style={s.sectionLabel}>Found ({found.length})</Text>
-                  {found.map((m) => {
-                    const url = supabase.storage
-                      .from("game-photos")
-                      .getPublicUrl(m.photo_path).data.publicUrl;
-                    const ms =
-                      new Date(m.found_at ?? "").getTime() -
-                      new Date(m.hidden_at).getTime();
-                    return (
-                      <View key={m.id} style={s.foundCard}>
-                        <Image
-                          source={{ uri: url }}
-                          style={{ width: 64, height: 64 }}
-                          resizeMode="cover"
-                        />
-                        <View style={{ flex: 1, padding: 12 }}>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "600",
-                              color: colors.foreground,
-                            }}
+                  {/* Play area map */}
+                  {myPos && (
+                    <>
+                      <View style={s.soloAreaHeader}>
+                        <Text style={s.sectionLabel}>
+                          {huntGroup.radius_miles ?? 2}-mile play area
+                        </Text>
+                        {userId === huntGroup.created_by && (
+                          <TouchableOpacity
+                            onPress={() => setShowGroupPicker(true)}
                           >
-                            {m.hider_name}'s mascot
-                          </Text>
-                          <Text style={s.muted}>
-                            Survived {survivalStr(ms)} · Found by{" "}
-                            {m.finder_name}
+                            <Text style={s.changeLink}>Change</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <PlayMap
+                        myPos={myPos}
+                        center={
+                          huntGroup.center_lat != null &&
+                          huntGroup.center_lng != null
+                            ? {
+                                lat: huntGroup.center_lat,
+                                lng: huntGroup.center_lng,
+                              }
+                            : myPos
+                        }
+                        radiusMiles={huntGroup.radius_miles ?? 2}
+                        markersJson={JSON.stringify(
+                          active.map((m) => ({
+                            lat: m.lat,
+                            lng: m.lng,
+                            c:
+                              m.hider_user_id === userId
+                                ? snappyColor
+                                : "#f97316",
+                            e:
+                              m.hider_user_id === userId ? snappyAccessory : "",
+                          })),
+                        )}
+                      />
+                    </>
+                  )}
+
+                  {isOutsideGroupArea && (
+                    <View style={s.outsideWarning}>
+                      <Text style={s.outsideWarningText}>
+                        Outside play area — move back inside to hide mascots.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Hide mascot card */}
+                  <View style={s.hideMascotCard}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={s.hideMascotCardTitle}>Hide a mascot</Text>
+                      <Text style={s.hideMascotCardSub}>
+                        Sky, ground, and a distinctive landmark in the shot.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => void startHideMascot()}
+                      disabled={uploading || !myPos || isOutsideGroupArea}
+                      style={[
+                        s.hideMascotBtn,
+                        {
+                          opacity:
+                            uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
+                        },
+                      ]}
+                    >
+                      <Camera color="#fff" size={18} />
+                      <Text style={s.primaryBtnText}>
+                        {uploading ? "Saving…" : "Hide Here"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Active section */}
+                  <View style={s.huntSectionHeader}>
+                    <Text style={s.sectionLabel}>Hunting</Text>
+                    {active.length > 0 && (
+                      <View style={s.huntBadge}>
+                        <Text style={s.huntBadgeText}>{active.length}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {loading ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : active.length === 0 ? (
+                    <View style={s.emptyHunt}>
+                      <Text style={{ fontSize: 40 }}>🎭</Text>
+                      <Text style={s.emptyHuntTitle}>Nothing hiding yet</Text>
+                      <Text style={s.emptyHuntSub}>
+                        Be the first to hide a mascot!
+                      </Text>
+                    </View>
+                  ) : (
+                    active.map((m) => {
+                      const dist =
+                        myPos != null
+                          ? Math.round(
+                              haversineDistance(
+                                myPos.lat,
+                                myPos.lng,
+                                m.lat,
+                                m.lng,
+                              ),
+                            )
+                          : null;
+                      const hiddenAt = new Date(m.hidden_at).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          onPress={() => setSelectedMascot(m)}
+                          style={s.huntCard}
+                          activeOpacity={0.72}
+                        >
+                          {/* Tiled mystery preview */}
+                          <View style={s.huntThumb}>
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                              <View key={i} style={s.huntThumbTile} />
+                            ))}
+                            <View style={s.huntThumbOverlay}>
+                              <Text style={{ fontSize: 20 }}>🔍</Text>
+                            </View>
+                          </View>
+
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={s.huntCardName}>
+                              {m.hider_name}'s Mascot
+                            </Text>
+                            <Text style={s.huntCardMeta}>Since {hiddenAt}</Text>
+                            {dist !== null && (
+                              <View style={s.huntDistRow}>
+                                <Text style={s.huntDist}>
+                                  {dist >= 1000
+                                    ? `${(dist / 1000).toFixed(1)} km`
+                                    : `${dist} m`}{" "}
+                                  away
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+
+                          <Text style={s.huntChevron}>›</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+
+                  {/* Found / captured section */}
+                  {found.length > 0 && (
+                    <>
+                      <View style={s.huntSectionHeader}>
+                        <Text style={s.sectionLabel}>Captured</Text>
+                        <View style={[s.huntBadge, s.huntBadgeGreen]}>
+                          <Text style={[s.huntBadgeText, s.huntBadgeTextGreen]}>
+                            {found.length}
                           </Text>
                         </View>
                       </View>
-                    );
-                  })}
+                      {found.map((m) => {
+                        const url = supabase.storage
+                          .from("game-photos")
+                          .getPublicUrl(m.photo_path).data.publicUrl;
+                        const elapsed =
+                          new Date(m.found_at ?? "").getTime() -
+                          new Date(m.hidden_at).getTime();
+                        return (
+                          <View key={m.id} style={s.capturedCard}>
+                            <Image
+                              source={{ uri: url }}
+                              style={s.capturedPhoto}
+                              resizeMode="cover"
+                            />
+                            <View style={{ flex: 1, gap: 3 }}>
+                              <Text style={s.capturedHider}>
+                                {m.hider_name}'s mascot
+                              </Text>
+                              <Text style={s.capturedMeta}>
+                                Found by {m.finder_name}
+                              </Text>
+                              <Text style={s.capturedSurvival}>
+                                Survived {survivalStr(elapsed)}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 22 }}>🏆</Text>
+                          </View>
+                        );
+                      })}
+                    </>
+                  )}
                 </>
               )}
             </>
@@ -1641,170 +2192,179 @@ export default function HuntScreen() {
         {/* ── SOLO ─────────────────────────────────────────────────────────── */}
         {tab === "solo" && (
           <>
-            {/* Next-tile progress */}
-            <View style={s.soloProgressCard}>
-              <View style={s.soloProgressHeader}>
-                <Text style={s.sectionLabel}>Next tile</Text>
-                <Text style={s.soloProgressLabel}>
-                  {(
-                    (TILE_WALK_SOLO - soloMetersSince) /
-                    MILES_TO_METERS
-                  ).toFixed(2)}{" "}
-                  mi to go
-                </Text>
-              </View>
-              <View style={s.soloProgressTrack}>
-                <View
-                  style={[
-                    s.soloProgressFill,
-                    {
-                      width: `${Math.min(100, (soloMetersSince / TILE_WALK_SOLO) * 100)}%`,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
+            {/* Daily object slot machine */}
+            <View style={s.slotCard}>
+              <Text style={s.sectionLabel}>Today's Hunt</Text>
 
-            {/* 3×3 tile grid */}
-            <View style={s.soloGrid}>
-              {[0, 3, 6].map((rowStart) => (
-                <View key={rowStart} style={s.soloRow}>
-                  {[rowStart, rowStart + 1, rowStart + 2].map((i) => (
-                    <SoloTile
-                      key={TILE_IDS[i]}
-                      index={i}
-                      revealed={i < soloTiles}
-                    />
-                  ))}
+              {/* Two side-by-side drums */}
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                {([soloSlotY0, soloSlotY1] as const).map((anim, col) => {
+                  const idx = soloObjIndices?.[col as 0 | 1] ?? null;
+                  const done = soloPhotoDone[col as 0 | 1];
+                  return (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: two fixed drum columns never reorder
+                    <View key={col} style={{ flex: 1, gap: 10 }}>
+                      <View style={s.slotWindow}>
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            StyleSheet.absoluteFillObject,
+                            s.slotFadeTop,
+                            { zIndex: 2 },
+                          ]}
+                        />
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            StyleSheet.absoluteFillObject,
+                            s.slotFadeBottom,
+                            { zIndex: 2 },
+                          ]}
+                        />
+                        <Animated.View
+                          style={{ transform: [{ translateY: anim }] }}
+                        >
+                          {SOLO_DRUM.map((obj, i) => (
+                            <View
+                              // biome-ignore lint/suspicious/noArrayIndexKey: stable drum
+                              key={i}
+                              style={s.slotItem}
+                            >
+                              <Text style={s.slotEmoji}>{obj.emoji}</Text>
+                              <Text style={s.slotLabel} numberOfLines={1}>
+                                {obj.label}
+                              </Text>
+                            </View>
+                          ))}
+                        </Animated.View>
+                      </View>
+
+                      {soloObjRevealed && idx !== null && !done && (
+                        <TouchableOpacity
+                          onPress={() => void takeSoloPhoto(col as 0 | 1)}
+                          disabled={soloPhotoUploading !== null}
+                          style={[
+                            s.primaryBtn,
+                            { opacity: soloPhotoUploading === col ? 0.5 : 1 },
+                          ]}
+                        >
+                          {soloPhotoUploading === col ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                          ) : (
+                            <>
+                              <Camera color="#fff" size={15} />
+                              <Text
+                                style={[s.primaryBtnText, { fontSize: 13 }]}
+                              >
+                                Found it!
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
+
+                      {done && (
+                        <View style={s.slotDoneChip}>
+                          <Text style={s.slotDoneText}>✓ Found</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+
+              {!soloObjRevealed && (
+                <TouchableOpacity
+                  onPress={spinSoloObject}
+                  disabled={soloObjSpinning}
+                  style={[s.primaryBtn, { opacity: soloObjSpinning ? 0.5 : 1 }]}
+                >
+                  {soloObjSpinning ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={s.primaryBtnText}>Spin</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {soloPhotoDone[0] && soloPhotoDone[1] && (
+                <View style={s.slotAllDone}>
+                  <Text style={s.slotAllDoneText}>
+                    Both found! Great hunt today.
+                  </Text>
                 </View>
-              ))}
+              )}
             </View>
 
-            {/* Stats */}
-            <View
-              style={[
-                s.card,
-                { flexDirection: "row", padding: 0, overflow: "hidden" },
-              ]}
-            >
-              <View style={s.soloStat}>
-                <Text style={s.sectionLabel}>Walked today</Text>
-                <Text style={s.soloStatValue}>
-                  {(soloTotalWalked / MILES_TO_METERS).toFixed(2)}
-                  <Text style={s.soloStatUnit}> mi</Text>
-                </Text>
-              </View>
-              <View style={s.soloStatDivider} />
-              <View style={s.soloStat}>
-                <Text style={s.sectionLabel}>Tiles earned</Text>
-                <Text style={s.soloStatValue}>
-                  {soloTiles}
-                  <Text style={s.soloStatUnit}>/{TOTAL_TILES}</Text>
-                </Text>
-              </View>
-            </View>
-
-            {soloTiles < TOTAL_TILES && (
-              <View style={s.emptyState}>
-                <Text style={[s.muted, { textAlign: "center" }]}>
-                  Walk 1 mile to flip a tile. All 9 tiles unlocked = full board
-                  cleared!
-                </Text>
-              </View>
+            {/* Play area picker or map */}
+            {showSoloPicker || !soloRadius ? (
+              <AreaPickerMap
+                initialPos={myPos}
+                initialRadiusMiles={
+                  (soloRadius as 2 | 4 | 6 | 8 | 10 | null) ?? 2
+                }
+                onConfirm={async (center, radius) => {
+                  await setSoloPlayArea(radius, center);
+                  setShowSoloPicker(false);
+                }}
+                onCancel={
+                  soloRadius ? () => setShowSoloPicker(false) : undefined
+                }
+              />
+            ) : (
+              <>
+                <View style={s.soloAreaHeader}>
+                  <Text style={s.sectionLabel}>
+                    {soloRadius}-mile play area
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowSoloPicker(true)}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: colors.primary,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Change
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <PlayMap
+                  myPos={myPos}
+                  center={soloCenter}
+                  radiusMiles={soloRadius}
+                  markersJson={JSON.stringify(
+                    soloFoundLocs.map((p) => ({
+                      lat: p.lat,
+                      lng: p.lng,
+                      c: "#16a34a",
+                    })),
+                  )}
+                />
+                {isOutsideSoloArea && (
+                  <View style={s.outsideWarning}>
+                    <Text style={s.outsideWarningText}>
+                      You're outside your play area!
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
           </>
         )}
-
-        {/* ── LEADERBOARD ──────────────────────────────────────────────────── */}
-        {tab === "leaderboard" &&
-          (leaderboard.length === 0 ? (
-            <View style={s.emptyState}>
-              <Text style={s.muted}>No data yet — start hiding mascots!</Text>
-            </View>
-          ) : (
-            <View style={[s.card, { padding: 0, overflow: "hidden" }]}>
-              <View style={[s.tableRow, { backgroundColor: colors.muted }]}>
-                <Text style={[s.th, { width: 32 }]}>#</Text>
-                <Text style={[s.th, { flex: 1 }]}>Player</Text>
-                <Text style={[s.th, { width: 48, textAlign: "center" }]}>
-                  Found
-                </Text>
-                <Text style={[s.th, { width: 52, textAlign: "center" }]}>
-                  Hidden
-                </Text>
-                <Text style={[s.th, { width: 60, textAlign: "right" }]}>
-                  Survival
-                </Text>
-              </View>
-              {leaderboard.map((row, i) => (
-                <View
-                  key={row.name}
-                  style={[
-                    s.tableRow,
-                    i > 0 && {
-                      borderTopWidth: 1,
-                      borderTopColor: colors.border,
-                    },
-                    i === 0 && { backgroundColor: "#fffbeb" },
-                  ]}
-                >
-                  <Text
-                    style={[s.td, { width: 32, color: colors.mutedForeground }]}
-                  >
-                    {i === 0
-                      ? "🥇"
-                      : i === 1
-                        ? "🥈"
-                        : i === 2
-                          ? "🥉"
-                          : `${i + 1}`}
-                  </Text>
-                  <Text
-                    style={[
-                      s.td,
-                      { flex: 1, fontWeight: "500", color: colors.foreground },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {row.name}
-                  </Text>
-                  <Text
-                    style={[
-                      s.td,
-                      {
-                        width: 48,
-                        textAlign: "center",
-                        color: colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {row.found}
-                  </Text>
-                  <Text
-                    style={[
-                      s.td,
-                      {
-                        width: 52,
-                        textAlign: "center",
-                        color: colors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {row.hidden}
-                  </Text>
-                  <Text
-                    style={[
-                      s.td,
-                      { width: 60, textAlign: "right", color: colors.primary },
-                    ]}
-                  >
-                    {row.survivalMs > 0 ? survivalStr(row.survivalMs) : "—"}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ))}
       </ScrollView>
+
+      {selectedMascot && (
+        <MascotHuntModal
+          mascot={selectedMascot}
+          myPos={myPos}
+          onClose={() => setSelectedMascot(null)}
+          onCapture={async (id) => {
+            await captureMascot(id);
+            setSelectedMascot(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -2246,5 +2806,413 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: colors.mutedForeground,
+  },
+  mapBox: {
+    height: MAP_H,
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    gap: 8,
+  },
+  memberName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.foreground,
+  },
+  founderBadge: {
+    backgroundColor: `${colors.primary}1A`,
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: `${colors.primary}44`,
+  },
+  founderBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  outsideWarning: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  outsideWarningText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#DC2626",
+    textAlign: "center",
+  },
+  soloAreaHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  crosshairText: {
+    fontSize: 36,
+    color: "#007AFF",
+    lineHeight: 36,
+    textShadowColor: "rgba(255,255,255,0.9)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  },
+  radiusChip: {
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.muted,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  radiusChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}1A`,
+  },
+  radiusChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.mutedForeground,
+  },
+  radiusChipTextActive: {
+    color: colors.primary,
+  },
+  slotCard: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 20,
+    gap: 16,
+  },
+  slotWindow: {
+    height: SLOT_ITEM_H,
+    overflow: "hidden",
+    borderRadius: 14,
+    backgroundColor: colors.muted,
+    position: "relative",
+  },
+  slotItem: {
+    height: SLOT_ITEM_H,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  slotEmoji: { fontSize: 36 },
+  slotLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: -0.2,
+  },
+  slotFadeTop: {
+    height: "15%",
+    top: 0,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    backgroundColor: `${colors.muted}BB`,
+  },
+  slotFadeBottom: {
+    height: "15%",
+    bottom: 0,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    backgroundColor: `${colors.muted}BB`,
+  },
+  slotDoneChip: {
+    backgroundColor: "#dcfce7",
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  slotDoneText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#16a34a",
+  },
+  slotAllDone: {
+    backgroundColor: "#dcfce7",
+    borderRadius: 14,
+    padding: 14,
+    alignItems: "center",
+  },
+  slotAllDoneText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#16a34a",
+  },
+  // ── Group banner ──────────────────────────────────────────────────────────
+  groupBanner: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  groupBannerName: {
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    color: colors.foreground,
+  },
+  groupBannerSub: {
+    fontSize: 13,
+    color: colors.mutedForeground,
+    fontWeight: "500",
+  },
+  inviteCodePill: {
+    backgroundColor: `${colors.primary}18`,
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: `${colors.primary}33`,
+  },
+  inviteCodePillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary,
+    letterSpacing: 1.5,
+  },
+  groupAvatarStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  groupAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  groupAvatarLetter: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff",
+  },
+
+  // ── Hide mascot card ───────────────────────────────────────────────────────
+  hideMascotCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  hideMascotCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.foreground,
+    letterSpacing: -0.2,
+  },
+  hideMascotCardSub: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    lineHeight: 16,
+  },
+  hideMascotBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  // ── Section header with badge ──────────────────────────────────────────────
+  huntSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  huntBadge: {
+    backgroundColor: `${colors.primary}18`,
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: `${colors.primary}33`,
+  },
+  huntBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  huntBadgeGreen: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#bbf7d0",
+  },
+  huntBadgeTextGreen: { color: "#16a34a" },
+
+  // ── Active mascot cards ────────────────────────────────────────────────────
+  huntCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  huntThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    overflow: "hidden",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    backgroundColor: colors.muted,
+    position: "relative",
+  },
+  huntThumbTile: {
+    width: 64 / 3,
+    height: 64 / 3,
+    backgroundColor: colors.muted,
+    borderWidth: 0.5,
+    borderColor: colors.background,
+  },
+  huntThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  huntCardName: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.foreground,
+    letterSpacing: -0.3,
+  },
+  huntCardMeta: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    fontWeight: "500",
+  },
+  huntDistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  huntDist: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  huntChevron: {
+    fontSize: 22,
+    color: colors.mutedForeground,
+    fontWeight: "300",
+  },
+  changeLink: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+
+  // ── Empty hunt state ───────────────────────────────────────────────────────
+  emptyHunt: {
+    backgroundColor: colors.muted,
+    borderRadius: 18,
+    paddingVertical: 36,
+    alignItems: "center",
+    gap: 8,
+  },
+  emptyHuntTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  emptyHuntSub: {
+    fontSize: 13,
+    color: colors.mutedForeground,
+    textAlign: "center",
+  },
+
+  // ── Captured / found cards ─────────────────────────────────────────────────
+  capturedCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 12,
+    overflow: "hidden",
+  },
+  capturedPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+  },
+  capturedHider: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  capturedMeta: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    fontWeight: "500",
+  },
+  capturedSurvival: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#16a34a",
+  },
+
+  activeMascotCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: 14,
+  },
+  activeMascotPreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    overflow: "hidden",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    backgroundColor: colors.muted,
+  },
+  activeMascotTile: {
+    width: 20,
+    height: 20,
+    backgroundColor: colors.muted,
+    borderWidth: 1,
+    borderColor: colors.background,
+  },
+  activeMascotName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: -0.2,
   },
 });
