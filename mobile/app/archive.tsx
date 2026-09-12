@@ -1,10 +1,12 @@
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
-import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
+  Easing,
   Image,
   Modal,
   ScrollView,
@@ -69,6 +71,9 @@ const H_PAD = 16;
 const CELL_GAP = 3;
 const SCREEN_W = Dimensions.get("window").width;
 const CELL_SIZE = Math.floor((SCREEN_W - H_PAD * 2 - CELL_GAP * 6) / 7);
+// Height of the photo scroll area: show one full photo + a peek of the next
+const PHOTO_W = SCREEN_W - H_PAD * 2 - 2; // card width minus border
+const PHOTO_SCROLL_H = Math.round(PHOTO_W * 1.1);
 
 export default function ArchiveScreen() {
   const router = useRouter();
@@ -81,6 +86,21 @@ export default function ArchiveScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxColor, setLightboxColor] = useState<string>(colors.primary);
+  const [photoScrolled, setPhotoScrolled] = useState(false);
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!selected) { setPhotoScrolled(false); return; }
+    bounceAnim.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: 6, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [selected, bounceAnim]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -348,31 +368,53 @@ export default function ArchiveScreen() {
                     <X size={15} color={colors.mutedForeground} />
                   </TouchableOpacity>
                 </View>
-                {selectedSubs.map((sub) => {
-                  const url = supabase.storage
-                    .from("game-photos")
-                    .getPublicUrl(sub.photo_path).data.publicUrl;
-                  const subColor = cellAccent(
-                    sub.topic_category,
-                    sub.topic_label,
-                  );
-                  return (
-                    <TouchableOpacity
-                      key={sub.id}
-                      activeOpacity={0.9}
-                      onPress={() => {
-                        setLightboxUrl(url);
-                        setLightboxColor(subColor);
-                      }}
-                    >
-                      <Image
-                        source={{ uri: url }}
-                        style={s.detailPhoto}
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
+                <ScrollView
+                  style={{ maxHeight: PHOTO_SCROLL_H }}
+                  scrollEventThrottle={16}
+                  onScroll={() => setPhotoScrolled(true)}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  {selectedSubs.map((sub) => {
+                    const url = supabase.storage
+                      .from("game-photos")
+                      .getPublicUrl(sub.photo_path).data.publicUrl;
+                    const subColor = cellAccent(
+                      sub.topic_category,
+                      sub.topic_label,
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={sub.id}
+                        activeOpacity={0.9}
+                        onPress={() => {
+                          setLightboxUrl(url);
+                          setLightboxColor(subColor);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: url }}
+                          style={s.detailPhoto}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                {selectedSubs.length > 1 && !photoScrolled && (
+                  <Animated.View
+                    style={[
+                      s.scrollHint,
+                      { transform: [{ translateY: bounceAnim }] },
+                    ]}
+                    pointerEvents="none"
+                  >
+                    <ChevronDown size={18} color={detailAccent} />
+                    <Text style={[s.scrollHintText, { color: detailAccent }]}>
+                      {selectedSubs.length} photos — scroll to see more
+                    </Text>
+                  </Animated.View>
+                )}
               </View>
             )}
 
@@ -532,8 +574,19 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   detailPhoto: {
-    width: "100%",
-    aspectRatio: 1,
+    width: PHOTO_W,
+    height: PHOTO_W,
+  },
+  scrollHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+  },
+  scrollHintText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   emptyState: {
     backgroundColor: colors.muted,
