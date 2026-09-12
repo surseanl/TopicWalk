@@ -1,10 +1,12 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import { useMemo } from "react";
+import { ChevronLeft, X } from "lucide-react-native";
+import { useMemo, useState } from "react";
 import {
   Dimensions,
   FlatList,
   Image,
+  Modal,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -42,6 +44,8 @@ export default function AlbumDetailScreen() {
     }
   }, [paths]);
 
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
   const bg = color ?? "#6b7280";
   const light = isLightColor(bg);
   const fg = light ? "#111111" : "#ffffff";
@@ -50,6 +54,31 @@ export default function AlbumDetailScreen() {
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]}>
+      {/* Fullscreen photo lightbox */}
+      <Modal
+        visible={!!lightboxUrl}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setLightboxUrl(null)}
+      >
+        <StatusBar hidden />
+        <View style={s.lightbox}>
+          {lightboxUrl && (
+            <Image
+              source={{ uri: lightboxUrl }}
+              style={[s.lightboxImg, { borderColor: bg }]}
+              resizeMode="contain"
+            />
+          )}
+          <TouchableOpacity
+            onPress={() => setLightboxUrl(null)}
+            style={s.lightboxClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <X size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
       {/* Back */}
       <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
         <ChevronLeft size={22} color={fg} />
@@ -92,7 +121,12 @@ export default function AlbumDetailScreen() {
             const url = supabase.storage.from("game-photos").getPublicUrl(item)
               .data.publicUrl;
             return (
-              <Image source={{ uri: url }} style={s.photo} resizeMode="cover" />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setLightboxUrl(url)}
+              >
+                <Image source={{ uri: url }} style={s.photo} resizeMode="cover" />
+              </TouchableOpacity>
             );
           }}
         />
@@ -169,5 +203,30 @@ const s = StyleSheet.create({
     width: PHOTO_W,
     height: PHOTO_W,
     borderRadius: 12,
+  },
+
+  // Lightbox
+  lightbox: {
+    flex: 1,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxImg: {
+    width: W,
+    height: W,
+    borderWidth: 6,
+    borderRadius: 4,
+  },
+  lightboxClose: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
