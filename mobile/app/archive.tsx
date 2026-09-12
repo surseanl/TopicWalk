@@ -82,13 +82,19 @@ export default function ArchiveScreen() {
   const [month, setMonth] = useState(now.getMonth());
   const [selected, setSelected] = useState<string | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [lightboxPhotos, setLightboxPhotos] = useState<{ url: string; color: string }[]>([]);
+  const [lightboxPhotos, setLightboxPhotos] = useState<
+    { url: string; color: string }[]
+  >([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const lightboxRef = useRef<FlatList<{ url: string; color: string }> | null>(null);
+  const lightboxRef = useRef<FlatList<{ url: string; color: string }> | null>(
+    null,
+  );
 
-  // Reset card photo index whenever selected day changes
-  useEffect(() => { setPhotoIndex(0); }, [selected]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset index when selected day changes
+  useEffect(() => {
+    setPhotoIndex(0);
+  }, [selected]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -186,11 +192,20 @@ export default function ArchiveScreen() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={lightboxIndex}
-            getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+            getItemLayout={(_, i) => ({
+              length: SCREEN_W,
+              offset: SCREEN_W * i,
+              index: i,
+            })}
             keyExtractor={(_, i) => String(i)}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={{ width: SCREEN_W, flex: 1, alignItems: "center", justifyContent: "center" }}
+                style={{
+                  width: SCREEN_W,
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
                 activeOpacity={1}
                 onPress={() => setLightboxOpen(false)}
               >
@@ -370,9 +385,13 @@ export default function ArchiveScreen() {
                 {(() => {
                   const sub = selectedSubs[photoIndex];
                   if (!sub) return null;
-                  const url = supabase.storage.from("game-photos").getPublicUrl(sub.photo_path).data.publicUrl;
+                  const url = supabase.storage
+                    .from("game-photos")
+                    .getPublicUrl(sub.photo_path).data.publicUrl;
                   const allPhotos = selectedSubs.map((s) => ({
-                    url: supabase.storage.from("game-photos").getPublicUrl(s.photo_path).data.publicUrl,
+                    url: supabase.storage
+                      .from("game-photos")
+                      .getPublicUrl(s.photo_path).data.publicUrl,
                     color: cellAccent(s.topic_category, s.topic_label),
                   }));
                   return (
@@ -385,24 +404,44 @@ export default function ArchiveScreen() {
                           setLightboxOpen(true);
                         }}
                       >
-                        <Image source={{ uri: url }} style={s.detailPhoto} resizeMode="cover" />
+                        <Image
+                          source={{ uri: url }}
+                          style={s.detailPhoto}
+                          resizeMode="cover"
+                        />
                       </TouchableOpacity>
                       {selectedSubs.length > 1 && (
                         <View style={s.photoNav}>
                           <TouchableOpacity
-                            onPress={() => setPhotoIndex((i) => Math.max(0, i - 1))}
+                            onPress={() =>
+                              setPhotoIndex((i) => Math.max(0, i - 1))
+                            }
                             disabled={photoIndex === 0}
-                            style={[s.photoNavBtn, photoIndex === 0 && { opacity: 0.3 }]}
+                            style={[
+                              s.photoNavBtn,
+                              photoIndex === 0 && { opacity: 0.3 },
+                            ]}
                           >
                             <ChevronLeft size={20} color={detailAccent} />
                           </TouchableOpacity>
-                          <Text style={[s.photoCounter, { color: detailAccent }]}>
+                          <Text
+                            style={[s.photoCounter, { color: detailAccent }]}
+                          >
                             {photoIndex + 1} / {selectedSubs.length}
                           </Text>
                           <TouchableOpacity
-                            onPress={() => setPhotoIndex((i) => Math.min(selectedSubs.length - 1, i + 1))}
+                            onPress={() =>
+                              setPhotoIndex((i) =>
+                                Math.min(selectedSubs.length - 1, i + 1),
+                              )
+                            }
                             disabled={photoIndex === selectedSubs.length - 1}
-                            style={[s.photoNavBtn, photoIndex === selectedSubs.length - 1 && { opacity: 0.3 }]}
+                            style={[
+                              s.photoNavBtn,
+                              photoIndex === selectedSubs.length - 1 && {
+                                opacity: 0.3,
+                              },
+                            ]}
                           >
                             <ChevronRight size={20} color={detailAccent} />
                           </TouchableOpacity>
