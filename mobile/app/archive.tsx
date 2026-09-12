@@ -69,6 +69,7 @@ function cellAccent(category: string, label: string): string {
 const H_PAD = 16;
 const CELL_GAP = 3;
 const SCREEN_W = Dimensions.get("window").width;
+const SCREEN_H = Dimensions.get("window").height;
 const CELL_SIZE = Math.floor((SCREEN_W - H_PAD * 2 - CELL_GAP * 6) / 7);
 const PHOTO_W = SCREEN_W - H_PAD * 2 - 2; // card width minus border
 
@@ -198,11 +199,12 @@ export default function ArchiveScreen() {
               index: i,
             })}
             keyExtractor={(_, i) => String(i)}
+            style={{ flex: 1 }}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={{
                   width: SCREEN_W,
-                  flex: 1,
+                  height: SCREEN_H,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
