@@ -80,6 +80,7 @@ export default function ArchiveScreen() {
   const [month, setMonth] = useState(now.getMonth());
   const [selected, setSelected] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxColor, setLightboxColor] = useState<string>(colors.primary);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -173,13 +174,14 @@ export default function ArchiveScreen() {
           {lightboxUrl && (
             <Image
               source={{ uri: lightboxUrl }}
-              style={StyleSheet.absoluteFill}
+              style={[s.lightboxImg, { borderColor: lightboxColor }]}
               resizeMode="contain"
             />
           )}
           <TouchableOpacity
             onPress={() => setLightboxUrl(null)}
             style={s.lightboxClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <X size={20} color="#fff" />
           </TouchableOpacity>
@@ -343,11 +345,15 @@ export default function ArchiveScreen() {
                   const url = supabase.storage
                     .from("game-photos")
                     .getPublicUrl(sub.photo_path).data.publicUrl;
+                  const subColor = cellAccent(sub.topic_category, sub.topic_label);
                   return (
                     <TouchableOpacity
                       key={sub.id}
                       activeOpacity={0.9}
-                      onPress={() => setLightboxUrl(url)}
+                      onPress={() => {
+                        setLightboxUrl(url);
+                        setLightboxColor(subColor);
+                      }}
                     >
                       <Image
                         source={{ uri: url }}
@@ -532,6 +538,12 @@ const s = StyleSheet.create({
     backgroundColor: "#000",
     justifyContent: "center",
     alignItems: "center",
+  },
+  lightboxImg: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").width,
+    borderWidth: 6,
+    borderRadius: 4,
   },
   lightboxClose: {
     position: "absolute",
