@@ -87,6 +87,7 @@ export default function ArchiveScreen() {
     { url: string; color: string }[]
   >([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxPage, setLightboxPage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const lightboxRef = useRef<FlatList<{ url: string; color: string }> | null>(
     null,
@@ -200,6 +201,10 @@ export default function ArchiveScreen() {
             })}
             keyExtractor={(_, i) => String(i)}
             style={{ flex: 1 }}
+            onMomentumScrollEnd={(e) => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+              setLightboxPage(page);
+            }}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={{
@@ -213,14 +218,14 @@ export default function ArchiveScreen() {
               >
                 <Image
                   source={{ uri: item.url }}
-                  style={[s.lightboxImg, { borderColor: item.color }]}
+                  style={s.lightboxImg}
                   resizeMode="contain"
                 />
               </TouchableOpacity>
             )}
           />
         </View>
-        {/* Close button — SafeAreaView so it clears the notch */}
+        {/* Close button + dots — SafeAreaView so it clears the notch */}
         <SafeAreaView style={s.lightboxOverlay} pointerEvents="box-none">
           <TouchableOpacity
             onPress={() => setLightboxOpen(false)}
@@ -229,6 +234,20 @@ export default function ArchiveScreen() {
             <X size={20} color="#fff" />
           </TouchableOpacity>
         </SafeAreaView>
+        {lightboxPhotos.length > 1 && (
+          <SafeAreaView style={s.lightboxBottom} pointerEvents="none">
+            <View style={s.lightboxDots}>
+              {lightboxPhotos.map((_, i) => (
+                <View
+                  // biome-ignore lint/suspicious/noArrayIndexKey: stable pagination dots
+                  key={i}
+                  style={[s.lightboxDot, i === lightboxPage && s.lightboxDotActive]}
+                />
+              ))}
+            </View>
+            <Text style={s.lightboxSwipeHint}>swipe to see more</Text>
+          </SafeAreaView>
+        )}
       </Modal>
 
       {/* Header with back button */}
@@ -403,6 +422,7 @@ export default function ArchiveScreen() {
                         onPress={() => {
                           setLightboxPhotos(allPhotos);
                           setLightboxIndex(photoIndex);
+                          setLightboxPage(photoIndex);
                           setLightboxOpen(true);
                         }}
                       >
@@ -650,8 +670,6 @@ const s = StyleSheet.create({
   lightboxImg: {
     width: Dimensions.get("window").width,
     height: Dimensions.get("window").width,
-    borderWidth: 6,
-    borderRadius: 4,
   },
   lightboxOverlay: {
     position: "absolute",
@@ -668,5 +686,34 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  lightboxBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 12,
+  },
+  lightboxDots: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  lightboxDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  lightboxDotActive: {
+    backgroundColor: "#fff",
+    width: 18,
+  },
+  lightboxSwipeHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.5)",
+    letterSpacing: 0.5,
   },
 });
