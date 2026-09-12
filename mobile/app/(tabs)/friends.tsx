@@ -358,7 +358,7 @@ export default function FriendsScreen() {
       >
         <View style={s.scannerContainer}>
           <CameraView
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
             onBarcodeScanned={(result) => handleScannedCode(result.data)}
@@ -861,7 +861,7 @@ const s = StyleSheet.create({
   // ── Scanner ────────────────────────────────────────────────────────────────
   scannerContainer: { flex: 1, backgroundColor: "#000" },
   scannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     gap: 24,

@@ -13,6 +13,8 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
+  type AppStateStatus,
   Easing,
   Image,
   Modal,
@@ -108,11 +110,43 @@ export default function WalkScreen() {
   const revealTranslate = useRef(new Animated.Value(16)).current;
 
   const uidRef = useRef<string | null>(null);
+  const currentDateRef = useRef<string>("");
+
+  function checkMidnightReset() {
+    const d = today();
+    if (currentDateRef.current && currentDateRef.current !== d) {
+      // Day has changed — clear the pick so the wheel resets
+      currentDateRef.current = d;
+      setColorIdx(null);
+      setRevealed(false);
+      setIsLocked(false);
+      setAlbumId(null);
+      setAlbumCreated(false);
+      setPhotoCount(0);
+      wheelRot.setValue(0);
+      revealOpacity.setValue(0);
+      revealTranslate.setValue(16);
+      void AsyncStorage.removeItem(DAILY_KEY);
+      if (uidRef.current) void fetchFeed(uidRef.current);
+    } else {
+      currentDateRef.current = d;
+    }
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
     void restorePick();
     void initUser();
+    currentDateRef.current = today();
+
+    const appStateSub = AppState.addEventListener(
+      "change",
+      (next: AppStateStatus) => {
+        if (next === "active") checkMidnightReset();
+      },
+    );
+    const midnightInterval = setInterval(checkMidnightReset, 60_000);
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -123,7 +157,11 @@ export default function WalkScreen() {
         setLoading(false);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      appStateSub.remove();
+      clearInterval(midnightInterval);
+    };
   }, []);
 
   async function restorePick() {
@@ -159,24 +197,10 @@ export default function WalkScreen() {
   }
 
   function today() {
-    try {
-      const now = new Date();
-      const etStr = now.toLocaleString("en-US", {
-        timeZone: "America/New_York",
-      });
-      const et = new Date(etStr);
-      if (!Number.isNaN(et.getTime())) {
-        const y = et.getFullYear();
-        const m = String(et.getMonth() + 1).padStart(2, "0");
-        const d = String(et.getDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
-      }
-    } catch {}
-    // Fallback: UTC date
     const now = new Date();
-    const y = now.getUTCFullYear();
-    const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(now.getUTCDate()).padStart(2, "0");
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
 
@@ -220,8 +244,8 @@ export default function WalkScreen() {
 
     const sel =
       "*, tw_submissions(photo_path), tw_album_reactions(*), tw_album_ratings(*)";
-    // Explicit UTC midnight so Supabase interprets the timestamp correctly
-    const since = `${today()}T00:00:00Z`;
+    // Rolling 24-hour window: photos disappear from feed exactly 24h after posting
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     // Own albums — always visible regardless of share status
     const { data: ownData, error: ownErr } = await supabase
@@ -528,7 +552,7 @@ export default function WalkScreen() {
           {pendingAsset && (
             <Image
               source={{ uri: pendingAsset.uri }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
           )}

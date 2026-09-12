@@ -38,7 +38,8 @@
           "photosPermission": "TopicWalk needs access to your photos to share walk photos.",
           "cameraPermission": "TopicWalk needs your camera to take walk photos."
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

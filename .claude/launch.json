@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "Expo Mobile",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--prefix", "mobile", "expo", "start", "--port", "8081"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd mobile && npx expo start --port 8081"],
       "port": 8081,
       "url": "http://localhost:8081"
     },

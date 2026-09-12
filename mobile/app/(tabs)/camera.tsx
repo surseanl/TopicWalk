@@ -333,12 +333,12 @@ function AreaPickerMap({
               onConfirm(pos, radius);
             } catch {}
           }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <View
           pointerEvents="none"
           style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { alignItems: "center", justifyContent: "center" },
           ]}
         >
@@ -514,12 +514,12 @@ function MascotHuntModal({
           >
             <Image
               source={{ uri: photoUrl }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
             <View
               style={[
-                StyleSheet.absoluteFillObject,
+                StyleSheet.absoluteFill,
                 { flexDirection: "row", flexWrap: "wrap" },
               ]}
             >
@@ -1506,7 +1506,7 @@ export default function HuntScreen() {
             <>
               <Image
                 source={{ uri: pendingHidePhoto.uri }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
               {/* Top instruction banner */}
@@ -2208,7 +2208,7 @@ export default function HuntScreen() {
                         <View
                           pointerEvents="none"
                           style={[
-                            StyleSheet.absoluteFillObject,
+                            StyleSheet.absoluteFill,
                             s.slotFadeTop,
                             { zIndex: 2 },
                           ]}
@@ -2216,7 +2216,7 @@ export default function HuntScreen() {
                         <View
                           pointerEvents="none"
                           style={[
-                            StyleSheet.absoluteFillObject,
+                            StyleSheet.absoluteFill,
                             s.slotFadeBottom,
                             { zIndex: 2 },
                           ]}
@@ -3095,7 +3095,7 @@ const s = StyleSheet.create({
     borderColor: colors.background,
   },
   huntThumbOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },

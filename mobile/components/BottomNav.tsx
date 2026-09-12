@@ -1,4 +1,3 @@
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Crosshair, Footprints, House, User } from "lucide-react-native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,19 +14,20 @@ function tabIcon(name: string, focused: boolean) {
   return <User size={ICON_SIZE} color={color} />;
 }
 
-export function BottomNav({
-  state,
-  descriptors,
-  navigation,
-}: BottomTabBarProps) {
+// biome-ignore lint/suspicious/noExplicitAny: expo-router/react-navigation type mismatch
+export function BottomNav({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
 
-  const visibleRoutes = state.routes.filter((r) => !HIDDEN.has(r.name));
+  const visibleRoutes = state.routes.filter(
+    // biome-ignore lint/suspicious/noExplicitAny: expo-router/react-navigation type mismatch
+    (r: any) => !HIDDEN.has(r.name),
+  );
 
   return (
     <View style={[s.container, { paddingBottom: insets.bottom || 12 }]}>
       <View style={s.bar}>
-        {visibleRoutes.map((route) => {
+        {/* biome-ignore lint/suspicious/noExplicitAny: expo-router/react-navigation type mismatch */}
+        {visibleRoutes.map((route: any) => {
           const globalIndex = state.routes.indexOf(route);
           const focused = state.index === globalIndex;
           const { options } = descriptors[route.key];

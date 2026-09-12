@@ -173,7 +173,7 @@ export default function ArchiveScreen() {
           {lightboxUrl && (
             <Image
               source={{ uri: lightboxUrl }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="contain"
             />
           )}
