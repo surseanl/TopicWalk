@@ -1,7 +1,9 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Clipboard from "expo-clipboard";
+import { useRouter } from "expo-router";
 import {
   Check,
+  ChevronLeft,
   QrCode,
   ScanLine,
   Share2,
@@ -36,6 +38,7 @@ type RichFriendship = {
 };
 
 export default function FriendsScreen() {
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [myUsername, setMyUsername] = useState<string>("");
   const [myFriendCode, setMyFriendCode] = useState<string>("");
@@ -285,18 +288,23 @@ export default function FriendsScreen() {
 
   if (!loading && !userId) {
     return (
-      <SafeAreaView edges={["bottom"]} style={[s.safe, s.center]}>
+      <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <ChevronLeft size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <View style={s.center}>
         <Text style={s.pageTitle}>Sign in to add friends</Text>
         <Text style={[s.muted, s.textCenter, { marginBottom: 24 }]}>
           Connect with friends to see each other's walks and photos.
         </Text>
         <Text style={s.muted}>Go to Profile to sign in →</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView edges={["bottom"]} style={s.safe}>
+    <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
       {/* My QR Code modal */}
       <Modal
         visible={showMyQR}
@@ -377,6 +385,9 @@ export default function FriendsScreen() {
       </Modal>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <ChevronLeft size={22} color={colors.foreground} />
+        </TouchableOpacity>
         <View style={s.titleRow}>
           <View>
             <Text style={s.pageTitle}>Friends</Text>
@@ -627,13 +638,22 @@ export default function FriendsScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   center: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
   },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+    marginTop: 4,
+  },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingTop: 8,
     paddingBottom: 40,
     gap: 18,
   },
