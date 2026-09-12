@@ -1,12 +1,11 @@
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
-import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   Dimensions,
-  Easing,
+  FlatList,
   Image,
   Modal,
   ScrollView,
@@ -71,9 +70,7 @@ const H_PAD = 16;
 const CELL_GAP = 3;
 const SCREEN_W = Dimensions.get("window").width;
 const CELL_SIZE = Math.floor((SCREEN_W - H_PAD * 2 - CELL_GAP * 6) / 7);
-// Height of the photo scroll area: show one full photo + a peek of the next
 const PHOTO_W = SCREEN_W - H_PAD * 2 - 2; // card width minus border
-const PHOTO_SCROLL_H = Math.round(PHOTO_W * 1.1);
 
 export default function ArchiveScreen() {
   const router = useRouter();
@@ -84,23 +81,14 @@ export default function ArchiveScreen() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selected, setSelected] = useState<string | null>(null);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [lightboxColor, setLightboxColor] = useState<string>(colors.primary);
-  const [photoScrolled, setPhotoScrolled] = useState(false);
-  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightboxPhotos, setLightboxPhotos] = useState<{ url: string; color: string }[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const lightboxRef = useRef<FlatList<{ url: string; color: string }> | null>(null);
 
-  useEffect(() => {
-    if (!selected) { setPhotoScrolled(false); return; }
-    bounceAnim.setValue(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: 6, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [selected, bounceAnim]);
+  // Reset card photo index whenever selected day changes
+  useEffect(() => { setPhotoIndex(0); }, [selected]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -183,31 +171,42 @@ export default function ArchiveScreen() {
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
-      {/* Fullscreen photo lightbox */}
+      {/* Fullscreen photo lightbox — horizontal swipe between photos */}
       <Modal
-        visible={!!lightboxUrl}
+        visible={lightboxOpen}
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => setLightboxUrl(null)}
+        onRequestClose={() => setLightboxOpen(false)}
       >
-        {/* Tap anywhere on the black area to dismiss */}
-        <TouchableOpacity
-          style={s.lightbox}
-          activeOpacity={1}
-          onPress={() => setLightboxUrl(null)}
-        >
-          {lightboxUrl && (
-            <Image
-              source={{ uri: lightboxUrl }}
-              style={[s.lightboxImg, { borderColor: lightboxColor }]}
-              resizeMode="contain"
-            />
-          )}
-        </TouchableOpacity>
-        {/* Close button — inside SafeAreaView so it clears the notch */}
+        <View style={s.lightbox}>
+          <FlatList
+            ref={lightboxRef}
+            data={lightboxPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={lightboxIndex}
+            getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{ width: SCREEN_W, flex: 1, alignItems: "center", justifyContent: "center" }}
+                activeOpacity={1}
+                onPress={() => setLightboxOpen(false)}
+              >
+                <Image
+                  source={{ uri: item.url }}
+                  style={[s.lightboxImg, { borderColor: item.color }]}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+        {/* Close button — SafeAreaView so it clears the notch */}
         <SafeAreaView style={s.lightboxOverlay} pointerEvents="box-none">
           <TouchableOpacity
-            onPress={() => setLightboxUrl(null)}
+            onPress={() => setLightboxOpen(false)}
             style={s.lightboxClose}
           >
             <X size={20} color="#fff" />
@@ -368,53 +367,50 @@ export default function ArchiveScreen() {
                     <X size={15} color={colors.mutedForeground} />
                   </TouchableOpacity>
                 </View>
-                <ScrollView
-                  style={{ maxHeight: PHOTO_SCROLL_H }}
-                  scrollEventThrottle={16}
-                  onScroll={() => setPhotoScrolled(true)}
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled
-                >
-                  {selectedSubs.map((sub) => {
-                    const url = supabase.storage
-                      .from("game-photos")
-                      .getPublicUrl(sub.photo_path).data.publicUrl;
-                    const subColor = cellAccent(
-                      sub.topic_category,
-                      sub.topic_label,
-                    );
-                    return (
+                {(() => {
+                  const sub = selectedSubs[photoIndex];
+                  if (!sub) return null;
+                  const url = supabase.storage.from("game-photos").getPublicUrl(sub.photo_path).data.publicUrl;
+                  const allPhotos = selectedSubs.map((s) => ({
+                    url: supabase.storage.from("game-photos").getPublicUrl(s.photo_path).data.publicUrl,
+                    color: cellAccent(s.topic_category, s.topic_label),
+                  }));
+                  return (
+                    <>
                       <TouchableOpacity
-                        key={sub.id}
                         activeOpacity={0.9}
                         onPress={() => {
-                          setLightboxUrl(url);
-                          setLightboxColor(subColor);
+                          setLightboxPhotos(allPhotos);
+                          setLightboxIndex(photoIndex);
+                          setLightboxOpen(true);
                         }}
                       >
-                        <Image
-                          source={{ uri: url }}
-                          style={s.detailPhoto}
-                          resizeMode="cover"
-                        />
+                        <Image source={{ uri: url }} style={s.detailPhoto} resizeMode="cover" />
                       </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-                {selectedSubs.length > 1 && !photoScrolled && (
-                  <Animated.View
-                    style={[
-                      s.scrollHint,
-                      { transform: [{ translateY: bounceAnim }] },
-                    ]}
-                    pointerEvents="none"
-                  >
-                    <ChevronDown size={18} color={detailAccent} />
-                    <Text style={[s.scrollHintText, { color: detailAccent }]}>
-                      {selectedSubs.length} photos — scroll to see more
-                    </Text>
-                  </Animated.View>
-                )}
+                      {selectedSubs.length > 1 && (
+                        <View style={s.photoNav}>
+                          <TouchableOpacity
+                            onPress={() => setPhotoIndex((i) => Math.max(0, i - 1))}
+                            disabled={photoIndex === 0}
+                            style={[s.photoNavBtn, photoIndex === 0 && { opacity: 0.3 }]}
+                          >
+                            <ChevronLeft size={20} color={detailAccent} />
+                          </TouchableOpacity>
+                          <Text style={[s.photoCounter, { color: detailAccent }]}>
+                            {photoIndex + 1} / {selectedSubs.length}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => setPhotoIndex((i) => Math.min(selectedSubs.length - 1, i + 1))}
+                            disabled={photoIndex === selectedSubs.length - 1}
+                            style={[s.photoNavBtn, photoIndex === selectedSubs.length - 1 && { opacity: 0.3 }]}
+                          >
+                            <ChevronRight size={20} color={detailAccent} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
               </View>
             )}
 
@@ -577,16 +573,24 @@ const s = StyleSheet.create({
     width: PHOTO_W,
     height: PHOTO_W,
   },
-  scrollHint: {
+  photoNav: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  scrollHintText: {
-    fontSize: 12,
-    fontWeight: "600",
+  photoNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoCounter: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   emptyState: {
     backgroundColor: colors.muted,
