@@ -170,7 +170,12 @@ export default function ArchiveScreen() {
         statusBarTranslucent
         onRequestClose={() => setLightboxUrl(null)}
       >
-        <View style={s.lightbox}>
+        {/* Tap anywhere on the black area to dismiss */}
+        <TouchableOpacity
+          style={s.lightbox}
+          activeOpacity={1}
+          onPress={() => setLightboxUrl(null)}
+        >
           {lightboxUrl && (
             <Image
               source={{ uri: lightboxUrl }}
@@ -178,14 +183,16 @@ export default function ArchiveScreen() {
               resizeMode="contain"
             />
           )}
+        </TouchableOpacity>
+        {/* Close button — inside SafeAreaView so it clears the notch */}
+        <SafeAreaView style={s.lightboxOverlay} pointerEvents="box-none">
           <TouchableOpacity
             onPress={() => setLightboxUrl(null)}
             style={s.lightboxClose}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <X size={20} color="#fff" />
           </TouchableOpacity>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Header with back button */}
@@ -345,7 +352,10 @@ export default function ArchiveScreen() {
                   const url = supabase.storage
                     .from("game-photos")
                     .getPublicUrl(sub.photo_path).data.publicUrl;
-                  const subColor = cellAccent(sub.topic_category, sub.topic_label);
+                  const subColor = cellAccent(
+                    sub.topic_category,
+                    sub.topic_label,
+                  );
                   return (
                     <TouchableOpacity
                       key={sub.id}
@@ -545,14 +555,19 @@ const s = StyleSheet.create({
     borderWidth: 6,
     borderRadius: 4,
   },
-  lightboxClose: {
+  lightboxOverlay: {
     position: "absolute",
-    top: 56,
-    right: 20,
+    top: 0,
+    right: 0,
+    left: 0,
+    alignItems: "flex-end",
+    paddingRight: 16,
+  },
+  lightboxClose: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
   },
