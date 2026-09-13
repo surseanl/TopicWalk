@@ -12,24 +12,56 @@ import Svg, {
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
-export type AccessorySlots = { hat: string; glasses: string; outfit: string };
+export type AccessorySlots = {
+  hat: string;
+  glasses: string;
+  outfit: string;
+  bottom: string;
+  shoes: string;
+  bag: string;
+};
 
 export function parseAccessory(val: string): AccessorySlots {
-  if (!val) return { hat: "", glasses: "", outfit: "" };
+  const empty = {
+    hat: "",
+    glasses: "",
+    outfit: "",
+    bottom: "",
+    shoes: "",
+    bag: "",
+  };
+  if (!val) return empty;
   const p = val.split("|");
+  if (p.length >= 6)
+    return {
+      hat: p[0] ?? "",
+      glasses: p[1] ?? "",
+      outfit: p[2] ?? "",
+      bottom: p[3] ?? "",
+      shoes: p[4] ?? "",
+      bag: p[5] ?? "",
+    };
   if (p.length >= 3)
-    return { hat: p[0] ?? "", glasses: p[1] ?? "", outfit: p[2] ?? "" };
+    return {
+      ...empty,
+      hat: p[0] ?? "",
+      glasses: p[1] ?? "",
+      outfit: p[2] ?? "",
+    };
   // 2-part legacy: hat|outfit
-  return { hat: p[0] ?? "", glasses: "", outfit: p[1] ?? "" };
+  return { ...empty, hat: p[0] ?? "", outfit: p[1] ?? "" };
 }
 
 export function encodeAccessory({
   hat,
   glasses,
   outfit,
+  bottom,
+  shoes,
+  bag,
 }: AccessorySlots): string {
-  if (!hat && !glasses && !outfit) return "";
-  return `${hat}|${glasses}|${outfit}`;
+  if (!hat && !glasses && !outfit && !bottom && !shoes && !bag) return "";
+  return `${hat}|${glasses}|${outfit}|${bottom}|${shoes}|${bag}`;
 }
 
 // ─── HATS ────────────────────────────────────────────────────────────────────
@@ -1077,6 +1109,144 @@ export function PartyHat({
   );
 }
 
+export function FlowerCrown({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.55);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 55">
+      <Rect x="10" y="34" width="80" height="14" rx="7" fill="#16a34a" />
+      <Circle cx="22" cy="26" r="10" fill="#f472b6" />
+      <Circle cx="22" cy="26" r="5" fill="#fde68a" />
+      <Circle cx="40" cy="18" r="10" fill="#fb923c" />
+      <Circle cx="40" cy="18" r="5" fill="#fde68a" />
+      <Circle cx="60" cy="18" r="10" fill="#f472b6" />
+      <Circle cx="60" cy="18" r="5" fill="#fde68a" />
+      <Circle cx="78" cy="26" r="10" fill="#fb923c" />
+      <Circle cx="78" cy="26" r="5" fill="#fde68a" />
+      <Ellipse cx="22" cy="17" rx="4" ry="6" fill="#4ade80" opacity="0.8" />
+      <Ellipse cx="50" cy="12" rx="4" ry="6" fill="#4ade80" opacity="0.8" />
+      <Ellipse cx="78" cy="17" rx="4" ry="6" fill="#4ade80" opacity="0.8" />
+    </Svg>
+  );
+}
+
+export function ChefHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.85);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 85">
+      <Rect x="20" y="62" width="60" height="20" rx="4" fill="#e5e7eb" />
+      <Path
+        d="M20 66 Q40 60 60 60 Q80 60 80 66"
+        stroke="#d1d5db"
+        strokeWidth="2"
+        fill="none"
+      />
+      <Path
+        d="M22 40 C14 30 14 10 30 8 C38 6 44 14 50 14 C56 14 62 6 70 8 C86 10 86 30 78 40 Z"
+        fill="white"
+      />
+      <Ellipse cx="50" cy="40" rx="28" ry="10" fill="white" />
+      <Path
+        d="M22 40 C14 30 14 10 30 8"
+        stroke="#e5e7eb"
+        strokeWidth="2"
+        fill="none"
+      />
+      <Path
+        d="M78 40 C86 30 86 10 70 8"
+        stroke="#e5e7eb"
+        strokeWidth="2"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+export function SafariHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.65);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 65">
+      <Ellipse cx="50" cy="54" rx="48" ry="10" fill="#92400e" />
+      <Ellipse cx="50" cy="51" rx="40" ry="8" fill="#a16207" />
+      <Ellipse cx="50" cy="32" rx="34" ry="26" fill="#ca8a04" />
+      <Ellipse cx="50" cy="28" rx="30" ry="20" fill="#d97706" />
+      <Ellipse cx="42" cy="22" rx="12" ry="8" fill="#fbbf24" opacity="0.3" />
+      <Rect x="20" y="48" width="60" height="8" rx="3" fill="#92400e" />
+      <Circle cx="50" cy="10" r="3" fill="#78350f" />
+    </Svg>
+  );
+}
+
+export function WitchHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 1.02);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 100">
+      <Path d="M10 76 L50 4 L90 76 Z" fill="#18181b" />
+      <Ellipse cx="50" cy="78" rx="48" ry="14" fill="#111111" />
+      <Ellipse cx="50" cy="76" rx="40" ry="8" fill="#1a1a1a" />
+      <Rect x="16" y="68" width="68" height="10" rx="2" fill="#7c3aed" />
+      <Circle cx="36" cy="70" r="3" fill="#fbbf24" />
+      <Circle cx="64" cy="70" r="3" fill="#fbbf24" />
+      <Path
+        d="M36 46 Q40 36 44 26"
+        stroke="#27272a"
+        strokeWidth="2"
+        fill="none"
+        opacity="0.5"
+      />
+      <Path
+        d="M64 46 Q60 36 56 26"
+        stroke="#27272a"
+        strokeWidth="2"
+        fill="none"
+        opacity="0.5"
+      />
+    </Svg>
+  );
+}
+
+export function HardHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.62);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 62">
+      <Ellipse cx="50" cy="50" rx="48" ry="10" fill="#ca8a04" />
+      <Path d="M12 50 C10 28 24 10 50 8 C76 10 90 28 88 50 Z" fill="#eab308" />
+      <Rect x="22" y="44" width="56" height="10" rx="3" fill="#ca8a04" />
+      <Ellipse cx="40" cy="26" rx="12" ry="6" fill="#fde047" opacity="0.4" />
+      <Rect x="42" y="8" width="16" height="6" rx="2" fill="#ca8a04" />
+    </Svg>
+  );
+}
+
 // ─── MORE GLASSES ─────────────────────────────────────────────────────────────
 
 export function StarGlasses({
@@ -1195,6 +1365,149 @@ export function VisorGlasses({
       />
       <Path d="M0 10 L5 10" stroke="#0e7490" strokeWidth="3" fill="none" />
       <Path d="M105 10 L110 10" stroke="#0e7490" strokeWidth="3" fill="none" />
+    </Svg>
+  );
+}
+
+export function AviatorGlasses({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.42);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 110 42">
+      <Path d="M0 20 L8 20" stroke="#a16207" strokeWidth="3" fill="none" />
+      <Path d="M102 20 L110 20" stroke="#a16207" strokeWidth="3" fill="none" />
+      <Path d="M46 22 L64 22" stroke="#a16207" strokeWidth="2.5" fill="none" />
+      <Path
+        d="M8 20 Q10 6 28 5 Q46 4 46 20 Q46 34 28 35 Q8 34 8 20 Z"
+        fill="#92400e"
+        opacity="0.35"
+      />
+      <Path
+        d="M8 20 Q10 6 28 5 Q46 4 46 20 Q46 34 28 35 Q8 34 8 20 Z"
+        fill="none"
+        stroke="#a16207"
+        strokeWidth="3"
+      />
+      <Path
+        d="M102 20 Q100 6 82 5 Q64 4 64 20 Q64 34 82 35 Q102 34 102 20 Z"
+        fill="#92400e"
+        opacity="0.35"
+      />
+      <Path
+        d="M102 20 Q100 6 82 5 Q64 4 64 20 Q64 34 82 35 Q102 34 102 20 Z"
+        fill="none"
+        stroke="#a16207"
+        strokeWidth="3"
+      />
+    </Svg>
+  );
+}
+
+export function Glasses3D({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.4);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 110 40">
+      <Path d="M0 20 L8 20" stroke="#18181b" strokeWidth="2.5" fill="none" />
+      <Path
+        d="M102 20 L110 20"
+        stroke="#18181b"
+        strokeWidth="2.5"
+        fill="none"
+      />
+      <Path d="M46 20 L64 20" stroke="#18181b" strokeWidth="2.5" fill="none" />
+      <Rect
+        x="8"
+        y="8"
+        width="38"
+        height="24"
+        rx="5"
+        fill="#ef4444"
+        opacity="0.6"
+      />
+      <Rect
+        x="8"
+        y="8"
+        width="38"
+        height="24"
+        rx="5"
+        fill="none"
+        stroke="#18181b"
+        strokeWidth="2.5"
+      />
+      <Rect
+        x="64"
+        y="8"
+        width="38"
+        height="24"
+        rx="5"
+        fill="#06b6d4"
+        opacity="0.6"
+      />
+      <Rect
+        x="64"
+        y="8"
+        width="38"
+        height="24"
+        rx="5"
+        fill="none"
+        stroke="#18181b"
+        strokeWidth="2.5"
+      />
+    </Svg>
+  );
+}
+
+export function Monocle({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.44);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 110 44">
+      <Path
+        d="M102 16 L110 16"
+        stroke="#a16207"
+        strokeWidth="2.5"
+        fill="none"
+      />
+      <Circle cx="82" cy="22" r="18" fill="#92400e" opacity="0.3" />
+      <Circle
+        cx="82"
+        cy="22"
+        r="18"
+        fill="none"
+        stroke="#a16207"
+        strokeWidth="3"
+      />
+      <Path
+        d="M82 40 Q82 44 78 44"
+        stroke="#a16207"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M78 44 Q60 50 50 44"
+        stroke="#a16207"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="3,3"
+      />
     </Svg>
   );
 }
@@ -1366,6 +1679,745 @@ export function Overalls({
   );
 }
 
+export function Dress({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.92);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 92">
+      <Path
+        d="M22 18 L2 15 L0 42 L22 40 Z"
+        fill="#a855f7"
+        stroke="#9333ea"
+        strokeWidth="1"
+      />
+      <Path
+        d="M78 18 L98 15 L100 42 L78 40 Z"
+        fill="#a855f7"
+        stroke="#9333ea"
+        strokeWidth="1"
+      />
+      <Path d="M28 12 Q50 5 72 12 L78 40 Q50 50 22 40 Z" fill="#a855f7" />
+      <Path d="M28 12 Q50 6 72 12 Q58 10 50 10 Q42 10 28 12 Z" fill="#9333ea" />
+      <Path
+        d="M22 40 Q0 60 4 92 Q50 98 96 92 Q100 60 78 40 Q50 50 22 40 Z"
+        fill="#c084fc"
+      />
+      <Path
+        d="M22 40 Q0 58 5 88 Q50 94 95 88 Q100 58 78 40 Q50 48 22 40 Z"
+        fill="#a855f7"
+        opacity="0.4"
+      />
+      <Path
+        d="M38 26 Q50 22 62 26"
+        stroke="#e9d5ff"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.8"
+      />
+    </Svg>
+  );
+}
+
+export function Suit({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.85);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 85">
+      <Path
+        d="M22 18 L2 14 L0 44 L22 42 Z"
+        fill="#1e293b"
+        stroke="#0f172a"
+        strokeWidth="1"
+      />
+      <Path
+        d="M78 18 L98 14 L100 44 L78 42 Z"
+        fill="#1e293b"
+        stroke="#0f172a"
+        strokeWidth="1"
+      />
+      <Rect x="18" y="16" width="64" height="69" rx="4" fill="#1e293b" />
+      <Path d="M36 16 L30 8 Q50 4 70 8 L64 16 L50 26 Z" fill="#0f172a" />
+      <Path
+        d="M36 16 L30 8 Q38 10 50 10 Q62 10 70 8 L64 16"
+        fill="#334155"
+        opacity="0.5"
+      />
+      <Path d="M50 26 L50 85" stroke="#0f172a" strokeWidth="2" />
+      <Rect x="34" y="55" width="14" height="8" rx="2" fill="#0f172a" />
+      <Rect x="52" y="55" width="14" height="8" rx="2" fill="#0f172a" />
+      <Path
+        d="M48 36 Q50 32 52 36 Q54 40 52 44 Q50 46 48 44 Q46 40 48 36 Z"
+        fill="#dc2626"
+      />
+    </Svg>
+  );
+}
+
+export function Raincoat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.88);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 88">
+      <Path
+        d="M22 18 L2 14 L0 44 L22 42 Z"
+        fill="#fbbf24"
+        stroke="#d97706"
+        strokeWidth="1"
+      />
+      <Path
+        d="M78 18 L98 14 L100 44 L78 42 Z"
+        fill="#fbbf24"
+        stroke="#d97706"
+        strokeWidth="1"
+      />
+      <Rect x="18" y="14" width="64" height="74" rx="5" fill="#fbbf24" />
+      <Path d="M36 14 L32 6 Q50 2 68 6 L64 14" fill="#d97706" />
+      <Path d="M50 14 L50 88" stroke="#d97706" strokeWidth="2" />
+      <Rect x="34" y="32" width="12" height="6" rx="2" fill="#d97706" />
+      <Rect x="34" y="44" width="12" height="6" rx="2" fill="#d97706" />
+      <Rect x="34" y="56" width="12" height="6" rx="2" fill="#d97706" />
+      <Rect x="22" y="74" width="56" height="14" rx="4" fill="#d97706" />
+      <Ellipse cx="72" cy="36" rx="6" ry="4" fill="#fde68a" opacity="0.6" />
+    </Svg>
+  );
+}
+
+export function Sweater({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.78);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 78">
+      <Path
+        d="M22 22 L2 18 L0 44 L22 42 Z"
+        fill="#0891b2"
+        stroke="#0e7490"
+        strokeWidth="1"
+      />
+      <Path
+        d="M78 22 L98 18 L100 44 L78 42 Z"
+        fill="#0891b2"
+        stroke="#0e7490"
+        strokeWidth="1"
+      />
+      <Rect x="18" y="20" width="64" height="58" rx="5" fill="#0891b2" />
+      <Path d="M36 20 Q36 10 50 8 Q64 10 64 20" fill="#0e7490" />
+      <Rect x="22" y="20" width="56" height="8" rx="2" fill="#0e7490" />
+      <Path
+        d="M18 32 Q50 28 82 32"
+        stroke="#0e7490"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="6,4"
+      />
+      <Path
+        d="M18 42 Q50 38 82 42"
+        stroke="#0e7490"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="6,4"
+      />
+      <Path
+        d="M18 52 Q50 48 82 52"
+        stroke="#0e7490"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="6,4"
+      />
+    </Svg>
+  );
+}
+
+// ─── BOTTOMS ──────────────────────────────────────────────────────────────────
+
+export function Jeans({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.5);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 50">
+      <Rect x="5" y="0" width="90" height="12" rx="4" fill="#1e40af" />
+      <Rect x="18" y="0" width="6" height="12" rx="2" fill="#1e3a8a" />
+      <Rect x="76" y="0" width="6" height="12" rx="2" fill="#1e3a8a" />
+      <Path d="M5 10 L10 50 L46 50 L50 10 Z" fill="#1d4ed8" />
+      <Path d="M50 10 L54 50 L90 50 L95 10 Z" fill="#1d4ed8" />
+      <Path d="M50 10 L50 50" stroke="#1e40af" strokeWidth="2" />
+      <Path
+        d="M8 12 Q20 24 30 16"
+        stroke="#1e3a8a"
+        strokeWidth="1.5"
+        fill="none"
+      />
+      <Path
+        d="M92 12 Q80 24 70 16"
+        stroke="#1e3a8a"
+        strokeWidth="1.5"
+        fill="none"
+      />
+      <Path
+        d="M5 10 Q12 14 18 12"
+        stroke="#60a5fa"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.5"
+      />
+    </Svg>
+  );
+}
+
+export function Shorts({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.38);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 38">
+      <Rect x="5" y="0" width="90" height="10" rx="4" fill="#7c3aed" />
+      <Path d="M5 8 L8 38 L46 38 L50 8 Z" fill="#8b5cf6" />
+      <Path d="M50 8 L54 38 L92 38 L95 8 Z" fill="#8b5cf6" />
+      <Path d="M50 8 L50 38" stroke="#7c3aed" strokeWidth="2" />
+      <Path
+        d="M36 5 Q50 8 64 5"
+        stroke="white"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M8 36 Q30 32 46 36"
+        stroke="#7c3aed"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M54 36 Q70 32 92 36"
+        stroke="#7c3aed"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function MiniSkirt({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.48);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 48">
+      <Rect x="20" y="0" width="60" height="10" rx="4" fill="#db2777" />
+      <Path d="M20 8 Q0 20 2 48 Q50 56 98 48 Q100 20 80 8 Z" fill="#ec4899" />
+      <Path
+        d="M2 46 Q50 54 98 46"
+        stroke="#db2777"
+        strokeWidth="2"
+        fill="none"
+        opacity="0.7"
+      />
+      <Path
+        d="M34 8 Q30 28 28 46"
+        stroke="#db2777"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.5"
+      />
+      <Path
+        d="M50 8 L50 48"
+        stroke="#db2777"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.5"
+      />
+      <Path
+        d="M66 8 Q70 28 72 46"
+        stroke="#db2777"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.5"
+      />
+    </Svg>
+  );
+}
+
+export function CargoPants({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.5);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 50">
+      <Rect x="5" y="0" width="90" height="12" rx="4" fill="#4b5320" />
+      <Path d="M5 10 L10 50 L46 50 L50 10 Z" fill="#6b7a2a" />
+      <Path d="M50 10 L54 50 L90 50 L95 10 Z" fill="#6b7a2a" />
+      <Path d="M50 10 L50 50" stroke="#4b5320" strokeWidth="2" />
+      <Rect x="12" y="20" width="22" height="18" rx="3" fill="#4b5320" />
+      <Rect x="14" y="22" width="18" height="14" rx="2" fill="#5a6828" />
+      <Rect x="66" y="20" width="22" height="18" rx="3" fill="#4b5320" />
+      <Rect x="68" y="22" width="18" height="14" rx="2" fill="#5a6828" />
+      <Path
+        d="M12 25 Q23 27 34 25"
+        stroke="#4b5320"
+        strokeWidth="1.5"
+        fill="none"
+      />
+      <Path
+        d="M66 25 Q77 27 88 25"
+        stroke="#4b5320"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+export function Leggings({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.5);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 50">
+      <Rect x="5" y="0" width="90" height="10" rx="4" fill="#111827" />
+      <Path d="M5 8 L8 50 L48 50 L50 8 Z" fill="#1f2937" />
+      <Path d="M50 8 L52 50 L92 50 L95 8 Z" fill="#1f2937" />
+      <Path d="M50 8 L50 50" stroke="#374151" strokeWidth="2" />
+      <Path
+        d="M20 8 Q16 28 14 50"
+        stroke="#374151"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.4"
+      />
+      <Path
+        d="M80 8 Q84 28 86 50"
+        stroke="#374151"
+        strokeWidth="1"
+        fill="none"
+        opacity="0.4"
+      />
+    </Svg>
+  );
+}
+
+export function Sweatpants({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.52);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 52">
+      <Rect x="5" y="0" width="90" height="12" rx="5" fill="#374151" />
+      <Path
+        d="M36 6 Q50 9 64 6"
+        stroke="#9ca3af"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Circle cx="36" cy="6" r="2.5" fill="#6b7280" />
+      <Circle cx="64" cy="6" r="2.5" fill="#6b7280" />
+      <Path d="M5 10 L8 52 L46 52 L50 10 Z" fill="#4b5563" />
+      <Path d="M50 10 L54 52 L92 52 L95 10 Z" fill="#4b5563" />
+      <Rect x="8" y="46" width="38" height="6" rx="3" fill="#374151" />
+      <Rect x="54" y="46" width="38" height="6" rx="3" fill="#374151" />
+      <Path d="M50 10 L50 50" stroke="#374151" strokeWidth="2" />
+    </Svg>
+  );
+}
+
+// ─── SHOES ────────────────────────────────────────────────────────────────────
+
+export function Sneakers({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.38);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 38">
+      <Rect x="0" y="14" width="44" height="18" rx="9" fill="#f5f5f5" />
+      <Rect x="0" y="24" width="44" height="8" rx="4" fill="#dc2626" />
+      <Path d="M8 14 Q10 8 16 6 L28 6 Q34 8 36 14 Z" fill="#f5f5f5" />
+      <Path
+        d="M10 10 Q20 8 30 10"
+        stroke="#d1d5db"
+        strokeWidth="1"
+        fill="none"
+      />
+      <Path
+        d="M12 17 L32 17 M12 21 L32 21"
+        stroke="#9ca3af"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Rect x="56" y="14" width="44" height="18" rx="9" fill="#f5f5f5" />
+      <Rect x="56" y="24" width="44" height="8" rx="4" fill="#dc2626" />
+      <Path d="M64 14 Q66 8 72 6 L84 6 Q90 8 92 14 Z" fill="#f5f5f5" />
+      <Path
+        d="M66 10 Q76 8 86 10"
+        stroke="#d1d5db"
+        strokeWidth="1"
+        fill="none"
+      />
+      <Path
+        d="M68 17 L88 17 M68 21 L88 21"
+        stroke="#9ca3af"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function Boots({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.46);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 46">
+      <Path d="M6 0 L6 30 Q6 38 14 38 Q22 38 26 30 L28 0 Z" fill="#3b1f0a" />
+      <Rect x="0" y="30" width="32" height="10" rx="5" fill="#2a1505" />
+      <Path d="M28 30 Q34 38 32 46 L0 46 Q2 40 0 32" fill="#2a1505" />
+      <Path
+        d="M8 8 L26 8 M8 14 L26 14 M8 20 L26 20 M8 26 L26 26"
+        stroke="#6b3a1a"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path d="M72 0 L72 30 Q72 38 80 38 Q88 38 94 30 L94 0 Z" fill="#3b1f0a" />
+      <Rect x="68" y="30" width="32" height="10" rx="5" fill="#2a1505" />
+      <Path d="M94 30 Q100 38 98 46 L66 46 Q68 40 68 32" fill="#2a1505" />
+      <Path
+        d="M74 8 L92 8 M74 14 L92 14 M74 20 L92 20 M74 26 L92 26"
+        stroke="#6b3a1a"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function HighTops({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.48);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 48">
+      <Rect x="2" y="8" width="40" height="32" rx="4" fill="#1c1c1e" />
+      <Rect x="2" y="34" width="40" height="10" rx="5" fill="#111" />
+      <Path d="M28 34 Q42 40 42 48 L2 48 Q0 42 2 34" fill="#111" />
+      <Circle cx="22" cy="24" r="6" fill="#f5f5f5" opacity="0.8" />
+      <Polygon
+        points="22,19 23,22 26.5,22 23.8,24 24.8,27.5 22,25.5 19.2,27.5 20.2,24 17.5,22 21,22"
+        fill="#1c1c1e"
+      />
+      <Path
+        d="M6 14 L14 14 M6 18 L14 18 M6 22 L14 22 M6 26 L14 26 M6 30 L14 30"
+        stroke="#e5e7eb"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Rect x="58" y="8" width="40" height="32" rx="4" fill="#1c1c1e" />
+      <Rect x="58" y="34" width="40" height="10" rx="5" fill="#111" />
+      <Path d="M84 34 Q98 40 98 48 L58 48 Q56 42 58 34" fill="#111" />
+      <Circle cx="78" cy="24" r="6" fill="#f5f5f5" opacity="0.8" />
+      <Polygon
+        points="78,19 79,22 82.5,22 79.8,24 80.8,27.5 78,25.5 75.2,27.5 76.2,24 73.5,22 77,22"
+        fill="#1c1c1e"
+      />
+      <Path
+        d="M62 14 L70 14 M62 18 L70 18 M62 22 L70 22 M62 26 L70 26 M62 30 L70 30"
+        stroke="#e5e7eb"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function Slides({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.28);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 28">
+      <Rect x="0" y="18" width="42" height="10" rx="5" fill="#0ea5e9" />
+      <Path d="M4 16 Q21 6 38 16 Q30 10 21 10 Q12 10 4 16 Z" fill="#0ea5e9" />
+      <Path
+        d="M4 16 Q21 10 38 16"
+        stroke="#0284c7"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Rect x="58" y="18" width="42" height="10" rx="5" fill="#0ea5e9" />
+      <Path d="M62 16 Q79 6 96 16 Q88 10 79 10 Q70 10 62 16 Z" fill="#0ea5e9" />
+      <Path
+        d="M62 16 Q79 10 96 16"
+        stroke="#0284c7"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+export function Heels({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.44);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 44">
+      <Path
+        d="M2 20 Q4 10 18 8 Q32 6 36 20 L36 30 Q36 38 26 38 Q10 38 2 30 Z"
+        fill="#ec4899"
+      />
+      <Path d="M36 28 L38 44 Q32 44 30 30 Z" fill="#be185d" />
+      <Path
+        d="M4 24 Q18 20 34 24"
+        stroke="#be185d"
+        strokeWidth="2"
+        fill="none"
+        opacity="0.5"
+      />
+      <Path
+        d="M8 16 Q18 10 30 16"
+        stroke="#be185d"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M64 20 Q66 10 80 8 Q94 6 98 20 L98 30 Q98 38 88 38 Q72 38 64 30 Z"
+        fill="#ec4899"
+      />
+      <Path d="M98 28 L100 44 Q94 44 92 30 Z" fill="#be185d" />
+      <Path
+        d="M66 24 Q80 20 96 24"
+        stroke="#be185d"
+        strokeWidth="2"
+        fill="none"
+        opacity="0.5"
+      />
+      <Path
+        d="M70 16 Q80 10 92 16"
+        stroke="#be185d"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+// ─── BAGS ─────────────────────────────────────────────────────────────────────
+
+export function Backpack({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.92);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 92">
+      <Rect x="28" y="2" width="16" height="24" rx="8" fill="#0284c7" />
+      <Rect x="56" y="2" width="16" height="24" rx="8" fill="#0284c7" />
+      <Rect x="10" y="14" width="80" height="74" rx="16" fill="#0ea5e9" />
+      <Rect x="20" y="52" width="60" height="28" rx="10" fill="#0284c7" />
+      <Path
+        d="M30 52 Q50 48 70 52"
+        stroke="#bae6fd"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Circle cx="50" cy="50" r="3" fill="#7dd3fc" />
+      <Path
+        d="M18 26 Q50 20 82 26"
+        stroke="#bae6fd"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Circle cx="50" cy="24" r="4" fill="#7dd3fc" />
+      <Rect x="40" y="8" width="20" height="8" rx="4" fill="#0284c7" />
+    </Svg>
+  );
+}
+
+export function ToteBag({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.82);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 82">
+      <Path
+        d="M28 14 Q24 0 32 0 Q40 0 36 14"
+        stroke="#d97706"
+        strokeWidth="6"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M64 14 Q60 0 68 0 Q76 0 72 14"
+        stroke="#d97706"
+        strokeWidth="6"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Path d="M10 14 Q8 82 10 82 L90 82 Q92 82 90 14 Z" fill="#fbbf24" />
+      <Rect x="8" y="10" width="84" height="10" rx="2" fill="#f59e0b" />
+      <Circle cx="50" cy="52" r="18" fill="#f59e0b" opacity="0.6" />
+      <Path
+        d="M42 50 L48 56 L62 42"
+        stroke="#d97706"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function CrossbodyBag({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.65);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 65">
+      <Path
+        d="M12 10 Q8 0 20 0 L80 0 Q92 0 88 10"
+        stroke="#7c3aed"
+        strokeWidth="5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Rect x="12" y="10" width="76" height="48" rx="12" fill="#8b5cf6" />
+      <Path d="M12 10 Q12 34 50 36 Q88 34 88 10 Z" fill="#7c3aed" />
+      <Circle cx="50" cy="35" r="6" fill="#fbbf24" />
+      <Circle cx="50" cy="35" r="3.5" fill="#f59e0b" />
+      <Rect
+        x="16"
+        y="14"
+        width="68"
+        height="40"
+        rx="9"
+        fill="none"
+        stroke="#9d74f0"
+        strokeWidth="1.5"
+        strokeDasharray="4,3"
+      />
+    </Svg>
+  );
+}
+
+export function FannyPack({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
+  const h = Math.round(size * 0.42);
+  return (
+    <Svg width={size} height={h} viewBox="0 0 100 42">
+      <Rect x="0" y="12" width="100" height="10" rx="5" fill="#dc2626" />
+      <Rect x="22" y="4" width="56" height="36" rx="12" fill="#ef4444" />
+      <Path
+        d="M30 18 Q50 14 70 18"
+        stroke="#fca5a5"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <Circle cx="50" cy="16" r="4" fill="#dc2626" />
+      <Rect x="2" y="11" width="14" height="12" rx="4" fill="#b91c1c" />
+      <Rect x="84" y="11" width="14" height="12" rx="4" fill="#b91c1c" />
+    </Svg>
+  );
+}
+
 // ─── REGISTRY ─────────────────────────────────────────────────────────────────
 
 export type AccessoryItem = {
@@ -1401,6 +2453,11 @@ export const ACCESSORY_CATEGORIES: AccessoryCategory[] = [
       { id: "hat_jester", name: "Jester Hat", Component: JesterHat },
       { id: "hat_top", name: "Top Hat", Component: TopHat },
       { id: "hat_party", name: "Party Hat", Component: PartyHat },
+      { id: "hat_flower", name: "Flower Crown", Component: FlowerCrown },
+      { id: "hat_chef", name: "Chef Hat", Component: ChefHat },
+      { id: "hat_safari", name: "Safari Hat", Component: SafariHat },
+      { id: "hat_witch", name: "Witch Hat", Component: WitchHat },
+      { id: "hat_hard", name: "Hard Hat", Component: HardHat },
     ],
   },
   {
@@ -1418,10 +2475,17 @@ export const ACCESSORY_CATEGORIES: AccessoryCategory[] = [
         Component: CatEyeGlasses,
       },
       { id: "glasses_visor", name: "Visor Shield", Component: VisorGlasses },
+      {
+        id: "glasses_aviator",
+        name: "Aviator",
+        Component: AviatorGlasses,
+      },
+      { id: "glasses_3d", name: "3D Glasses", Component: Glasses3D },
+      { id: "glasses_monocle", name: "Monocle", Component: Monocle },
     ],
   },
   {
-    label: "Outfit",
+    label: "Top",
     slot: "outfit",
     items: [
       { id: "outfit_tshirt", name: "T-Shirt", Component: TShirt },
@@ -1439,6 +2503,51 @@ export const ACCESSORY_CATEGORIES: AccessoryCategory[] = [
       { id: "outfit_cape", name: "Cape", Component: Cape },
       { id: "outfit_chain", name: "Gold Chain", Component: GoldChain },
       { id: "outfit_overalls", name: "Overalls", Component: Overalls },
+      { id: "outfit_dress", name: "Dress", Component: Dress },
+      { id: "outfit_suit", name: "Suit", Component: Suit },
+      { id: "outfit_raincoat", name: "Raincoat", Component: Raincoat },
+      { id: "outfit_sweater", name: "Sweater", Component: Sweater },
+    ],
+  },
+  {
+    label: "Bottom",
+    slot: "bottom",
+    items: [
+      { id: "bottom_jeans", name: "Jeans", Component: Jeans },
+      { id: "bottom_shorts", name: "Shorts", Component: Shorts },
+      { id: "bottom_skirt", name: "Mini Skirt", Component: MiniSkirt },
+      { id: "bottom_cargo", name: "Cargo Pants", Component: CargoPants },
+      { id: "bottom_leggings", name: "Leggings", Component: Leggings },
+      {
+        id: "bottom_sweatpants",
+        name: "Sweatpants",
+        Component: Sweatpants,
+      },
+    ],
+  },
+  {
+    label: "Shoes",
+    slot: "shoes",
+    items: [
+      { id: "shoes_sneakers", name: "Sneakers", Component: Sneakers },
+      { id: "shoes_boots", name: "Boots", Component: Boots },
+      { id: "shoes_hightop", name: "Hi-Tops", Component: HighTops },
+      { id: "shoes_slides", name: "Slides", Component: Slides },
+      { id: "shoes_heels", name: "Heels", Component: Heels },
+    ],
+  },
+  {
+    label: "Bag",
+    slot: "bag",
+    items: [
+      { id: "bag_backpack", name: "Backpack", Component: Backpack },
+      { id: "bag_tote", name: "Tote Bag", Component: ToteBag },
+      {
+        id: "bag_crossbody",
+        name: "Crossbody",
+        Component: CrossbodyBag,
+      },
+      { id: "bag_fanny", name: "Fanny Pack", Component: FannyPack },
     ],
   },
 ];

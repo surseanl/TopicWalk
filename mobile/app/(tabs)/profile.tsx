@@ -79,6 +79,9 @@ const SKINS: Array<
     hat: "hat_beanie",
     glasses: "",
     outfit: "",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Ocean",
@@ -87,6 +90,9 @@ const SKINS: Array<
     hat: "hat_bucket",
     glasses: "glasses_sport",
     outfit: "",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Flame",
@@ -95,6 +101,9 @@ const SKINS: Array<
     hat: "hat_cowboy",
     glasses: "",
     outfit: "outfit_varsity",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Galaxy",
@@ -103,6 +112,9 @@ const SKINS: Array<
     hat: "hat_wizard",
     glasses: "",
     outfit: "outfit_necklace",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Royal",
@@ -111,6 +123,9 @@ const SKINS: Array<
     hat: "hat_crown",
     glasses: "",
     outfit: "",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Bubblegum",
@@ -118,7 +133,10 @@ const SKINS: Array<
     bg: "#fce7f3",
     hat: "hat_bucket",
     glasses: "glasses_heart",
-    outfit: "",
+    outfit: "outfit_dress",
+    bottom: "bottom_skirt",
+    shoes: "shoes_heels",
+    bag: "",
   },
   {
     name: "Arctic",
@@ -127,6 +145,9 @@ const SKINS: Array<
     hat: "hat_beanie",
     glasses: "",
     outfit: "outfit_headphones",
+    bottom: "",
+    shoes: "",
+    bag: "",
   },
   {
     name: "Cherry",
@@ -135,6 +156,9 @@ const SKINS: Array<
     hat: "hat_baseball",
     glasses: "glasses_sunglasses",
     outfit: "outfit_hoodie",
+    bottom: "bottom_jeans",
+    shoes: "shoes_sneakers",
+    bag: "",
   },
 ];
 
@@ -154,6 +178,11 @@ const HAT_ASPECT: Record<string, number> = {
   hat_jester: 0.92,
   hat_top: 0.95,
   hat_party: 1.0,
+  hat_flower: 0.55,
+  hat_chef: 0.85,
+  hat_safari: 0.65,
+  hat_witch: 1.02,
+  hat_hard: 0.62,
 };
 
 function SnappyCharacter({
@@ -162,6 +191,9 @@ function SnappyCharacter({
   hat,
   glasses,
   outfit,
+  bottom,
+  shoes,
+  bag,
   size = 120,
 }: {
   color: string;
@@ -169,6 +201,9 @@ function SnappyCharacter({
   hat: string;
   glasses: string;
   outfit: string;
+  bottom: string;
+  shoes: string;
+  bag: string;
   size?: number;
 }) {
   const circleSize = Math.round(size * 1.15);
@@ -177,7 +212,12 @@ function SnappyCharacter({
   const hatOverhang = hat
     ? Math.max(0, hatSvgH - Math.round(circleSize * 0.18))
     : 0;
-  const totalHeight = circleSize + hatOverhang;
+
+  const BottomComp = bottom ? ACCESSORY_MAP[bottom] : null;
+  const ShoesComp = shoes ? ACCESSORY_MAP[shoes] : null;
+  const BagComp = bag ? ACCESSORY_MAP[bag] : null;
+  const belowH = BottomComp || ShoesComp ? Math.round(circleSize * 0.36) : 0;
+  const totalHeight = circleSize + hatOverhang + belowH;
 
   const HatComp = hat ? ACCESSORY_MAP[hat] : null;
   const GlassesComp = glasses ? ACCESSORY_MAP[glasses] : null;
@@ -185,6 +225,9 @@ function SnappyCharacter({
 
   const glassesW = Math.round(circleSize * 0.9);
   const outfitW = Math.round(circleSize * 0.9);
+  const bottomW = Math.round(circleSize * 0.82);
+  const shoesW = Math.round(circleSize * 0.78);
+  const bagW = Math.round(circleSize * 0.44);
 
   return (
     <View
@@ -194,7 +237,7 @@ function SnappyCharacter({
       <View
         style={{
           position: "absolute",
-          bottom: 0,
+          bottom: belowH,
           width: circleSize,
           height: circleSize,
           borderRadius: circleSize / 2,
@@ -233,6 +276,18 @@ function SnappyCharacter({
             <OutfitComp size={outfitW} uid={`${outfit}_main`} />
           </View>
         ) : null}
+        {/* Bag on right side of body */}
+        {BagComp ? (
+          <View
+            style={{
+              position: "absolute",
+              right: -Math.round(bagW * 0.25),
+              bottom: Math.round(circleSize * 0.06),
+            }}
+          >
+            <BagComp size={bagW} uid={`${bag}_main`} />
+          </View>
+        ) : null}
       </View>
       {/* Hat above circle */}
       {HatComp ? (
@@ -245,6 +300,32 @@ function SnappyCharacter({
           }}
         >
           <HatComp size={hatSvgW} uid={`${hat}_main`} />
+        </View>
+      ) : null}
+      {/* Bottom (pants/skirt) below circle */}
+      {BottomComp ? (
+        <View
+          style={{
+            position: "absolute",
+            bottom: ShoesComp
+              ? Math.round(belowH * 0.38)
+              : Math.round(belowH * 0.08),
+            alignItems: "center",
+          }}
+        >
+          <BottomComp size={bottomW} uid={`${bottom}_main`} />
+        </View>
+      ) : null}
+      {/* Shoes at very bottom */}
+      {ShoesComp ? (
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            alignItems: "center",
+          }}
+        >
+          <ShoesComp size={shoesW} uid={`${shoes}_main`} />
         </View>
       ) : null}
     </View>
@@ -280,6 +361,9 @@ export default function ProfileScreen() {
   const [snappyHat, setSnappyHat] = useState("");
   const [snappyGlasses, setSnappyGlasses] = useState("");
   const [snappyOutfit, setSnappyOutfit] = useState("");
+  const [snappyBottom, setSnappyBottom] = useState("");
+  const [snappyShoes, setSnappyShoes] = useState("");
+  const [snappyBag, setSnappyBag] = useState("");
 
   const [showEdit, setShowEdit] = useState(false);
   const [editBio, setEditBio] = useState("");
@@ -288,6 +372,9 @@ export default function ProfileScreen() {
   const [editSnappyHat, setEditSnappyHat] = useState("");
   const [editSnappyGlasses, setEditSnappyGlasses] = useState("");
   const [editSnappyOutfit, setEditSnappyOutfit] = useState("");
+  const [editSnappyBottom, setEditSnappyBottom] = useState("");
+  const [editSnappyShoes, setEditSnappyShoes] = useState("");
+  const [editSnappyBag, setEditSnappyBag] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
@@ -323,6 +410,9 @@ export default function ProfileScreen() {
       setSnappyHat(slots.hat);
       setSnappyGlasses(slots.glasses);
       setSnappyOutfit(slots.outfit);
+      setSnappyBottom(slots.bottom);
+      setSnappyShoes(slots.shoes);
+      setSnappyBag(slots.bag);
       setNeedsUsername(false);
     } else {
       setNeedsUsername(true);
@@ -507,6 +597,9 @@ export default function ProfileScreen() {
           hat: editSnappyHat,
           glasses: editSnappyGlasses,
           outfit: editSnappyOutfit,
+          bottom: editSnappyBottom,
+          shoes: editSnappyShoes,
+          bag: editSnappyBag,
         }),
       })
       .eq("id", session.user.id);
@@ -516,6 +609,9 @@ export default function ProfileScreen() {
     setSnappyHat(editSnappyHat);
     setSnappyGlasses(editSnappyGlasses);
     setSnappyOutfit(editSnappyOutfit);
+    setSnappyBottom(editSnappyBottom);
+    setSnappyShoes(editSnappyShoes);
+    setSnappyBag(editSnappyBag);
     setShowEdit(false);
     setEditSaving(false);
   }
@@ -527,6 +623,9 @@ export default function ProfileScreen() {
     setEditSnappyHat(snappyHat);
     setEditSnappyGlasses(snappyGlasses);
     setEditSnappyOutfit(snappyOutfit);
+    setEditSnappyBottom(snappyBottom);
+    setEditSnappyShoes(snappyShoes);
+    setEditSnappyBag(snappyBag);
     setShowEdit(true);
   }
 
@@ -632,6 +731,9 @@ export default function ProfileScreen() {
                     hat={editSnappyHat}
                     glasses={editSnappyGlasses}
                     outfit={editSnappyOutfit}
+                    bottom={editSnappyBottom}
+                    shoes={editSnappyShoes}
+                    bag={editSnappyBag}
                     size={130}
                   />
                 </View>
@@ -660,6 +762,9 @@ export default function ProfileScreen() {
                             setEditSnappyHat(skin.hat);
                             setEditSnappyGlasses(skin.glasses);
                             setEditSnappyOutfit(skin.outfit);
+                            setEditSnappyBottom(skin.bottom);
+                            setEditSnappyShoes(skin.shoes);
+                            setEditSnappyBag(skin.bag);
                           }}
                           style={[s.skinCard, active && s.skinCardActive]}
                         >
@@ -669,6 +774,9 @@ export default function ProfileScreen() {
                             hat={skin.hat}
                             glasses={skin.glasses}
                             outfit={skin.outfit}
+                            bottom=""
+                            shoes=""
+                            bag=""
                             size={48}
                           />
                           <Text style={s.skinName}>{skin.name}</Text>
@@ -732,13 +840,25 @@ export default function ProfileScreen() {
                       ? editSnappyHat
                       : cat.slot === "glasses"
                         ? editSnappyGlasses
-                        : editSnappyOutfit;
+                        : cat.slot === "bottom"
+                          ? editSnappyBottom
+                          : cat.slot === "shoes"
+                            ? editSnappyShoes
+                            : cat.slot === "bag"
+                              ? editSnappyBag
+                              : editSnappyOutfit;
                   const setter =
                     cat.slot === "hat"
                       ? setEditSnappyHat
                       : cat.slot === "glasses"
                         ? setEditSnappyGlasses
-                        : setEditSnappyOutfit;
+                        : cat.slot === "bottom"
+                          ? setEditSnappyBottom
+                          : cat.slot === "shoes"
+                            ? setEditSnappyShoes
+                            : cat.slot === "bag"
+                              ? setEditSnappyBag
+                              : setEditSnappyOutfit;
                   return (
                     <View key={cat.slot} style={{ gap: 10 }}>
                       <View style={s.slotHeaderRow}>
@@ -824,6 +944,9 @@ export default function ProfileScreen() {
                 hat={snappyHat}
                 glasses={snappyGlasses}
                 outfit={snappyOutfit}
+                bottom={snappyBottom}
+                shoes={snappyShoes}
+                bag={snappyBag}
                 size={110}
               />
             </TouchableOpacity>
@@ -932,6 +1055,9 @@ export default function ProfileScreen() {
             hat=""
             glasses=""
             outfit=""
+            bottom=""
+            shoes=""
+            bag=""
             size={72}
           />
           <Text style={s.authBrandTitle}>TopicWalk</Text>
