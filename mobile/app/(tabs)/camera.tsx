@@ -1,8 +1,57 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { Camera, ChevronLeft } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import {
+  Anchor,
+  Armchair,
+  Bike,
+  Bird,
+  Birdhouse,
+  BrickWall,
+  Bug,
+  Building2,
+  Camera,
+  Castle,
+  ChevronLeft,
+  Church,
+  Cloud,
+  CloudFog,
+  Clover,
+  Dog,
+  DoorOpen,
+  Droplet,
+  Droplets,
+  Dumbbell,
+  Feather,
+  Fish,
+  Flower,
+  Flower2,
+  Footprints,
+  Grid3x3,
+  Landmark,
+  Leaf,
+  LeafyGreen,
+  Moon,
+  Mountain,
+  Network,
+  Rainbow,
+  Route,
+  Shell,
+  SignpostBig,
+  Snail,
+  Squirrel,
+  Sunrise,
+  TreeDeciduous,
+  TreePalm,
+  TreePine,
+  Trophy,
+  Turtle,
+  WavesArrowDown,
+  WavesArrowUp,
+  WavesHorizontal,
+  Wheat,
+} from "lucide-react-native";
+import { type ComponentType, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,36 +84,68 @@ const TOTAL_TILES = 9;
 const _MIN_TILES_CAPTURE = 3;
 const MILES_TO_METERS = 1609.34;
 const TILE_SIZE = (Dimensions.get("window").width - 32) / 3;
-const MAP_H = 280;
+const MAP_H = 420;
 const SLOT_ITEM_H = 88;
 const SOLO_DAILY_KEY = "tw_solo_object_v1";
 
-const SOLO_OBJECTS = [
-  { emoji: "🦋", label: "Butterfly" },
-  { emoji: "🍄", label: "Mushroom" },
-  { emoji: "🐛", label: "Caterpillar" },
-  { emoji: "🐦", label: "Bird" },
-  { emoji: "🦎", label: "Lizard" },
-  { emoji: "🌈", label: "Rainbow" },
-  { emoji: "⛲", label: "Fountain" },
-  { emoji: "🌵", label: "Cactus" },
-  { emoji: "🐸", label: "Frog" },
-  { emoji: "🦚", label: "Peacock" },
-  { emoji: "🌸", label: "Cherry blossom" },
-  { emoji: "🐇", label: "Rabbit" },
-  { emoji: "🌲", label: "Tree" },
-  { emoji: "🌰", label: "Acorn" },
-  { emoji: "🦔", label: "Hedgehog" },
-  { emoji: "🌿", label: "Clover" },
-  { emoji: "🍃", label: "Leaves" },
-  { emoji: "🐾", label: "Paw prints" },
-  { emoji: "🌙", label: "Moon" },
-  { emoji: "🦜", label: "Parrot" },
-  { emoji: "⚓", label: "Anchor" },
-  { emoji: "🌺", label: "Flower" },
-  { emoji: "🐝", label: "Bee" },
-  { emoji: "🗿", label: "Stone statue" },
-  { emoji: "🌊", label: "Water" },
+type SoloObj = {
+  icon: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  label: string;
+};
+
+const SOLO_OBJECTS: SoloObj[] = [
+  // Animals
+  { icon: Bug, label: "Insect" },
+  { icon: Snail, label: "Amphibian" },
+  { icon: Bird, label: "Bird" },
+  { icon: Turtle, label: "Reptile" },
+  { icon: Squirrel, label: "Small mammal" },
+  { icon: Dog, label: "Large mammal" },
+  { icon: Fish, label: "Fish" },
+  { icon: Grid3x3, label: "Spider web" },
+  { icon: Feather, label: "Feather" },
+  { icon: Shell, label: "Shell" },
+  { icon: Birdhouse, label: "Water bird" },
+  { icon: Footprints, label: "Animal tracks" },
+  { icon: Network, label: "Ant colony" },
+  // Sky & Weather
+  { icon: Cloud, label: "Cloud" },
+  { icon: Rainbow, label: "Rainbow" },
+  { icon: Moon, label: "Moon" },
+  { icon: CloudFog, label: "Fog" },
+  { icon: Sunrise, label: "Sunrise or sunset" },
+  { icon: Droplets, label: "Rain puddle" },
+  // Plants
+  { icon: Flower, label: "Flower" },
+  { icon: TreePalm, label: "Cactus" },
+  { icon: Leaf, label: "Fallen leaves" },
+  { icon: Wheat, label: "Tall grass" },
+  { icon: TreeDeciduous, label: "Tree" },
+  { icon: TreePine, label: "Acorn or pinecone" },
+  { icon: LeafyGreen, label: "Vine" },
+  { icon: Clover, label: "Moss" },
+  { icon: Flower2, label: "Mushroom" },
+  // Water
+  { icon: WavesHorizontal, label: "Reflection in water" },
+  { icon: WavesArrowDown, label: "Waterfall" },
+  { icon: Droplet, label: "Rock in water" },
+  // Structures
+  { icon: WavesArrowUp, label: "Fountain" },
+  { icon: Armchair, label: "Bench" },
+  { icon: Landmark, label: "Bridge" },
+  { icon: Castle, label: "Statue" },
+  { icon: Anchor, label: "Boat or anchor" },
+  { icon: BrickWall, label: "Stone wall" },
+  { icon: DoorOpen, label: "Colorful door" },
+  { icon: Building2, label: "Old building" },
+  { icon: Church, label: "Stained glass" },
+  { icon: Route, label: "Trail or path" },
+  { icon: SignpostBig, label: "Street sign" },
+  // Sports & Activity
+  { icon: Trophy, label: "Sports field or court" },
+  { icon: Dumbbell, label: "Gym equipment" },
+  { icon: Bike, label: "Bike rack or cyclist" },
+  { icon: Mountain, label: "Climbing structure" },
 ];
 
 const SOLO_DRUM = Array.from({ length: 6 }, () => SOLO_OBJECTS).flat();
@@ -757,6 +838,8 @@ export default function HuntScreen() {
   const [soloPhotoUploading, setSoloPhotoUploading] = useState<0 | 1 | null>(
     null,
   );
+  const [showHideTutorial, setShowHideTutorial] = useState(false);
+  const [hideTutorialStep, setHideTutorialStep] = useState(0);
 
   const soloSlotY0 = useRef(new Animated.Value(0)).current;
   const soloSlotY1 = useRef(new Animated.Value(0)).current;
@@ -1315,8 +1398,14 @@ export default function HuntScreen() {
     setShowGroupPicker(false);
   }
 
-  async function startHideMascot() {
+  function startHideMascot() {
     if (!myPos || !userId || !huntGroupRef.current) return;
+    setHideTutorialStep(0);
+    setShowHideTutorial(true);
+  }
+
+  async function launchHideMascotCamera() {
+    setShowHideTutorial(false);
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       Alert.alert("Permission needed", "Camera access required.");
@@ -1496,112 +1585,73 @@ export default function HuntScreen() {
       <Modal
         visible={!!pendingHidePhoto}
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setPendingHidePhoto(null)}
       >
-        <SafeAreaView
-          edges={["top", "bottom"]}
-          style={{ flex: 1, backgroundColor: "#000" }}
-        >
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
           {pendingHidePhoto && (
             <>
+              {/* Full-bleed photo */}
               <Image
                 source={{ uri: pendingHidePhoto.uri }}
                 style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
-              {/* Top instruction banner */}
-              <View
-                style={{
-                  backgroundColor: "rgba(0,0,0,0.6)",
-                  paddingHorizontal: 20,
-                  paddingVertical: 14,
-                  gap: 4,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "800",
-                    color: "#fff",
-                    letterSpacing: -0.3,
-                  }}
-                >
-                  Does your photo show all three?
-                </Text>
-                <View style={{ flexDirection: "row", gap: 16, marginTop: 4 }}>
-                  {["☁️ Sky", "🌿 Ground", "📍 Distinctive feature"].map(
-                    (label) => (
-                      <Text
-                        key={label}
-                        style={{
-                          fontSize: 13,
-                          color: "rgba(255,255,255,0.85)",
-                        }}
-                      >
-                        {label}
-                      </Text>
-                    ),
-                  )}
-                </View>
-              </View>
 
-              {/* Bottom actions */}
-              <View
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: "rgba(0,0,0,0.6)",
-                  padding: 20,
-                  gap: 12,
-                }}
-              >
+              {/* Close button */}
+              <SafeAreaView edges={["top"]} style={s.photoTopBar}>
                 <TouchableOpacity
-                  onPress={() => void confirmHideMascot()}
-                  style={{
-                    height: 56,
-                    borderRadius: 18,
-                    backgroundColor: "#16a34a",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  onPress={() => setPendingHidePhoto(null)}
+                  style={s.photoCloseBtn}
                 >
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      fontWeight: "800",
-                      color: "#fff",
-                      letterSpacing: -0.3,
+                  <Text style={s.photoCloseBtnText}>✕</Text>
+                </TouchableOpacity>
+              </SafeAreaView>
+
+              {/* Bottom sheet */}
+              <SafeAreaView edges={["bottom"]} style={s.photoBottomSafe}>
+                <View style={s.photoBottomSheet}>
+                  {/* Handle */}
+                  <View style={s.photoHandle} />
+
+                  {/* Criteria chips */}
+                  <View style={s.photoCriteriaRow}>
+                    {[
+                      { icon: Cloud, label: "Sky" },
+                      { icon: Leaf, label: "Ground" },
+                      { icon: Landmark, label: "Landmark" },
+                    ].map(({ icon: Icon, label }) => (
+                      <View key={label} style={s.photoCriteriaChip}>
+                        <Icon size={13} color="rgba(255,255,255,0.9)" />
+                        <Text style={s.photoCriteriaText}>{label}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Hide button */}
+                  <TouchableOpacity
+                    onPress={() => void confirmHideMascot()}
+                    style={s.photoHideBtn}
+                  >
+                    <Text style={s.photoHideBtnText}>Hide Mascot Here</Text>
+                  </TouchableOpacity>
+
+                  {/* Retake */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setPendingHidePhoto(null);
+                      void launchHideMascotCamera();
                     }}
+                    style={s.photoRetakeBtn}
                   >
-                    Hide Mascot Here
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    setPendingHidePhoto(null);
-                    void startHideMascot();
-                  }}
-                  style={{
-                    height: 48,
-                    borderRadius: 14,
-                    borderWidth: 1.5,
-                    borderColor: "rgba(255,255,255,0.4)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}
-                  >
-                    Retake Photo
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                    <Camera size={14} color="rgba(255,255,255,0.6)" />
+                    <Text style={s.photoRetakeText}>Retake Photo</Text>
+                  </TouchableOpacity>
+                </View>
+              </SafeAreaView>
             </>
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* ── Members sheet ───────────────────────────────────────────────────── */}
@@ -1659,6 +1709,85 @@ export default function HuntScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Hide mascot tutorial ────────────────────────────────────────────── */}
+      <Modal
+        visible={showHideTutorial}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowHideTutorial(false)}
+      >
+        <TouchableOpacity
+          style={s.tutorialOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            if (hideTutorialStep < 2) {
+              setHideTutorialStep((p) => p + 1);
+            } else {
+              void launchHideMascotCamera();
+            }
+          }}
+        >
+          <View style={s.tutorialCard}>
+            <Text style={s.tutorialPre}>Before you take a picture…</Text>
+
+            {/* Scene illustration */}
+            <View style={s.tutorialScene}>
+              {/* Sky */}
+              <View style={s.tutorialSkyLayer}>
+                <View style={s.tutorialCloud1} />
+                <View style={s.tutorialCloud2} />
+                <View style={s.tutorialSun} />
+                {hideTutorialStep !== 0 && <View style={s.tutorialDimLayer} />}
+              </View>
+
+              {/* Landmark */}
+              <View style={s.tutorialLandmarkLayer}>
+                <View style={s.tutorialBuildingA} />
+                <View style={s.tutorialBuildingB} />
+                <View style={s.tutorialBuildingC} />
+                {hideTutorialStep !== 2 && <View style={s.tutorialDimLayer} />}
+              </View>
+
+              {/* Ground */}
+              <View style={s.tutorialGroundLayer}>
+                <View style={s.tutorialGroundStripe} />
+                {hideTutorialStep !== 1 && <View style={s.tutorialDimLayer} />}
+              </View>
+            </View>
+
+            {/* Step label */}
+            <Text style={s.tutorialStepText}>
+              {hideTutorialStep + 1}.{" "}
+              {
+                [
+                  "The sky is in the picture",
+                  "The ground is visible",
+                  "A distinctive landmark is in the shot",
+                ][hideTutorialStep]
+              }
+            </Text>
+
+            {/* Progress dots */}
+            <View style={s.tutorialDots}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    s.tutorialDot,
+                    i === hideTutorialStep && s.tutorialDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+
+            <Text style={s.tutorialHint}>
+              {hideTutorialStep < 2 ? "Tap to continue" : "Tap to open camera"}
+            </Text>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1906,38 +2035,31 @@ export default function HuntScreen() {
                 setGroupModalMode("create");
                 setShowGroupModal(true);
               }}
-              style={s.primaryBtn}
+              style={s.createGroupBtn}
+              activeOpacity={0.8}
             >
-              <Text style={s.primaryBtnText}>Create Group</Text>
+              <Text style={s.createGroupBtnTitle}>Start a Group Hunt</Text>
+              <Text style={s.createGroupBtnSub}>
+                Create a group and invite friends to hide & find mascots
+                together
+              </Text>
             </TouchableOpacity>
           ) : (
             <>
-              {/* ── Group banner ── */}
-              <TouchableOpacity
-                style={s.groupBanner}
-                onPress={() => setShowMembersSheet(true)}
-                activeOpacity={0.8}
-              >
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={s.groupBannerName}>{huntGroup.name}</Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Text style={s.groupBannerSub}>
-                      {huntMembers.length}{" "}
-                      {huntMembers.length === 1 ? "member" : "members"}
-                    </Text>
-                    <View style={s.inviteCodePill}>
-                      <Text style={s.inviteCodePillText}>
-                        {huntGroup.invite_code}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+              {/* ── Group row ── */}
+              <View style={s.huntGroupRow}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => setShowMembersSheet(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.huntGroupName}>{huntGroup.name}</Text>
+                  <Text style={s.huntGroupSub}>
+                    {huntMembers.length}{" "}
+                    {huntMembers.length === 1 ? "member" : "members"} ·{" "}
+                    {huntGroup.invite_code}
+                  </Text>
+                </TouchableOpacity>
                 <View style={s.groupAvatarStack}>
                   {huntMembers.slice(0, 3).map((m, i) => (
                     <View
@@ -1970,7 +2092,16 @@ export default function HuntScreen() {
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.inlineInviteBtn}
+                  onPress={() => {
+                    setGroupModalMode("invite");
+                    setShowGroupModal(true);
+                  }}
+                >
+                  <Text style={s.inlineInviteBtnText}>+ Invite</Text>
+                </TouchableOpacity>
+              </View>
 
               {showGroupPicker ? (
                 <AreaPickerMap
@@ -1996,7 +2127,7 @@ export default function HuntScreen() {
                           <TouchableOpacity
                             onPress={() => setShowGroupPicker(true)}
                           >
-                            <Text style={s.changeLink}>Change</Text>
+                            <Text style={s.changeLink}>Edit</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -2013,16 +2144,14 @@ export default function HuntScreen() {
                         }
                         radiusMiles={huntGroup.radius_miles ?? 2}
                         markersJson={JSON.stringify(
-                          active.map((m) => ({
-                            lat: m.lat,
-                            lng: m.lng,
-                            c:
-                              m.hider_user_id === userId
-                                ? snappyColor
-                                : "#f97316",
-                            e:
-                              m.hider_user_id === userId ? snappyAccessory : "",
-                          })),
+                          active
+                            .filter((m) => m.hider_user_id === userId)
+                            .map((m) => ({
+                              lat: m.lat,
+                              lng: m.lng,
+                              c: snappyColor,
+                              e: snappyAccessory,
+                            })),
                         )}
                       />
                     </>
@@ -2031,77 +2160,57 @@ export default function HuntScreen() {
                   {isOutsideGroupArea && (
                     <View style={s.outsideWarning}>
                       <Text style={s.outsideWarningText}>
-                        Outside play area — move back inside to hide mascots.
+                        ⚠ Outside play area — move back inside to hide.
                       </Text>
                     </View>
                   )}
 
-                  {/* Hide mascot card */}
-                  <View style={s.hideMascotCard}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={s.hideMascotCardTitle}>Hide a mascot</Text>
-                      <Text style={s.hideMascotCardSub}>
-                        Sky, ground, and a distinctive landmark in the shot.
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => void startHideMascot()}
-                      disabled={uploading || !myPos || isOutsideGroupArea}
-                      style={[
-                        s.hideMascotBtn,
-                        {
-                          opacity:
-                            uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
-                        },
-                      ]}
-                    >
-                      <Camera color="#fff" size={18} />
-                      <Text style={s.primaryBtnText}>
-                        {uploading ? "Saving…" : "Hide Here"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  {/* ── Hide Here button ── */}
+                  <TouchableOpacity
+                    onPress={() => void startHideMascot()}
+                    disabled={uploading || !myPos || isOutsideGroupArea}
+                    style={[
+                      s.hideHereBtn,
+                      {
+                        opacity:
+                          uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
+                      },
+                    ]}
+                  >
+                    <Camera color="#fff" size={20} />
+                    <Text style={s.hideHereBtnText}>
+                      {uploading ? "Saving…" : "Hide Here"}
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Active section */}
-                  <View style={s.huntSectionHeader}>
-                    <Text style={s.sectionLabel}>Hunting</Text>
-                    {active.length > 0 && (
-                      <View style={s.huntBadge}>
-                        <Text style={s.huntBadgeText}>{active.length}</Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text style={s.huntSectionLabel}>
+                    Hunting{active.length > 0 ? ` (${active.length})` : ""}
+                  </Text>
 
                   {loading ? (
                     <ActivityIndicator color={colors.primary} />
                   ) : active.length === 0 ? (
                     <View style={s.emptyHunt}>
-                      <Text style={{ fontSize: 40 }}>🎭</Text>
                       <Text style={s.emptyHuntTitle}>Nothing hiding yet</Text>
                       <Text style={s.emptyHuntSub}>
-                        Be the first to hide a mascot!
+                        Hide a mascot to get the hunt started!
                       </Text>
                     </View>
                   ) : (
                     active.map((m) => {
-                      const dist =
-                        myPos != null
-                          ? Math.round(
-                              haversineDistance(
-                                myPos.lat,
-                                myPos.lng,
-                                m.lat,
-                                m.lng,
-                              ),
-                            )
-                          : null;
-                      const hiddenAt = new Date(m.hidden_at).toLocaleTimeString(
-                        [],
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        },
-                      );
+                      const hiddenDt = new Date(m.hidden_at);
+                      const hiddenDate = hiddenDt.toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      });
+                      const hiddenTime = hiddenDt.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      const photoUrl = supabase.storage
+                        .from("game-photos")
+                        .getPublicUrl(m.photo_path).data.publicUrl;
                       return (
                         <TouchableOpacity
                           key={m.id}
@@ -2109,50 +2218,31 @@ export default function HuntScreen() {
                           style={s.huntCard}
                           activeOpacity={0.72}
                         >
-                          {/* Tiled mystery preview */}
-                          <View style={s.huntThumb}>
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                              <View key={i} style={s.huntThumbTile} />
-                            ))}
-                            <View style={s.huntThumbOverlay}>
-                              <Text style={{ fontSize: 20 }}>🔍</Text>
-                            </View>
-                          </View>
-
-                          <View style={{ flex: 1, gap: 4 }}>
+                          <Image
+                            source={{ uri: photoUrl }}
+                            style={s.huntThumb}
+                            resizeMode="cover"
+                          />
+                          <View style={{ flex: 1 }}>
                             <Text style={s.huntCardName}>
                               {m.hider_name}'s Mascot
                             </Text>
-                            <Text style={s.huntCardMeta}>Since {hiddenAt}</Text>
-                            {dist !== null && (
-                              <View style={s.huntDistRow}>
-                                <Text style={s.huntDist}>
-                                  {dist >= 1000
-                                    ? `${(dist / 1000).toFixed(1)} km`
-                                    : `${dist} m`}{" "}
-                                  away
-                                </Text>
-                              </View>
-                            )}
+                            <Text style={s.huntCardMeta}>
+                              {hiddenDate} · {hiddenTime}
+                            </Text>
                           </View>
-
                           <Text style={s.huntChevron}>›</Text>
                         </TouchableOpacity>
                       );
                     })
                   )}
 
-                  {/* Found / captured section */}
+                  {/* Captured section */}
                   {found.length > 0 && (
                     <>
-                      <View style={s.huntSectionHeader}>
-                        <Text style={s.sectionLabel}>Captured</Text>
-                        <View style={[s.huntBadge, s.huntBadgeGreen]}>
-                          <Text style={[s.huntBadgeText, s.huntBadgeTextGreen]}>
-                            {found.length}
-                          </Text>
-                        </View>
-                      </View>
+                      <Text style={s.huntSectionLabel}>
+                        Captured ({found.length})
+                      </Text>
                       {found.map((m) => {
                         const url = supabase.storage
                           .from("game-photos")
@@ -2161,24 +2251,25 @@ export default function HuntScreen() {
                           new Date(m.found_at ?? "").getTime() -
                           new Date(m.hidden_at).getTime();
                         return (
-                          <View key={m.id} style={s.capturedCard}>
+                          <View
+                            key={m.id}
+                            style={[s.huntCard, s.huntCardFound]}
+                          >
                             <Image
                               source={{ uri: url }}
-                              style={s.capturedPhoto}
+                              style={s.huntThumb}
                               resizeMode="cover"
                             />
-                            <View style={{ flex: 1, gap: 3 }}>
-                              <Text style={s.capturedHider}>
-                                {m.hider_name}'s mascot
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.huntCardName}>
+                                {m.hider_name}'s Mascot
                               </Text>
-                              <Text style={s.capturedMeta}>
-                                Found by {m.finder_name}
-                              </Text>
-                              <Text style={s.capturedSurvival}>
-                                Survived {survivalStr(elapsed)}
+                              <Text style={s.huntCardMeta}>
+                                Found by {m.finder_name} ·{" "}
+                                {survivalStr(elapsed)}
                               </Text>
                             </View>
-                            <Text style={{ fontSize: 22 }}>🏆</Text>
+                            <Text style={s.huntFoundBadge}>✓</Text>
                           </View>
                         );
                       })}
@@ -2222,7 +2313,10 @@ export default function HuntScreen() {
                           ]}
                         />
                         <Animated.View
-                          style={{ transform: [{ translateY: anim }] }}
+                          style={{
+                            transform: [{ translateY: anim }],
+                            width: "100%",
+                          }}
                         >
                           {SOLO_DRUM.map((obj, i) => (
                             <View
@@ -2230,7 +2324,7 @@ export default function HuntScreen() {
                               key={i}
                               style={s.slotItem}
                             >
-                              <Text style={s.slotEmoji}>{obj.emoji}</Text>
+                              <obj.icon size={32} color={colors.foreground} />
                               <Text style={s.slotLabel} numberOfLines={1}>
                                 {obj.label}
                               </Text>
@@ -2809,10 +2903,8 @@ const s = StyleSheet.create({
   },
   mapBox: {
     height: MAP_H,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   memberRow: {
     flexDirection: "row",
@@ -2906,16 +2998,17 @@ const s = StyleSheet.create({
   },
   slotItem: {
     height: SLOT_ITEM_H,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
   },
-  slotEmoji: { fontSize: 36 },
   slotLabel: {
     fontSize: 15,
     fontWeight: "700",
     color: colors.foreground,
     letterSpacing: -0.2,
+    textAlign: "center",
   },
   slotFadeTop: {
     height: "15%",
@@ -2953,41 +3046,208 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#16a34a",
   },
-  // ── Group banner ──────────────────────────────────────────────────────────
-  groupBanner: {
-    backgroundColor: colors.card,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 18,
-    flexDirection: "row",
+  // ── Hide mascot tutorial ───────────────────────────────────────────────────
+  tutorialOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.78)",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    padding: 24,
   },
-  groupBannerName: {
+  tutorialCard: {
+    backgroundColor: colors.card,
+    borderRadius: 28,
+    padding: 24,
+    width: "100%",
+    gap: 18,
+    alignItems: "center",
+  },
+  tutorialPre: {
     fontSize: 20,
     fontWeight: "900",
-    letterSpacing: -0.5,
     color: colors.foreground,
+    letterSpacing: -0.5,
+    textAlign: "center",
   },
-  groupBannerSub: {
+  tutorialScene: {
+    width: "100%",
+    height: 210,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  tutorialSkyLayer: {
+    flex: 4,
+    backgroundColor: "#4A90C4",
+    overflow: "hidden",
+  },
+  tutorialCloud1: {
+    position: "absolute",
+    top: 16,
+    left: 18,
+    width: 58,
+    height: 22,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 11,
+  },
+  tutorialCloud2: {
+    position: "absolute",
+    top: 26,
+    right: 24,
+    width: 44,
+    height: 18,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    borderRadius: 9,
+  },
+  tutorialSun: {
+    position: "absolute",
+    top: 10,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FFD166",
+  },
+  tutorialLandmarkLayer: {
+    flex: 3,
+    backgroundColor: "#8C7B6B",
+    overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 24,
+    gap: 6,
+  },
+  tutorialBuildingA: {
+    width: 36,
+    height: 52,
+    backgroundColor: "#5C4F42",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  tutorialBuildingB: {
+    width: 28,
+    height: 68,
+    backgroundColor: "#4A3F34",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  tutorialBuildingC: {
+    width: 48,
+    height: 40,
+    backgroundColor: "#6B5C4E",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+  tutorialGroundLayer: {
+    flex: 3,
+    backgroundColor: "#4D7C35",
+    overflow: "hidden",
+    justifyContent: "flex-end",
+  },
+  tutorialGroundStripe: {
+    height: 10,
+    backgroundColor: "#3D6428",
+  },
+  tutorialDimLayer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.60)",
+  },
+  tutorialStepText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.foreground,
+    textAlign: "center",
+    letterSpacing: -0.2,
+  },
+  tutorialDots: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  tutorialDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  tutorialDotActive: {
+    width: 24,
+    backgroundColor: colors.primary,
+  },
+  tutorialHint: {
     fontSize: 13,
     color: colors.mutedForeground,
     fontWeight: "500",
   },
-  inviteCodePill: {
+
+  // ── Create group CTA ──────────────────────────────────────────────────────
+  createGroupBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 22,
+    padding: 24,
+    gap: 8,
+    alignItems: "center",
+  },
+  createGroupBtnTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  createGroupBtnSub: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
+  // ── Group row ─────────────────────────────────────────────────────────────
+  huntGroupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 4,
+  },
+  huntGroupName: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.foreground,
+    letterSpacing: -0.3,
+  },
+  huntGroupSub: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  inlineInviteBtn: {
     backgroundColor: `${colors.primary}18`,
     borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: `${colors.primary}33`,
   },
-  inviteCodePillText: {
-    fontSize: 11,
-    fontWeight: "800",
+  inlineInviteBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.primary,
-    letterSpacing: 1.5,
+  },
+
+  // ── Hide Here button ───────────────────────────────────────────────────────
+  hideHereBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#16a34a",
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  hideHereBtnText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
   groupAvatarStack: {
     flexDirection: "row",
@@ -3009,95 +3269,32 @@ const s = StyleSheet.create({
     color: "#fff",
   },
 
-  // ── Hide mascot card ───────────────────────────────────────────────────────
-  hideMascotCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  hideMascotCardTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.foreground,
-    letterSpacing: -0.2,
-  },
-  hideMascotCardSub: {
-    fontSize: 12,
+  // ── Hunt list ─────────────────────────────────────────────────────────────
+  huntSectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
     color: colors.mutedForeground,
-    lineHeight: 16,
-  },
-  hideMascotBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginTop: 4,
   },
 
-  // ── Section header with badge ──────────────────────────────────────────────
-  huntSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  huntBadge: {
-    backgroundColor: `${colors.primary}18`,
-    borderRadius: 99,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: `${colors.primary}33`,
-  },
-  huntBadgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  huntBadgeGreen: {
-    backgroundColor: "#dcfce7",
-    borderColor: "#bbf7d0",
-  },
-  huntBadgeTextGreen: { color: "#16a34a" },
-
-  // ── Active mascot cards ────────────────────────────────────────────────────
   huntCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 16,
   },
   huntThumb: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+    width: 78,
+    height: 78,
+    borderRadius: 16,
     overflow: "hidden",
-    flexDirection: "row",
-    flexWrap: "wrap",
     backgroundColor: colors.muted,
-    position: "relative",
-  },
-  huntThumbTile: {
-    width: 64 / 3,
-    height: 64 / 3,
-    backgroundColor: colors.muted,
-    borderWidth: 0.5,
-    borderColor: colors.background,
-  },
-  huntThumbOverlay: {
-    ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
   },
   huntCardName: {
     fontSize: 15,
@@ -3110,15 +3307,14 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
     fontWeight: "500",
   },
-  huntDistRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  huntCardFound: {
+    borderColor: "#bbf7d0",
+    backgroundColor: "#f0fdf4",
   },
-  huntDist: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.primary,
+  huntFoundBadge: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#16a34a",
   },
   huntChevron: {
     fontSize: 22,
@@ -3150,37 +3346,96 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
 
-  // ── Captured / found cards ─────────────────────────────────────────────────
-  capturedCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
+  // ── Photo review screen ────────────────────────────────────────────────────
+  photoTopBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  photoCloseBtn: {
+    margin: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoCloseBtnText: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "600",
+    lineHeight: 22,
+  },
+  photoBottomSafe: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  photoBottomSheet: {
+    backgroundColor: "rgba(8,8,8,0.82)",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 14,
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    gap: 14,
+    alignItems: "center",
+  },
+  photoHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginBottom: 4,
+  },
+  photoCriteriaRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  photoCriteriaChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    padding: 12,
-    overflow: "hidden",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
-  capturedPhoto: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-  },
-  capturedHider: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  capturedMeta: {
-    fontSize: 12,
-    color: colors.mutedForeground,
-    fontWeight: "500",
-  },
-  capturedSurvival: {
-    fontSize: 12,
+  photoCriteriaText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.88)",
     fontWeight: "600",
-    color: "#16a34a",
+  },
+  photoHideBtn: {
+    width: "100%",
+    height: 60,
+    borderRadius: 22,
+    backgroundColor: "#16a34a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoHideBtnText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.4,
+  },
+  photoRetakeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+  },
+  photoRetakeText: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "500",
   },
 
   activeMascotCard: {
