@@ -36,7 +36,7 @@ export function encodeAccessory({
 
 export function BaseballCap({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
@@ -68,9 +68,15 @@ export function BaseballCap({
   );
 }
 
-export function CowboyHat({ size, uid = "d" }: { size: number; uid?: string }) {
+export function CowboyHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.72);
-  const g = `cg${uid}`;
+  const g = `cg${_uid}`;
   return (
     <Svg width={size} height={h} viewBox="0 0 120 72">
       <Defs>
@@ -105,7 +111,13 @@ export function CowboyHat({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function Beanie({ size, uid = "d" }: { size: number; uid?: string }) {
+export function Beanie({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.78);
   return (
     <Svg width={size} height={h} viewBox="0 0 90 78">
@@ -142,7 +154,13 @@ export function Beanie({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function BucketHat({ size, uid = "d" }: { size: number; uid?: string }) {
+export function BucketHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.7);
   return (
     <Svg width={size} height={h} viewBox="0 0 100 70">
@@ -169,7 +187,13 @@ export function BucketHat({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function FrogHat({ size, uid = "d" }: { size: number; uid?: string }) {
+export function FrogHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.85);
   return (
     <Svg width={size} height={h} viewBox="0 0 100 85">
@@ -209,10 +233,16 @@ export function FrogHat({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function Crown({ size, uid = "d" }: { size: number; uid?: string }) {
+export function Crown({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.7);
-  const g1 = `cr1${uid}`;
-  const g2 = `cr2${uid}`;
+  const g1 = `cr1${_uid}`;
+  const g2 = `cr2${_uid}`;
   return (
     <Svg width={size} height={h} viewBox="0 0 100 70">
       <Defs>
@@ -259,7 +289,13 @@ export function Crown({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function SantaHat({ size, uid = "d" }: { size: number; uid?: string }) {
+export function SantaHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.85);
   return (
     <Svg width={size} height={h} viewBox="0 0 100 85">
@@ -284,9 +320,15 @@ export function SantaHat({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function WizardHat({ size, uid = "d" }: { size: number; uid?: string }) {
+export function WizardHat({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.92);
-  const g = `wz${uid}`;
+  const g = `wz${_uid}`;
   return (
     <Svg width={size} height={h} viewBox="0 0 100 92">
       <Defs>
@@ -324,7 +366,7 @@ export function WizardHat({ size, uid = "d" }: { size: number; uid?: string }) {
 
 export function Sunglasses({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
@@ -394,7 +436,7 @@ export function Sunglasses({
 
 export function RoundGlasses({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
@@ -458,7 +500,7 @@ export function RoundGlasses({
 
 export function HeartGlasses({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
@@ -526,13 +568,13 @@ export function HeartGlasses({
 
 export function SportShades({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
 }) {
   const h = Math.round(size * 0.36);
-  const g = `sp${uid}`;
+  const g = `sp${_uid}`;
   return (
     <Svg width={size} height={h} viewBox="0 0 120 44">
       <Defs>
@@ -579,7 +621,13 @@ export function SportShades({
 
 // ─── OUTFITS ──────────────────────────────────────────────────────────────────
 
-export function TShirt({ size, uid = "d" }: { size: number; uid?: string }) {
+export function TShirt({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.72);
   return (
     <Svg width={size} height={h} viewBox="0 0 100 72">
@@ -632,9 +680,15 @@ export function TShirt({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function Hoodie({ size, uid = "d" }: { size: number; uid?: string }) {
+export function Hoodie({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.82);
-  const g = `hd${uid}`;
+  const g = `hd${_uid}`;
   return (
     <Svg width={size} height={h} viewBox="0 0 100 82">
       <Defs>
@@ -689,7 +743,7 @@ export function Hoodie({ size, uid = "d" }: { size: number; uid?: string }) {
 
 export function VarsityJacket({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
@@ -726,7 +780,13 @@ export function VarsityJacket({
   );
 }
 
-export function Necklace({ size, uid = "d" }: { size: number; uid?: string }) {
+export function Necklace({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const h = Math.round(size * 0.48);
   return (
     <Svg width={size} height={h} viewBox="0 0 100 48">
@@ -760,10 +820,16 @@ export function Necklace({ size, uid = "d" }: { size: number; uid?: string }) {
   );
 }
 
-export function Wings({ size, uid = "d" }: { size: number; uid?: string }) {
+export function Wings({
+  size,
+  uid: _uid = "d",
+}: {
+  size: number;
+  uid?: string;
+}) {
   const w = Math.round(size * 1.15);
   const h = Math.round(size * 0.65);
-  const g = `wg${uid}`;
+  const g = `wg${_uid}`;
   return (
     <Svg width={w} height={h} viewBox="0 0 130 70">
       <Defs>
@@ -814,7 +880,7 @@ export function Wings({ size, uid = "d" }: { size: number; uid?: string }) {
 
 export function Headphones({
   size,
-  uid = "d",
+  uid: _uid = "d",
 }: {
   size: number;
   uid?: string;
