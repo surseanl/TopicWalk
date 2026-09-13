@@ -241,7 +241,10 @@ export default function ArchiveScreen() {
                 <View
                   // biome-ignore lint/suspicious/noArrayIndexKey: stable pagination dots
                   key={i}
-                  style={[s.lightboxDot, i === lightboxPage && s.lightboxDotActive]}
+                  style={[
+                    s.lightboxDot,
+                    i === lightboxPage && s.lightboxDotActive,
+                  ]}
                 />
               ))}
             </View>

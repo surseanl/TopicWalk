@@ -125,7 +125,11 @@ export default function AlbumDetailScreen() {
                 activeOpacity={0.85}
                 onPress={() => setLightboxUrl(url)}
               >
-                <Image source={{ uri: url }} style={s.photo} resizeMode="cover" />
+                <Image
+                  source={{ uri: url }}
+                  style={s.photo}
+                  resizeMode="cover"
+                />
               </TouchableOpacity>
             );
           }}

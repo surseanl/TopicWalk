@@ -293,11 +293,11 @@ export default function FriendsScreen() {
           <ChevronLeft size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={s.center}>
-        <Text style={s.pageTitle}>Sign in to add friends</Text>
-        <Text style={[s.muted, s.textCenter, { marginBottom: 24 }]}>
-          Connect with friends to see each other's walks and photos.
-        </Text>
-        <Text style={s.muted}>Go to Profile to sign in →</Text>
+          <Text style={s.pageTitle}>Sign in to add friends</Text>
+          <Text style={[s.muted, s.textCenter, { marginBottom: 24 }]}>
+            Connect with friends to see each other's walks and photos.
+          </Text>
+          <Text style={s.muted}>Go to Profile to sign in →</Text>
         </View>
       </SafeAreaView>
     );
