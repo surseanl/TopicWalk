@@ -26,6 +26,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  ACCESSORY_CATEGORIES,
+  ACCESSORY_MAP,
+  type AccessorySlots,
+  encodeAccessory,
+  parseAccessory,
+} from "../../components/SnappyAccessories";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
 import { validateUsername } from "../../lib/username-filter";
@@ -62,85 +69,121 @@ const SNAPPY_BG_COLORS = [
   "#f0fdf4",
 ];
 
-const SKINS = [
-  { name: "Forest", color: "#22c55e", bg: "#dcfce7", hat: "🐾", outfit: "" },
-  { name: "Ocean", color: "#3b82f6", bg: "#dbeafe", hat: "🕶️", outfit: "🧣" },
-  { name: "Flame", color: "#f97316", bg: "#ffedd5", hat: "", outfit: "🔥" },
-  { name: "Galaxy", color: "#8b5cf6", bg: "#ede9fe", hat: "⭐", outfit: "✨" },
-  { name: "Royal", color: "#eab308", bg: "#fef9c3", hat: "👑", outfit: "🦺" },
+const SKINS: Array<
+  { name: string; color: string; bg: string } & AccessorySlots
+> = [
+  {
+    name: "Forest",
+    color: "#22c55e",
+    bg: "#dcfce7",
+    hat: "hat_beanie",
+    glasses: "",
+    outfit: "",
+  },
+  {
+    name: "Ocean",
+    color: "#3b82f6",
+    bg: "#dbeafe",
+    hat: "hat_bucket",
+    glasses: "glasses_sport",
+    outfit: "",
+  },
+  {
+    name: "Flame",
+    color: "#f97316",
+    bg: "#ffedd5",
+    hat: "hat_cowboy",
+    glasses: "",
+    outfit: "outfit_varsity",
+  },
+  {
+    name: "Galaxy",
+    color: "#8b5cf6",
+    bg: "#ede9fe",
+    hat: "hat_wizard",
+    glasses: "",
+    outfit: "outfit_necklace",
+  },
+  {
+    name: "Royal",
+    color: "#eab308",
+    bg: "#fef9c3",
+    hat: "hat_crown",
+    glasses: "",
+    outfit: "",
+  },
   {
     name: "Bubblegum",
     color: "#ec4899",
     bg: "#fce7f3",
-    hat: "🎀",
-    outfit: "🌸",
+    hat: "hat_bucket",
+    glasses: "glasses_heart",
+    outfit: "",
   },
-  { name: "Arctic", color: "#06b6d4", bg: "#cffafe", hat: "⛑️", outfit: "🧥" },
-  { name: "Cherry", color: "#f43f5e", bg: "#ffe4e6", hat: "🎩", outfit: "🎽" },
+  {
+    name: "Arctic",
+    color: "#06b6d4",
+    bg: "#cffafe",
+    hat: "hat_beanie",
+    glasses: "",
+    outfit: "outfit_headphones",
+  },
+  {
+    name: "Cherry",
+    color: "#f43f5e",
+    bg: "#ffe4e6",
+    hat: "hat_baseball",
+    glasses: "glasses_sunglasses",
+    outfit: "outfit_hoodie",
+  },
 ];
 
-const HAT_OPTIONS = ["🎩", "👑", "🎓", "⛑️", "🪖", "🤠", "🧢", "🎅", "🪄", "🏆"];
-const FACE_OPTIONS = ["😎", "🕶️", "🤓", "🥸"];
-const OUTFIT_OPTIONS = [
-  "🧣",
-  "🧥",
-  "🦺",
-  "👔",
-  "🎽",
-  "🥋",
-  "🩱",
-  "🎀",
-  "🌸",
-  "💎",
-  "🔥",
-  "⭐",
-  "✨",
-  "❄️",
-  "🐾",
-  "🦋",
-  "🌈",
-  "🎖️",
-];
-
-function parseAccessory(val: string): { hat: string; outfit: string } {
-  if (!val) return { hat: "", outfit: "" };
-  if (val.includes("|")) {
-    const [hat = "", outfit = ""] = val.split("|");
-    return { hat, outfit };
-  }
-  return { hat: val, outfit: "" };
-}
-
-function encodeAccessory(hat: string, outfit: string): string {
-  if (!hat && !outfit) return "";
-  return `${hat}|${outfit}`;
-}
+const HAT_ASPECT: Record<string, number> = {
+  hat_baseball: 0.68,
+  hat_cowboy: 0.72,
+  hat_beanie: 0.78,
+  hat_bucket: 0.7,
+  hat_frog: 0.85,
+  hat_crown: 0.7,
+  hat_santa: 0.85,
+  hat_wizard: 0.92,
+};
 
 function SnappyCharacter({
   color,
   bg,
   hat,
+  glasses,
   outfit,
   size = 120,
 }: {
   color: string;
   bg?: string;
   hat: string;
+  glasses: string;
   outfit: string;
   size?: number;
 }) {
   const circleSize = Math.round(size * 1.15);
-  const hatFontSize = Math.round(size * 0.42);
-  const outfitFontSize = Math.round(size * 0.32);
-  // Total height = circle + room for hat above
-  const hatOverhang = hat ? Math.round(size * 0.36) : 0;
+  const hatSvgW = Math.round(circleSize * 0.88);
+  const hatSvgH = hat ? Math.round(hatSvgW * (HAT_ASPECT[hat] ?? 0.75)) : 0;
+  const hatOverhang = hat
+    ? Math.max(0, hatSvgH - Math.round(circleSize * 0.18))
+    : 0;
   const totalHeight = circleSize + hatOverhang;
+
+  const HatComp = hat ? ACCESSORY_MAP[hat] : null;
+  const GlassesComp = glasses ? ACCESSORY_MAP[glasses] : null;
+  const OutfitComp = outfit ? ACCESSORY_MAP[outfit] : null;
+
+  const glassesW = Math.round(circleSize * 0.9);
+  const outfitW = Math.round(circleSize * 0.9);
 
   return (
     <View
       style={{ width: circleSize, height: totalHeight, alignItems: "center" }}
     >
-      {/* Background circle + mascot, pinned to bottom */}
+      {/* Background circle + mascot */}
       <View
         style={{
           position: "absolute",
@@ -159,35 +202,43 @@ function SnappyCharacter({
           style={{ width: size, height: size, tintColor: color }}
           resizeMode="contain"
         />
-        {/* Outfit sits centered at lower-body area of the circle */}
-        {outfit ? (
-          <Text
+        {/* Glasses over face area */}
+        {GlassesComp ? (
+          <View
             style={{
               position: "absolute",
-              bottom: Math.round(circleSize * 0.08),
-              fontSize: outfitFontSize,
-              textAlign: "center",
-              width: circleSize,
+              top: Math.round(circleSize * 0.26),
+              alignItems: "center",
             }}
           >
-            {outfit}
-          </Text>
+            <GlassesComp size={glassesW} uid={`${glasses}_main`} />
+          </View>
+        ) : null}
+        {/* Outfit at lower body */}
+        {OutfitComp ? (
+          <View
+            style={{
+              position: "absolute",
+              bottom: Math.round(circleSize * 0.04),
+              alignItems: "center",
+            }}
+          >
+            <OutfitComp size={outfitW} uid={`${outfit}_main`} />
+          </View>
         ) : null}
       </View>
-      {/* Hat sits centered at top of circle */}
-      {hat ? (
-        <Text
+      {/* Hat above circle */}
+      {HatComp ? (
+        <View
           style={{
             position: "absolute",
             top: 0,
             width: circleSize,
-            textAlign: "center",
-            fontSize: hatFontSize,
-            lineHeight: hatFontSize * 1.05,
+            alignItems: "center",
           }}
         >
-          {hat}
-        </Text>
+          <HatComp size={hatSvgW} uid={`${hat}_main`} />
+        </View>
       ) : null}
     </View>
   );
@@ -220,6 +271,7 @@ export default function ProfileScreen() {
 
   const [snappyColor, setSnappyColor] = useState(SNAPPY_COLORS[0]);
   const [snappyHat, setSnappyHat] = useState("");
+  const [snappyGlasses, setSnappyGlasses] = useState("");
   const [snappyOutfit, setSnappyOutfit] = useState("");
 
   const [showEdit, setShowEdit] = useState(false);
@@ -227,6 +279,7 @@ export default function ProfileScreen() {
   const [editSnappyBg, setEditSnappyBg] = useState(SNAPPY_BG_COLORS[0]);
   const [editSnappyColor, setEditSnappyColor] = useState(SNAPPY_COLORS[0]);
   const [editSnappyHat, setEditSnappyHat] = useState("");
+  const [editSnappyGlasses, setEditSnappyGlasses] = useState("");
   const [editSnappyOutfit, setEditSnappyOutfit] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
@@ -259,9 +312,10 @@ export default function ProfileScreen() {
       setBio(data.bio ?? "");
       setSnappyBg(data.avatar_color ?? SNAPPY_BG_COLORS[0]);
       setSnappyColor(data.snappy_color ?? SNAPPY_COLORS[0]);
-      const { hat, outfit } = parseAccessory(data.snappy_accessory ?? "");
-      setSnappyHat(hat);
-      setSnappyOutfit(outfit);
+      const slots = parseAccessory(data.snappy_accessory ?? "");
+      setSnappyHat(slots.hat);
+      setSnappyGlasses(slots.glasses);
+      setSnappyOutfit(slots.outfit);
       setNeedsUsername(false);
     } else {
       setNeedsUsername(true);
@@ -442,13 +496,18 @@ export default function ProfileScreen() {
         bio: editBio.trim(),
         avatar_color: editSnappyBg,
         snappy_color: editSnappyColor,
-        snappy_accessory: encodeAccessory(editSnappyHat, editSnappyOutfit),
+        snappy_accessory: encodeAccessory({
+          hat: editSnappyHat,
+          glasses: editSnappyGlasses,
+          outfit: editSnappyOutfit,
+        }),
       })
       .eq("id", session.user.id);
     setBio(editBio.trim());
     setSnappyBg(editSnappyBg);
     setSnappyColor(editSnappyColor);
     setSnappyHat(editSnappyHat);
+    setSnappyGlasses(editSnappyGlasses);
     setSnappyOutfit(editSnappyOutfit);
     setShowEdit(false);
     setEditSaving(false);
@@ -459,6 +518,7 @@ export default function ProfileScreen() {
     setEditSnappyBg(snappyBg);
     setEditSnappyColor(snappyColor);
     setEditSnappyHat(snappyHat);
+    setEditSnappyGlasses(snappyGlasses);
     setEditSnappyOutfit(snappyOutfit);
     setShowEdit(true);
   }
@@ -563,6 +623,7 @@ export default function ProfileScreen() {
                     color={editSnappyColor}
                     bg={editSnappyBg}
                     hat={editSnappyHat}
+                    glasses={editSnappyGlasses}
                     outfit={editSnappyOutfit}
                     size={130}
                   />
@@ -581,6 +642,7 @@ export default function ProfileScreen() {
                         editSnappyColor === skin.color &&
                         editSnappyBg === skin.bg &&
                         editSnappyHat === skin.hat &&
+                        editSnappyGlasses === skin.glasses &&
                         editSnappyOutfit === skin.outfit;
                       return (
                         <TouchableOpacity
@@ -589,6 +651,7 @@ export default function ProfileScreen() {
                             setEditSnappyColor(skin.color);
                             setEditSnappyBg(skin.bg);
                             setEditSnappyHat(skin.hat);
+                            setEditSnappyGlasses(skin.glasses);
                             setEditSnappyOutfit(skin.outfit);
                           }}
                           style={[s.skinCard, active && s.skinCardActive]}
@@ -597,6 +660,7 @@ export default function ProfileScreen() {
                             color={skin.color}
                             bg={skin.bg}
                             hat={skin.hat}
+                            glasses={skin.glasses}
                             outfit={skin.outfit}
                             size={48}
                           />
@@ -654,77 +718,56 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                {/* Hat slot */}
-                <View style={{ gap: 10 }}>
-                  <View style={s.slotHeaderRow}>
-                    <Text style={s.fieldLabel}>Hat</Text>
-                    {editSnappyHat ? (
-                      <TouchableOpacity onPress={() => setEditSnappyHat("")}>
-                        <Text style={s.slotClearBtn}>Remove</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <View style={{ gap: 8 }}>
-                    <Text style={s.accessoryCategoryLabel}>
-                      Hats & Headwear
-                    </Text>
-                    <View style={s.accessoryRow}>
-                      {HAT_OPTIONS.map((a) => (
-                        <TouchableOpacity
-                          key={a}
-                          onPress={() => setEditSnappyHat(a)}
-                          style={[
-                            s.accessoryBtn,
-                            editSnappyHat === a && s.accessoryBtnActive,
-                          ]}
-                        >
-                          <Text style={s.accessoryEmoji}>{a}</Text>
-                        </TouchableOpacity>
-                      ))}
+                {/* Accessory slots */}
+                {ACCESSORY_CATEGORIES.map((cat) => {
+                  const currentVal =
+                    cat.slot === "hat"
+                      ? editSnappyHat
+                      : cat.slot === "glasses"
+                        ? editSnappyGlasses
+                        : editSnappyOutfit;
+                  const setter =
+                    cat.slot === "hat"
+                      ? setEditSnappyHat
+                      : cat.slot === "glasses"
+                        ? setEditSnappyGlasses
+                        : setEditSnappyOutfit;
+                  return (
+                    <View key={cat.slot} style={{ gap: 10 }}>
+                      <View style={s.slotHeaderRow}>
+                        <Text style={s.fieldLabel}>{cat.label}</Text>
+                        {currentVal ? (
+                          <TouchableOpacity onPress={() => setter("")}>
+                            <Text style={s.slotClearBtn}>Remove</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <View style={s.accessoryGrid}>
+                        {cat.items.map((item) => {
+                          const Comp = item.Component;
+                          const selected = currentVal === item.id;
+                          return (
+                            <TouchableOpacity
+                              key={item.id}
+                              onPress={() => setter(selected ? "" : item.id)}
+                              style={[
+                                s.accessoryCard,
+                                selected && s.accessoryCardActive,
+                              ]}
+                            >
+                              <View style={s.accessoryPreview}>
+                                <Comp size={54} uid={`${item.id}_pick`} />
+                              </View>
+                              <Text style={s.accessoryName} numberOfLines={1}>
+                                {item.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </View>
-                    <Text style={s.accessoryCategoryLabel}>Glasses</Text>
-                    <View style={s.accessoryRow}>
-                      {FACE_OPTIONS.map((a) => (
-                        <TouchableOpacity
-                          key={a}
-                          onPress={() => setEditSnappyHat(a)}
-                          style={[
-                            s.accessoryBtn,
-                            editSnappyHat === a && s.accessoryBtnActive,
-                          ]}
-                        >
-                          <Text style={s.accessoryEmoji}>{a}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Outfit slot */}
-                <View style={{ gap: 10 }}>
-                  <View style={s.slotHeaderRow}>
-                    <Text style={s.fieldLabel}>Outfit</Text>
-                    {editSnappyOutfit ? (
-                      <TouchableOpacity onPress={() => setEditSnappyOutfit("")}>
-                        <Text style={s.slotClearBtn}>Remove</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <View style={s.accessoryRow}>
-                    {OUTFIT_OPTIONS.map((a) => (
-                      <TouchableOpacity
-                        key={a}
-                        onPress={() => setEditSnappyOutfit(a)}
-                        style={[
-                          s.accessoryBtn,
-                          editSnappyOutfit === a && s.accessoryBtnActive,
-                        ]}
-                      >
-                        <Text style={s.accessoryEmoji}>{a}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
+                  );
+                })}
 
                 <View
                   style={{
@@ -772,6 +815,7 @@ export default function ProfileScreen() {
                 color={snappyColor}
                 bg={snappyBg}
                 hat={snappyHat}
+                glasses={snappyGlasses}
                 outfit={snappyOutfit}
                 size={110}
               />
@@ -879,6 +923,7 @@ export default function ProfileScreen() {
           <SnappyCharacter
             color={SNAPPY_COLORS[0]}
             hat=""
+            glasses=""
             outfit=""
             size={72}
           />
@@ -1293,13 +1338,6 @@ const s = StyleSheet.create({
     color: colors.foreground,
     letterSpacing: 0.2,
   },
-  accessoryCategoryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.mutedForeground,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
   slotHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1310,20 +1348,34 @@ const s = StyleSheet.create({
     fontWeight: "600",
     color: colors.destructive,
   },
-  accessoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  accessoryBtn: {
-    width: 48,
-    height: 48,
+  accessoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  accessoryCard: {
+    width: 78,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.card,
     alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    gap: 4,
   },
-  accessoryBtnActive: {
-    borderColor: colors.foreground,
+  accessoryCardActive: {
+    borderColor: colors.primary,
     borderWidth: 2.5,
+    backgroundColor: `${colors.primary}12`,
   },
-  accessoryEmoji: { fontSize: 22 },
+  accessoryPreview: {
+    width: 60,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  accessoryName: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+    textAlign: "center",
+  },
 });
