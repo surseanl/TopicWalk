@@ -32,58 +32,163 @@ import { validateUsername } from "../../lib/username-filter";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const AVATAR_COLORS = [
-  "#6366f1",
-  "#f43f5e",
-  "#f97316",
-  "#eab308",
-  "#22c55e",
-  "#06b6d4",
-  "#8b5cf6",
-  "#ec4899",
-];
-
 const SNAPPY_COLORS = [
   "#22c55e",
   "#16a34a",
   "#3b82f6",
+  "#60a5fa",
   "#f97316",
   "#f43f5e",
   "#8b5cf6",
   "#eab308",
   "#06b6d4",
+  "#ec4899",
+  "#64748b",
+  "#1e293b",
 ];
 
-const SNAPPY_ACCESSORIES = ["", "🎩", "😎", "⭐", "🎀", "👑", "🔥", "🐾"];
+const SNAPPY_BG_COLORS = [
+  "#dcfce7",
+  "#dbeafe",
+  "#ffedd5",
+  "#ede9fe",
+  "#fef9c3",
+  "#fce7f3",
+  "#cffafe",
+  "#ffe4e6",
+  "#f1f5f9",
+  "#fafafa",
+  "#fff7ed",
+  "#f0fdf4",
+];
+
+const SKINS = [
+  { name: "Forest", color: "#22c55e", bg: "#dcfce7", hat: "🐾", outfit: "" },
+  { name: "Ocean", color: "#3b82f6", bg: "#dbeafe", hat: "🕶️", outfit: "🧣" },
+  { name: "Flame", color: "#f97316", bg: "#ffedd5", hat: "", outfit: "🔥" },
+  { name: "Galaxy", color: "#8b5cf6", bg: "#ede9fe", hat: "⭐", outfit: "✨" },
+  { name: "Royal", color: "#eab308", bg: "#fef9c3", hat: "👑", outfit: "🦺" },
+  {
+    name: "Bubblegum",
+    color: "#ec4899",
+    bg: "#fce7f3",
+    hat: "🎀",
+    outfit: "🌸",
+  },
+  { name: "Arctic", color: "#06b6d4", bg: "#cffafe", hat: "⛑️", outfit: "🧥" },
+  { name: "Cherry", color: "#f43f5e", bg: "#ffe4e6", hat: "🎩", outfit: "🎽" },
+];
+
+const HAT_OPTIONS = ["🎩", "👑", "🎓", "⛑️", "🪖", "🤠", "🧢", "🎅", "🪄", "🏆"];
+const FACE_OPTIONS = ["😎", "🕶️", "🤓", "🥸"];
+const OUTFIT_OPTIONS = [
+  "🧣",
+  "🧥",
+  "🦺",
+  "👔",
+  "🎽",
+  "🥋",
+  "🩱",
+  "🎀",
+  "🌸",
+  "💎",
+  "🔥",
+  "⭐",
+  "✨",
+  "❄️",
+  "🐾",
+  "🦋",
+  "🌈",
+  "🎖️",
+];
+
+function parseAccessory(val: string): { hat: string; outfit: string } {
+  if (!val) return { hat: "", outfit: "" };
+  if (val.includes("|")) {
+    const [hat = "", outfit = ""] = val.split("|");
+    return { hat, outfit };
+  }
+  return { hat: val, outfit: "" };
+}
+
+function encodeAccessory(hat: string, outfit: string): string {
+  if (!hat && !outfit) return "";
+  return `${hat}|${outfit}`;
+}
 
 function SnappyCharacter({
   color,
-  accessory,
+  bg,
+  hat,
+  outfit,
   size = 120,
 }: {
   color: string;
-  accessory: string;
+  bg?: string;
+  hat: string;
+  outfit: string;
   size?: number;
 }) {
+  const circleSize = Math.round(size * 1.15);
+  const hatFontSize = Math.round(size * 0.42);
+  const outfitFontSize = Math.round(size * 0.32);
+  // Total height = circle + room for hat above
+  const hatOverhang = hat ? Math.round(size * 0.36) : 0;
+  const totalHeight = circleSize + hatOverhang;
+
   return (
-    <View style={{ alignItems: "center" }}>
-      {accessory ? (
+    <View
+      style={{ width: circleSize, height: totalHeight, alignItems: "center" }}
+    >
+      {/* Background circle + mascot, pinned to bottom */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          width: circleSize,
+          height: circleSize,
+          borderRadius: circleSize / 2,
+          backgroundColor: bg ?? "transparent",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "visible",
+        }}
+      >
+        <Image
+          source={require("../../assets/mascot.png")}
+          style={{ width: size, height: size, tintColor: color }}
+          resizeMode="contain"
+        />
+        {/* Outfit sits centered at lower-body area of the circle */}
+        {outfit ? (
+          <Text
+            style={{
+              position: "absolute",
+              bottom: Math.round(circleSize * 0.08),
+              fontSize: outfitFontSize,
+              textAlign: "center",
+              width: circleSize,
+            }}
+          >
+            {outfit}
+          </Text>
+        ) : null}
+      </View>
+      {/* Hat sits centered at top of circle */}
+      {hat ? (
         <Text
           style={{
-            fontSize: Math.round(size * 0.38),
-            lineHeight: Math.round(size * 0.44),
-            marginBottom: -Math.round(size * 0.08),
-            zIndex: 2,
+            position: "absolute",
+            top: 0,
+            width: circleSize,
+            textAlign: "center",
+            fontSize: hatFontSize,
+            lineHeight: hatFontSize * 1.05,
           }}
         >
-          {accessory}
+          {hat}
         </Text>
       ) : null}
-      <Image
-        source={require("../../assets/mascot.png")}
-        style={{ width: size, height: size, tintColor: color }}
-        resizeMode="contain"
-      />
     </View>
   );
 }
@@ -93,7 +198,7 @@ export default function ProfileScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
+  const [snappyBg, setSnappyBg] = useState(SNAPPY_BG_COLORS[0]);
   const [loading, setLoading] = useState(true);
 
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
@@ -114,13 +219,15 @@ export default function ProfileScreen() {
   const [setupSubmitting, setSetupSubmitting] = useState(false);
 
   const [snappyColor, setSnappyColor] = useState(SNAPPY_COLORS[0]);
-  const [snappyAccessory, setSnappyAccessory] = useState("");
+  const [snappyHat, setSnappyHat] = useState("");
+  const [snappyOutfit, setSnappyOutfit] = useState("");
 
   const [showEdit, setShowEdit] = useState(false);
   const [editBio, setEditBio] = useState("");
-  const [editColor, setEditColor] = useState(AVATAR_COLORS[0]);
+  const [editSnappyBg, setEditSnappyBg] = useState(SNAPPY_BG_COLORS[0]);
   const [editSnappyColor, setEditSnappyColor] = useState(SNAPPY_COLORS[0]);
-  const [editSnappyAccessory, setEditSnappyAccessory] = useState("");
+  const [editSnappyHat, setEditSnappyHat] = useState("");
+  const [editSnappyOutfit, setEditSnappyOutfit] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
@@ -150,9 +257,11 @@ export default function ProfileScreen() {
     if (data?.username) {
       setUsername(data.username);
       setBio(data.bio ?? "");
-      setAvatarColor(data.avatar_color ?? AVATAR_COLORS[0]);
+      setSnappyBg(data.avatar_color ?? SNAPPY_BG_COLORS[0]);
       setSnappyColor(data.snappy_color ?? SNAPPY_COLORS[0]);
-      setSnappyAccessory(data.snappy_accessory ?? "");
+      const { hat, outfit } = parseAccessory(data.snappy_accessory ?? "");
+      setSnappyHat(hat);
+      setSnappyOutfit(outfit);
       setNeedsUsername(false);
     } else {
       setNeedsUsername(true);
@@ -327,32 +436,30 @@ export default function ProfileScreen() {
   async function handleSaveProfile() {
     if (!session?.user) return;
     setEditSaving(true);
-    // Base fields always exist
-    await supabase
-      .from("tw_users")
-      .update({ bio: editBio.trim(), avatar_color: editColor })
-      .eq("id", session.user.id);
-    // Snappy fields — safe-ignore error if migration not yet applied
     await supabase
       .from("tw_users")
       .update({
+        bio: editBio.trim(),
+        avatar_color: editSnappyBg,
         snappy_color: editSnappyColor,
-        snappy_accessory: editSnappyAccessory,
+        snappy_accessory: encodeAccessory(editSnappyHat, editSnappyOutfit),
       })
       .eq("id", session.user.id);
     setBio(editBio.trim());
-    setAvatarColor(editColor);
+    setSnappyBg(editSnappyBg);
     setSnappyColor(editSnappyColor);
-    setSnappyAccessory(editSnappyAccessory);
+    setSnappyHat(editSnappyHat);
+    setSnappyOutfit(editSnappyOutfit);
     setShowEdit(false);
     setEditSaving(false);
   }
 
   function openEdit() {
     setEditBio(bio);
-    setEditColor(avatarColor);
+    setEditSnappyBg(snappyBg);
     setEditSnappyColor(snappyColor);
-    setEditSnappyAccessory(snappyAccessory);
+    setEditSnappyHat(snappyHat);
+    setEditSnappyOutfit(snappyOutfit);
     setShowEdit(true);
   }
 
@@ -423,7 +530,6 @@ export default function ProfileScreen() {
 
   // ── Logged-in profile ──────────────────────────────────────────────────────
   if (session?.user) {
-    const initial = (username || "?")[0].toUpperCase();
     return (
       <SafeAreaView edges={["bottom"]} style={s.safe}>
         {/* Edit Profile modal */}
@@ -451,68 +557,64 @@ export default function ProfileScreen() {
                 contentContainerStyle={{ padding: 20, gap: 24 }}
                 keyboardShouldPersistTaps="handled"
               >
-                {/* Avatar preview */}
-                <View style={{ alignItems: "center", gap: 12 }}>
-                  <View style={[s.bigAvatar, { backgroundColor: editColor }]}>
-                    <Text style={s.bigAvatarText}>{initial}</Text>
-                  </View>
-                </View>
-
-                {/* Color picker */}
-                <View style={{ gap: 10 }}>
-                  <Text style={s.fieldLabel}>Avatar color</Text>
-                  <View style={s.colorRow}>
-                    {AVATAR_COLORS.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => setEditColor(c)}
-                        style={[
-                          s.colorSwatch,
-                          { backgroundColor: c },
-                          editColor === c && s.colorSwatchSelected,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                </View>
-
-                {/* Bio */}
-                <View style={{ gap: 10 }}>
-                  <View style={s.fieldLabelRow}>
-                    <Text style={s.fieldLabel}>Bio</Text>
-                    <Text style={s.charCount}>{editBio.length}/100</Text>
-                  </View>
-                  <TextInput
-                    value={editBio}
-                    onChangeText={setEditBio}
-                    placeholder="Tell friends something about yourself…"
-                    placeholderTextColor={colors.mutedForeground}
-                    multiline
-                    maxLength={100}
-                    style={s.bioInput}
+                {/* Live preview */}
+                <View style={{ alignItems: "center", paddingVertical: 8 }}>
+                  <SnappyCharacter
+                    color={editSnappyColor}
+                    bg={editSnappyBg}
+                    hat={editSnappyHat}
+                    outfit={editSnappyOutfit}
+                    size={130}
                   />
                 </View>
 
-                {/* Snappy the Mascot */}
+                {/* Skin presets */}
+                <View style={{ gap: 10 }}>
+                  <Text style={s.fieldLabel}>Skins</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
+                  >
+                    {SKINS.map((skin) => {
+                      const active =
+                        editSnappyColor === skin.color &&
+                        editSnappyBg === skin.bg &&
+                        editSnappyHat === skin.hat &&
+                        editSnappyOutfit === skin.outfit;
+                      return (
+                        <TouchableOpacity
+                          key={skin.name}
+                          onPress={() => {
+                            setEditSnappyColor(skin.color);
+                            setEditSnappyBg(skin.bg);
+                            setEditSnappyHat(skin.hat);
+                            setEditSnappyOutfit(skin.outfit);
+                          }}
+                          style={[s.skinCard, active && s.skinCardActive]}
+                        >
+                          <SnappyCharacter
+                            color={skin.color}
+                            bg={skin.bg}
+                            hat={skin.hat}
+                            outfit={skin.outfit}
+                            size={48}
+                          />
+                          <Text style={s.skinName}>{skin.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
                 <View
                   style={{
                     height: StyleSheet.hairlineWidth,
                     backgroundColor: colors.border,
                   }}
                 />
-                <Text style={s.snappySectionHeader}>
-                  Snappy — your hunt mascot
-                </Text>
 
-                {/* Live character preview */}
-                <View style={{ alignItems: "center", paddingVertical: 8 }}>
-                  <SnappyCharacter
-                    color={editSnappyColor}
-                    accessory={editSnappyAccessory}
-                    size={130}
-                  />
-                </View>
-
+                {/* Mascot color */}
                 <View style={{ gap: 10 }}>
                   <Text style={s.fieldLabel}>Color</Text>
                   <View style={s.colorRow}>
@@ -530,22 +632,122 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
+                {/* Background color */}
                 <View style={{ gap: 10 }}>
-                  <Text style={s.fieldLabel}>Accessory</Text>
-                  <View style={s.accessoryRow}>
-                    {SNAPPY_ACCESSORIES.map((a) => (
+                  <Text style={s.fieldLabel}>Background</Text>
+                  <View style={s.colorRow}>
+                    {SNAPPY_BG_COLORS.map((c) => (
                       <TouchableOpacity
-                        key={a || "none"}
-                        onPress={() => setEditSnappyAccessory(a)}
+                        key={c}
+                        onPress={() => setEditSnappyBg(c)}
+                        style={[
+                          s.colorSwatch,
+                          {
+                            backgroundColor: c,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                          },
+                          editSnappyBg === c && s.colorSwatchSelected,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Hat slot */}
+                <View style={{ gap: 10 }}>
+                  <View style={s.slotHeaderRow}>
+                    <Text style={s.fieldLabel}>Hat</Text>
+                    {editSnappyHat ? (
+                      <TouchableOpacity onPress={() => setEditSnappyHat("")}>
+                        <Text style={s.slotClearBtn}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <View style={{ gap: 8 }}>
+                    <Text style={s.accessoryCategoryLabel}>
+                      Hats & Headwear
+                    </Text>
+                    <View style={s.accessoryRow}>
+                      {HAT_OPTIONS.map((a) => (
+                        <TouchableOpacity
+                          key={a}
+                          onPress={() => setEditSnappyHat(a)}
+                          style={[
+                            s.accessoryBtn,
+                            editSnappyHat === a && s.accessoryBtnActive,
+                          ]}
+                        >
+                          <Text style={s.accessoryEmoji}>{a}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={s.accessoryCategoryLabel}>Glasses</Text>
+                    <View style={s.accessoryRow}>
+                      {FACE_OPTIONS.map((a) => (
+                        <TouchableOpacity
+                          key={a}
+                          onPress={() => setEditSnappyHat(a)}
+                          style={[
+                            s.accessoryBtn,
+                            editSnappyHat === a && s.accessoryBtnActive,
+                          ]}
+                        >
+                          <Text style={s.accessoryEmoji}>{a}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Outfit slot */}
+                <View style={{ gap: 10 }}>
+                  <View style={s.slotHeaderRow}>
+                    <Text style={s.fieldLabel}>Outfit</Text>
+                    {editSnappyOutfit ? (
+                      <TouchableOpacity onPress={() => setEditSnappyOutfit("")}>
+                        <Text style={s.slotClearBtn}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <View style={s.accessoryRow}>
+                    {OUTFIT_OPTIONS.map((a) => (
+                      <TouchableOpacity
+                        key={a}
+                        onPress={() => setEditSnappyOutfit(a)}
                         style={[
                           s.accessoryBtn,
-                          editSnappyAccessory === a && s.accessoryBtnActive,
+                          editSnappyOutfit === a && s.accessoryBtnActive,
                         ]}
                       >
-                        <Text style={s.accessoryEmoji}>{a || "✕"}</Text>
+                        <Text style={s.accessoryEmoji}>{a}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
+                </View>
+
+                <View
+                  style={{
+                    height: StyleSheet.hairlineWidth,
+                    backgroundColor: colors.border,
+                  }}
+                />
+
+                {/* Bio */}
+                <View style={{ gap: 10 }}>
+                  <View style={s.fieldLabelRow}>
+                    <Text style={s.fieldLabel}>Bio</Text>
+                    <Text style={s.charCount}>{editBio.length}/100</Text>
+                  </View>
+                  <TextInput
+                    value={editBio}
+                    onChangeText={setEditBio}
+                    placeholder="Tell friends something about yourself…"
+                    placeholderTextColor={colors.mutedForeground}
+                    multiline
+                    maxLength={100}
+                    style={s.bioInput}
+                  />
                 </View>
 
                 <TouchableOpacity
@@ -566,12 +768,15 @@ export default function ProfileScreen() {
           {/* Hero */}
           <View style={s.hero}>
             <TouchableOpacity onPress={openEdit} activeOpacity={0.85}>
-              <View style={[s.bigAvatar, { backgroundColor: avatarColor }]}>
-                <Text style={s.bigAvatarText}>{initial}</Text>
-              </View>
+              <SnappyCharacter
+                color={snappyColor}
+                bg={snappyBg}
+                hat={snappyHat}
+                outfit={snappyOutfit}
+                size={110}
+              />
             </TouchableOpacity>
             <Text style={s.heroUsername}>@{username}</Text>
-            <Text style={s.muted}>{session.user.email}</Text>
             {bio ? (
               <Text style={s.heroBio}>{bio}</Text>
             ) : (
@@ -586,26 +791,6 @@ export default function ProfileScreen() {
               <Text style={s.editBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Snappy */}
-          <TouchableOpacity
-            onPress={openEdit}
-            style={s.snappyCard}
-            activeOpacity={0.8}
-          >
-            <SnappyCharacter
-              color={snappyColor}
-              accessory={snappyAccessory}
-              size={48}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={s.snappyCardTitle}>Snappy</Text>
-              <Text style={s.snappyCardSub}>
-                Your hunt mascot · tap to customize
-              </Text>
-            </View>
-            <Pencil size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
 
           {/* Menu */}
           <View style={s.menuCard}>
@@ -626,12 +811,24 @@ export default function ProfileScreen() {
             )}
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/friends")}
-              style={s.menuRow}
+              style={[
+                s.menuRow,
+                { borderBottomWidth: 1, borderBottomColor: colors.border },
+              ]}
             >
               <View style={[s.menuIcon, { backgroundColor: "#ede9fe" }]}>
                 <Users size={16} color="#7c3aed" />
               </View>
               <Text style={[s.menuLabel, { flex: 1 }]}>Friends</Text>
+              <ChevronRight size={16} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openEdit} style={s.menuRow}>
+              <View style={[s.menuIcon, { backgroundColor: "#dcfce7" }]}>
+                <Pencil size={16} color="#16a34a" />
+              </View>
+              <Text style={[s.menuLabel, { flex: 1 }]}>
+                Edit Profile & Mascot
+              </Text>
               <ChevronRight size={16} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
@@ -677,6 +874,18 @@ export default function ProfileScreen() {
         contentContainerStyle={s.authContent}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Brand header */}
+        <View style={s.authBrand}>
+          <SnappyCharacter
+            color={SNAPPY_COLORS[0]}
+            hat=""
+            outfit=""
+            size={72}
+          />
+          <Text style={s.authBrandTitle}>TopicWalk</Text>
+          <Text style={s.authBrandSub}>Walk. Discover. Hunt.</Text>
+        </View>
+
         {/* Tab switcher */}
         <View style={s.tabRow}>
           <TouchableOpacity
@@ -804,9 +1013,26 @@ const s = StyleSheet.create({
   },
   authContent: {
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 24,
     paddingBottom: 48,
     gap: 14,
+  },
+  authBrand: {
+    alignItems: "center",
+    gap: 4,
+    paddingBottom: 12,
+  },
+  authBrandTitle: {
+    fontSize: 26,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+    color: colors.foreground,
+    marginTop: 4,
+  },
+  authBrandSub: {
+    fontSize: 14,
+    color: colors.mutedForeground,
+    fontWeight: "500",
   },
 
   muted: { fontSize: 14, color: colors.mutedForeground },
@@ -926,7 +1152,8 @@ const s = StyleSheet.create({
   hero: {
     alignItems: "center",
     gap: 6,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   bigAvatar: {
     width: 88,
@@ -1045,30 +1272,43 @@ const s = StyleSheet.create({
     textAlignVertical: "top",
   },
 
-  // ── Snappy ─────────────────────────────────────────────────────────────────
-  snappyCard: {
+  // ── Snappy edit modal ──────────────────────────────────────────────────────
+  skinCard: {
+    alignItems: "center",
+    gap: 6,
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    minWidth: 80,
+  },
+  skinCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  skinName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: 0.2,
+  },
+  accessoryCategoryLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.mutedForeground,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  slotHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    justifyContent: "space-between",
   },
-  snappyCardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  snappyCardSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 2 },
-
-  // ── Snappy edit modal ──────────────────────────────────────────────────────
-  snappySectionHeader: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.foreground,
+  slotClearBtn: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.destructive,
   },
   accessoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   accessoryBtn: {
