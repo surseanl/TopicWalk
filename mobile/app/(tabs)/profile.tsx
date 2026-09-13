@@ -147,6 +147,13 @@ const HAT_ASPECT: Record<string, number> = {
   hat_crown: 0.7,
   hat_santa: 0.85,
   hat_wizard: 0.92,
+  hat_beret: 0.62,
+  hat_bear: 0.85,
+  hat_catears: 0.52,
+  hat_trucker: 0.68,
+  hat_jester: 0.92,
+  hat_top: 0.95,
+  hat_party: 1.0,
 };
 
 function SnappyCharacter({
