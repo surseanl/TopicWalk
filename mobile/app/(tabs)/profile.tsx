@@ -966,7 +966,7 @@ export default function ProfileScreen() {
                 bottom={snappyBottom}
                 shoes={snappyShoes}
                 bag={snappyBag}
-                size={110}
+                size={180}
               />
             </TouchableOpacity>
             <Text style={s.heroUsername}>@{username}</Text>
@@ -1348,9 +1348,9 @@ const s = StyleSheet.create({
   // ── Logged-in hero ─────────────────────────────────────────────────────────
   hero: {
     alignItems: "center",
-    gap: 6,
-    paddingTop: 8,
-    paddingBottom: 12,
+    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   bigAvatar: {
     width: 88,
