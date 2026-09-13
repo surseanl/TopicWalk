@@ -227,14 +227,14 @@ function SnappyCharacter({
 
   // Mascot anatomy fractions (from image top):
   //   camera top   ~0.15   hat brim lands here
-  //   face center  ~0.38   glasses go here
-  //   lower body   ~0.50   shirt goes here
-  //   leg top      ~0.64   pants start here
+  //   face center  ~0.38   glasses center goes here → SVG top ~0.29
+  //   camera bottom ~0.63  shirt SVG starts ~0.52 so collar lands here
+  //   leg top      ~0.63   pants waistband starts here
   //   foot top     ~0.80   shoes start here
-  const glassesW = Math.round(size * 0.55);
-  const outfitW = Math.round(size * 0.72);
-  const bottomW = Math.round(size * 0.44);
-  const shoesW = Math.round(size * 0.44);
+  const glassesW = Math.round(size * 0.6); // spans the lens circle width
+  const outfitW = Math.round(size * 0.8); // wider than legs, fills camera body width
+  const bottomW = Math.round(size * 0.44); // matches leg span (two legs + gap)
+  const shoesW = Math.round(size * 0.44); // matches foot span
   const bagW = Math.round(size * 0.38);
 
   return (
@@ -298,12 +298,12 @@ function SnappyCharacter({
           <ShoesComp size={shoesW} uid={`${shoes}_main`} />
         </View>
       ) : null}
-      {/* Outfit/shirt — overlays lower camera body */}
+      {/* Outfit/shirt — collar lands at camera body bottom */}
       {OutfitComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.49),
+            top: imgTop + Math.round(size * 0.52),
             alignItems: "center",
           }}
         >
