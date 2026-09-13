@@ -207,44 +207,65 @@ function SnappyCharacter({
   size?: number;
 }) {
   const circleSize = Math.round(size * 1.15);
-  const hatSvgW = Math.round(circleSize * 0.88);
+  const hatSvgW = Math.round(size * 0.88);
   const hatSvgH = hat ? Math.round(hatSvgW * (HAT_ASPECT[hat] ?? 0.75)) : 0;
   const hatOverhang = hat
     ? Math.max(0, hatSvgH - Math.round(circleSize * 0.18))
     : 0;
-
-  const BottomComp = bottom ? ACCESSORY_MAP[bottom] : null;
-  const ShoesComp = shoes ? ACCESSORY_MAP[shoes] : null;
-  const BagComp = bag ? ACCESSORY_MAP[bag] : null;
-  const belowH = BottomComp || ShoesComp ? Math.round(circleSize * 0.36) : 0;
-  const totalHeight = circleSize + hatOverhang + belowH;
+  const totalHeight = circleSize + hatOverhang;
 
   const HatComp = hat ? ACCESSORY_MAP[hat] : null;
   const GlassesComp = glasses ? ACCESSORY_MAP[glasses] : null;
   const OutfitComp = outfit ? ACCESSORY_MAP[outfit] : null;
+  const BottomComp = bottom ? ACCESSORY_MAP[bottom] : null;
+  const ShoesComp = shoes ? ACCESSORY_MAP[shoes] : null;
+  const BagComp = bag ? ACCESSORY_MAP[bag] : null;
 
-  const glassesW = Math.round(circleSize * 0.9);
-  const outfitW = Math.round(circleSize * 0.9);
-  const bottomW = Math.round(circleSize * 0.82);
-  const shoesW = Math.round(circleSize * 0.78);
-  const bagW = Math.round(circleSize * 0.44);
+  // Top of the mascot image within the container
+  // (hat overhang space + half of (circle - image) centering offset)
+  const imgTop = hatOverhang + Math.round((circleSize - size) / 2);
+
+  // Mascot anatomy fractions (from image top):
+  //   camera top   ~0.15   hat brim lands here
+  //   face center  ~0.38   glasses go here
+  //   lower body   ~0.50   shirt goes here
+  //   leg top      ~0.64   pants start here
+  //   foot top     ~0.80   shoes start here
+  const glassesW = Math.round(size * 0.55);
+  const outfitW = Math.round(size * 0.72);
+  const bottomW = Math.round(size * 0.44);
+  const shoesW = Math.round(size * 0.44);
+  const bagW = Math.round(size * 0.38);
 
   return (
     <View
-      style={{ width: circleSize, height: totalHeight, alignItems: "center" }}
+      style={{
+        width: circleSize,
+        height: totalHeight,
+        alignItems: "center",
+        overflow: "visible",
+      }}
     >
-      {/* Background circle + mascot */}
+      {/* Background circle */}
       <View
         style={{
           position: "absolute",
-          bottom: belowH,
+          top: hatOverhang,
           width: circleSize,
           height: circleSize,
           borderRadius: circleSize / 2,
           backgroundColor: bg ?? "transparent",
+        }}
+      />
+      {/* Mascot image */}
+      <View
+        style={{
+          position: "absolute",
+          top: imgTop,
+          width: size,
+          height: size,
           alignItems: "center",
           justifyContent: "center",
-          overflow: "visible",
         }}
       >
         <Image
@@ -252,44 +273,68 @@ function SnappyCharacter({
           style={{ width: size, height: size, tintColor: color }}
           resizeMode="contain"
         />
-        {/* Glasses over face area */}
-        {GlassesComp ? (
-          <View
-            style={{
-              position: "absolute",
-              top: Math.round(circleSize * 0.26),
-              alignItems: "center",
-            }}
-          >
-            <GlassesComp size={glassesW} uid={`${glasses}_main`} />
-          </View>
-        ) : null}
-        {/* Outfit at lower body */}
-        {OutfitComp ? (
-          <View
-            style={{
-              position: "absolute",
-              bottom: Math.round(circleSize * 0.04),
-              alignItems: "center",
-            }}
-          >
-            <OutfitComp size={outfitW} uid={`${outfit}_main`} />
-          </View>
-        ) : null}
-        {/* Bag on right side of body */}
-        {BagComp ? (
-          <View
-            style={{
-              position: "absolute",
-              right: -Math.round(bagW * 0.25),
-              bottom: Math.round(circleSize * 0.06),
-            }}
-          >
-            <BagComp size={bagW} uid={`${bag}_main`} />
-          </View>
-        ) : null}
       </View>
-      {/* Hat above circle */}
+      {/* Pants/Bottom — overlays leg area */}
+      {BottomComp ? (
+        <View
+          style={{
+            position: "absolute",
+            top: imgTop + Math.round(size * 0.62),
+            alignItems: "center",
+          }}
+        >
+          <BottomComp size={bottomW} uid={`${bottom}_main`} />
+        </View>
+      ) : null}
+      {/* Shoes — overlays feet */}
+      {ShoesComp ? (
+        <View
+          style={{
+            position: "absolute",
+            top: imgTop + Math.round(size * 0.79),
+            alignItems: "center",
+          }}
+        >
+          <ShoesComp size={shoesW} uid={`${shoes}_main`} />
+        </View>
+      ) : null}
+      {/* Outfit/shirt — overlays lower camera body */}
+      {OutfitComp ? (
+        <View
+          style={{
+            position: "absolute",
+            top: imgTop + Math.round(size * 0.49),
+            alignItems: "center",
+          }}
+        >
+          <OutfitComp size={outfitW} uid={`${outfit}_main`} />
+        </View>
+      ) : null}
+      {/* Glasses — overlays face/lens */}
+      {GlassesComp ? (
+        <View
+          style={{
+            position: "absolute",
+            top: imgTop + Math.round(size * 0.29),
+            alignItems: "center",
+          }}
+        >
+          <GlassesComp size={glassesW} uid={`${glasses}_main`} />
+        </View>
+      ) : null}
+      {/* Bag — hangs from right side of body */}
+      {BagComp ? (
+        <View
+          style={{
+            position: "absolute",
+            right: -Math.round(bagW * 0.15),
+            top: imgTop + Math.round(size * 0.42),
+          }}
+        >
+          <BagComp size={bagW} uid={`${bag}_main`} />
+        </View>
+      ) : null}
+      {/* Hat — sits above camera */}
       {HatComp ? (
         <View
           style={{
@@ -300,32 +345,6 @@ function SnappyCharacter({
           }}
         >
           <HatComp size={hatSvgW} uid={`${hat}_main`} />
-        </View>
-      ) : null}
-      {/* Bottom (pants/skirt) below circle */}
-      {BottomComp ? (
-        <View
-          style={{
-            position: "absolute",
-            bottom: ShoesComp
-              ? Math.round(belowH * 0.38)
-              : Math.round(belowH * 0.08),
-            alignItems: "center",
-          }}
-        >
-          <BottomComp size={bottomW} uid={`${bottom}_main`} />
-        </View>
-      ) : null}
-      {/* Shoes at very bottom */}
-      {ShoesComp ? (
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            alignItems: "center",
-          }}
-        >
-          <ShoesComp size={shoesW} uid={`${shoes}_main`} />
         </View>
       ) : null}
     </View>
