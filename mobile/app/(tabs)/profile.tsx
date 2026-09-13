@@ -472,7 +472,7 @@ export default function ProfileScreen() {
         <View
           style={[
             s.bigAvatar,
-            { backgroundColor: AVATAR_COLORS[0], marginBottom: 20 },
+            { backgroundColor: SNAPPY_BG_COLORS[0], marginBottom: 20 },
           ]}
         >
           <Text style={s.bigAvatarText}>?</Text>
