@@ -274,48 +274,48 @@ function SnappyCharacter({
           resizeMode="contain"
         />
       </View>
-      {/* Pants/Bottom — overlays leg area */}
+      {/* Pants/Bottom — waistband at camera body bottom (66%) */}
       {BottomComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.62),
+            top: imgTop + Math.round(size * 0.64),
             alignItems: "center",
           }}
         >
           <BottomComp size={bottomW} uid={`${bottom}_main`} />
         </View>
       ) : null}
-      {/* Shoes — overlays feet */}
+      {/* Shoes — sole bottom lands at foot bottom (91%) */}
       {ShoesComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.79),
+            top: imgTop + Math.round(size * 0.77),
             alignItems: "center",
           }}
         >
           <ShoesComp size={shoesW} uid={`${shoes}_main`} />
         </View>
       ) : null}
-      {/* Outfit/shirt — collar lands at camera body bottom */}
+      {/* Outfit/shirt — collar (19% into TShirt SVG) lands at camera bottom (66%) */}
       {OutfitComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.52),
+            top: imgTop + Math.round(size * 0.55),
             alignItems: "center",
           }}
         >
           <OutfitComp size={outfitW} uid={`${outfit}_main`} />
         </View>
       ) : null}
-      {/* Glasses — overlays face/lens */}
+      {/* Glasses — lens center (45% into SVG) lands at face center (42%) */}
       {GlassesComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.29),
+            top: imgTop + Math.round(size * 0.32),
             alignItems: "center",
           }}
         >
