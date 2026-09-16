@@ -69,6 +69,15 @@ const SNAPPY_BG_COLORS = [
   "#f0fdf4",
 ];
 
+const CAT_ICON: Record<string, string> = {
+  hat: "🧢",
+  glasses: "🕶️",
+  outfit: "👕",
+  bottom: "👖",
+  shoes: "👟",
+  bag: "🎒",
+};
+
 const SKINS: Array<
   { name: string; color: string; bg: string } & AccessorySlots
 > = [
@@ -390,6 +399,7 @@ export default function ProfileScreen() {
   const [snappyBag, setSnappyBag] = useState("");
 
   const [showEdit, setShowEdit] = useState(false);
+  const [skinIdx, setSkinIdx] = useState(0);
   const [editBio, setEditBio] = useState("");
   const [editSnappyBg, setEditSnappyBg] = useState(SNAPPY_BG_COLORS[0]);
   const [editSnappyColor, setEditSnappyColor] = useState(SNAPPY_COLORS[0]);
@@ -726,138 +736,170 @@ export default function ProfileScreen() {
         <Modal
           visible={showEdit}
           animationType="slide"
-          presentationStyle="pageSheet"
+          presentationStyle="fullScreen"
           onRequestClose={() => setShowEdit(false)}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={{ flex: 1 }}
           >
-            <SafeAreaView style={[s.safe, { flex: 1 }]}>
-              <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>Edit Profile</Text>
+            <SafeAreaView
+              edges={["top", "bottom"]}
+              style={{ flex: 1, backgroundColor: "#dbeafe" }}
+            >
+              {/* Header */}
+              <View style={ac.header}>
                 <TouchableOpacity
                   onPress={() => setShowEdit(false)}
-                  style={s.closeBtn}
+                  style={ac.headerBtn}
                 >
-                  <Text style={s.closeBtnText}>Cancel</Text>
+                  <Text style={ac.headerBtnCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={ac.headerTitle}>✏️ Edit Snappy</Text>
+                <TouchableOpacity
+                  onPress={handleSaveProfile}
+                  disabled={editSaving}
+                  style={[ac.headerBtn, editSaving && { opacity: 0.5 }]}
+                >
+                  <Text style={ac.headerBtnSave}>
+                    {editSaving ? "Saving…" : "Save"}
+                  </Text>
                 </TouchableOpacity>
               </View>
+
               <ScrollView
-                contentContainerStyle={{ padding: 20, gap: 24 }}
+                showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 40 }}
               >
-                {/* Live preview */}
-                <View style={{ alignItems: "center", paddingVertical: 8 }}>
-                  <SnappyCharacter
-                    color={editSnappyColor}
-                    bg={editSnappyBg}
-                    hat={editSnappyHat}
-                    glasses={editSnappyGlasses}
-                    outfit={editSnappyOutfit}
-                    bottom={editSnappyBottom}
-                    shoes={editSnappyShoes}
-                    bag={editSnappyBag}
-                    size={130}
-                  />
+                {/* Character preview */}
+                <View style={ac.previewSection}>
+                  <View style={ac.previewCard}>
+                    <SnappyCharacter
+                      color={editSnappyColor}
+                      bg={editSnappyBg}
+                      hat={editSnappyHat}
+                      glasses={editSnappyGlasses}
+                      outfit={editSnappyOutfit}
+                      bottom={editSnappyBottom}
+                      shoes={editSnappyShoes}
+                      bag={editSnappyBag}
+                      size={160}
+                    />
+                  </View>
+                  <View style={ac.lookNav}>
+                    <TouchableOpacity
+                      style={ac.lookArrow}
+                      onPress={() => {
+                        const ni =
+                          skinIdx <= 0 ? SKINS.length - 1 : skinIdx - 1;
+                        setSkinIdx(ni);
+                        const sk = SKINS[ni];
+                        setEditSnappyBg(sk.bg);
+                        setEditSnappyHat(sk.hat);
+                        setEditSnappyGlasses(sk.glasses);
+                        setEditSnappyOutfit(sk.outfit);
+                        setEditSnappyBottom(sk.bottom);
+                        setEditSnappyShoes(sk.shoes);
+                        setEditSnappyBag(sk.bag);
+                      }}
+                    >
+                      <Text style={ac.lookArrowText}>◀</Text>
+                    </TouchableOpacity>
+                    <Text style={ac.lookLabel}>CURRENT LOOK</Text>
+                    <TouchableOpacity
+                      style={ac.lookArrow}
+                      onPress={() => {
+                        const ni = (skinIdx + 1) % SKINS.length;
+                        setSkinIdx(ni);
+                        const sk = SKINS[ni];
+                        setEditSnappyBg(sk.bg);
+                        setEditSnappyHat(sk.hat);
+                        setEditSnappyGlasses(sk.glasses);
+                        setEditSnappyOutfit(sk.outfit);
+                        setEditSnappyBottom(sk.bottom);
+                        setEditSnappyShoes(sk.shoes);
+                        setEditSnappyBag(sk.bag);
+                      }}
+                    >
+                      <Text style={ac.lookArrowText}>▶</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                {/* Skin presets */}
-                <View style={{ gap: 10 }}>
-                  <Text style={s.fieldLabel}>Skins</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
-                  >
-                    {SKINS.map((skin) => {
-                      const active =
-                        editSnappyColor === skin.color &&
-                        editSnappyBg === skin.bg &&
-                        editSnappyHat === skin.hat &&
-                        editSnappyGlasses === skin.glasses &&
-                        editSnappyOutfit === skin.outfit;
-                      return (
-                        <TouchableOpacity
-                          key={skin.name}
-                          onPress={() => {
-                            setEditSnappyColor(skin.color);
-                            setEditSnappyBg(skin.bg);
-                            setEditSnappyHat(skin.hat);
-                            setEditSnappyGlasses(skin.glasses);
-                            setEditSnappyOutfit(skin.outfit);
-                            setEditSnappyBottom(skin.bottom);
-                            setEditSnappyShoes(skin.shoes);
-                            setEditSnappyBag(skin.bag);
-                          }}
-                          style={[s.skinCard, active && s.skinCardActive]}
-                        >
-                          <SnappyCharacter
-                            color={skin.color}
-                            bg={skin.bg}
-                            hat={skin.hat}
-                            glasses={skin.glasses}
-                            outfit={skin.outfit}
-                            bottom=""
-                            shoes=""
-                            bag=""
-                            size={48}
-                          />
-                          <Text style={s.skinName}>{skin.name}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                <View
-                  style={{
-                    height: StyleSheet.hairlineWidth,
-                    backgroundColor: colors.border,
-                  }}
-                />
-
-                {/* Mascot color */}
-                <View style={{ gap: 10 }}>
-                  <Text style={s.fieldLabel}>Color</Text>
-                  <View style={s.colorRow}>
-                    {SNAPPY_COLORS.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => setEditSnappyColor(c)}
-                        style={[
-                          s.colorSwatch,
-                          { backgroundColor: c },
-                          editSnappyColor === c && s.colorSwatchSelected,
-                        ]}
-                      />
-                    ))}
+                {/* Quick actions */}
+                <View style={ac.panel}>
+                  <Text style={ac.panelLabel}>QUICK ACTIONS</Text>
+                  <View style={ac.quickGrid}>
+                    <TouchableOpacity
+                      style={ac.quickBtn}
+                      onPress={() => {
+                        const bySlot = Object.fromEntries(
+                          ACCESSORY_CATEGORIES.map((c) => [c.slot, c.items]),
+                        );
+                        const pick = (
+                          items: (typeof bySlot)[keyof typeof bySlot],
+                        ) => items[Math.floor(Math.random() * items.length)].id;
+                        setEditSnappyHat(pick(bySlot.hat));
+                        setEditSnappyGlasses(pick(bySlot.glasses));
+                        setEditSnappyOutfit(pick(bySlot.outfit));
+                        setEditSnappyBottom(pick(bySlot.bottom));
+                        setEditSnappyShoes(pick(bySlot.shoes));
+                        setEditSnappyBag(pick(bySlot.bag));
+                        setEditSnappyBg(
+                          SNAPPY_BG_COLORS[
+                            Math.floor(Math.random() * SNAPPY_BG_COLORS.length)
+                          ],
+                        );
+                      }}
+                    >
+                      <Text style={ac.quickIcon}>🎲</Text>
+                      <Text style={ac.quickText}>Random Outfit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={ac.quickBtn}
+                      onPress={() => {
+                        setEditSnappyHat("");
+                        setEditSnappyGlasses("");
+                        setEditSnappyOutfit("");
+                        setEditSnappyBottom("");
+                        setEditSnappyShoes("");
+                        setEditSnappyBag("");
+                      }}
+                    >
+                      <Text style={ac.quickIcon}>🗑️</Text>
+                      <Text style={ac.quickText}>Clear All</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Background color */}
-                <View style={{ gap: 10 }}>
-                  <Text style={s.fieldLabel}>Background</Text>
-                  <View style={s.colorRow}>
-                    {SNAPPY_BG_COLORS.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => setEditSnappyBg(c)}
-                        style={[
-                          s.colorSwatch,
-                          {
-                            backgroundColor: c,
-                            borderWidth: 1,
-                            borderColor: colors.border,
-                          },
-                          editSnappyBg === c && s.colorSwatchSelected,
-                        ]}
-                      />
-                    ))}
-                  </View>
+                <View style={ac.panel}>
+                  <Text style={ac.panelLabel}>BACKGROUND</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: 10,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      {SNAPPY_BG_COLORS.map((c) => (
+                        <TouchableOpacity
+                          key={c}
+                          onPress={() => setEditSnappyBg(c)}
+                          style={[
+                            ac.bgSwatch,
+                            { backgroundColor: c },
+                            editSnappyBg === c && ac.bgSwatchActive,
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
                 </View>
 
-                {/* Accessory slots */}
+                {/* Accessory category rows */}
                 {ACCESSORY_CATEGORIES.map((cat) => {
                   const currentVal =
                     cat.slot === "hat"
@@ -883,52 +925,53 @@ export default function ProfileScreen() {
                             : cat.slot === "bag"
                               ? setEditSnappyBag
                               : setEditSnappyOutfit;
+                  const icon = CAT_ICON[cat.slot] ?? "•";
                   return (
-                    <View key={cat.slot} style={{ gap: 10 }}>
-                      <View style={s.slotHeaderRow}>
-                        <Text style={s.fieldLabel}>{cat.label}</Text>
+                    <View key={cat.slot} style={ac.catPanel}>
+                      <View style={ac.catHeader}>
+                        <Text style={ac.catIcon}>{icon}</Text>
+                        <Text style={ac.catLabel}>
+                          {cat.label.toUpperCase()}
+                        </Text>
                         {currentVal ? (
-                          <TouchableOpacity onPress={() => setter("")}>
-                            <Text style={s.slotClearBtn}>Remove</Text>
+                          <TouchableOpacity
+                            onPress={() => setter("")}
+                            style={{ marginLeft: "auto" }}
+                          >
+                            <Text style={ac.catClear}>✕ Remove</Text>
                           </TouchableOpacity>
                         ) : null}
                       </View>
-                      <View style={s.accessoryGrid}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={ac.itemRow}
+                      >
                         {cat.items.map((item) => {
                           const Comp = item.Component;
-                          const selected = currentVal === item.id;
+                          const sel = currentVal === item.id;
                           return (
                             <TouchableOpacity
                               key={item.id}
-                              onPress={() => setter(selected ? "" : item.id)}
-                              style={[
-                                s.accessoryCard,
-                                selected && s.accessoryCardActive,
-                              ]}
+                              onPress={() => setter(sel ? "" : item.id)}
+                              style={[ac.itemCard, sel && ac.itemCardSel]}
                             >
-                              <View style={s.accessoryPreview}>
-                                <Comp size={54} uid={`${item.id}_pick`} />
+                              <View style={ac.itemInner}>
+                                <Comp size={62} uid={`${item.id}_pck`} />
                               </View>
-                              <Text style={s.accessoryName} numberOfLines={1}>
+                              <Text style={ac.itemName} numberOfLines={1}>
                                 {item.name}
                               </Text>
                             </TouchableOpacity>
                           );
                         })}
-                      </View>
+                      </ScrollView>
                     </View>
                   );
                 })}
 
-                <View
-                  style={{
-                    height: StyleSheet.hairlineWidth,
-                    backgroundColor: colors.border,
-                  }}
-                />
-
                 {/* Bio */}
-                <View style={{ gap: 10 }}>
+                <View style={ac.panel}>
                   <View style={s.fieldLabelRow}>
                     <Text style={s.fieldLabel}>Bio</Text>
                     <Text style={s.charCount}>{editBio.length}/100</Text>
@@ -943,16 +986,6 @@ export default function ProfileScreen() {
                     style={s.bioInput}
                   />
                 </View>
-
-                <TouchableOpacity
-                  onPress={handleSaveProfile}
-                  disabled={editSaving}
-                  style={[s.primaryBtn, { opacity: editSaving ? 0.6 : 1 }]}
-                >
-                  <Text style={s.primaryBtnText}>
-                    {editSaving ? "Saving…" : "Save"}
-                  </Text>
-                </TouchableOpacity>
               </ScrollView>
             </SafeAreaView>
           </KeyboardAvoidingView>
@@ -1533,6 +1566,165 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: "500",
     color: colors.mutedForeground,
+    textAlign: "center",
+  },
+});
+
+// ── Accessories editor styles ──────────────────────────────────────────────────
+const ac = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "white",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#bfdbfe",
+  },
+  headerBtn: { minWidth: 64, padding: 4 },
+  headerBtnCancel: { fontSize: 16, color: colors.mutedForeground },
+  headerBtnSave: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2563eb",
+    textAlign: "right",
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: -0.3,
+  },
+
+  previewSection: {
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 14,
+  },
+  previewCard: {
+    backgroundColor: "white",
+    borderRadius: 28,
+    padding: 20,
+    shadowColor: "#1d4ed8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 5,
+    alignItems: "center",
+  },
+
+  lookNav: { flexDirection: "row", alignItems: "center", gap: 20 },
+  lookArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lookArrowText: { fontSize: 14, color: "#1d4ed8", fontWeight: "800" },
+  lookLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: 1.5,
+  },
+
+  panel: {
+    backgroundColor: "white",
+    marginTop: 10,
+    marginHorizontal: 12,
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+  },
+  panelLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: 1.5,
+  },
+
+  quickGrid: { flexDirection: "row", gap: 10 },
+  quickBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#eff6ff",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderWidth: 1.5,
+    borderColor: "#bfdbfe",
+  },
+  quickIcon: { fontSize: 20 },
+  quickText: { fontSize: 13, fontWeight: "700", color: "#1d4ed8" },
+
+  bgSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#bfdbfe",
+  },
+  bgSwatchActive: { borderWidth: 3, borderColor: "#2563eb" },
+
+  catPanel: {
+    backgroundColor: "white",
+    marginTop: 10,
+    marginHorizontal: 12,
+    borderRadius: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  catHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  catIcon: { fontSize: 18 },
+  catLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    letterSpacing: 1,
+  },
+  catClear: { fontSize: 12, fontWeight: "600", color: "#ef4444" },
+
+  itemRow: { paddingHorizontal: 12, paddingBottom: 14, gap: 8 },
+  itemCard: {
+    width: 84,
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f8faff",
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+  },
+  itemCardSel: { borderColor: "#2563eb", backgroundColor: "#eff6ff" },
+  itemInner: {
+    width: 68,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  itemName: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "#64748b",
     textAlign: "center",
   },
 });
