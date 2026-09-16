@@ -226,15 +226,15 @@ function SnappyCharacter({
   const imgTop = hatOverhang + Math.round((circleSize - size) / 2);
 
   // Mascot anatomy fractions (from image top):
-  //   camera top   ~0.15   hat brim lands here
-  //   face center  ~0.38   glasses center goes here → SVG top ~0.29
-  //   camera bottom ~0.63  shirt SVG starts ~0.52 so collar lands here
-  //   leg top      ~0.63   pants waistband starts here
-  //   foot top     ~0.80   shoes start here
-  const glassesW = Math.round(size * 0.6); // spans the lens circle width
-  const outfitW = Math.round(size * 0.8); // wider than legs, fills camera body width
-  const bottomW = Math.round(size * 0.44); // matches leg span (two legs + gap)
-  const shoesW = Math.round(size * 0.44); // matches foot span
+  //   camera top    ~0.15  hat brim lands here
+  //   face center   ~0.38  glasses center goes here → SVG top ~0.28
+  //   camera bottom ~0.66  outfit SVG starts ~0.50 so collar lands ~0.66
+  //   leg top       ~0.66  pants waistband starts here (rendered in front of outfit)
+  //   foot top      ~0.80  shoes start here
+  const glassesW = Math.round(size * 0.78); // wide enough to span the full camera face
+  const outfitW = Math.round(size * 0.8); // fills camera body width
+  const bottomW = Math.round(size * 0.5); // covers both legs + gap
+  const shoesW = Math.round(size * 0.5); // covers both feet
   const bagW = Math.round(size * 0.38);
 
   return (
@@ -274,7 +274,20 @@ function SnappyCharacter({
           resizeMode="contain"
         />
       </View>
-      {/* Pants/Bottom — waistband at camera body bottom (66%) */}
+      {/* Outfit/shirt — rendered first (behind pants) so pants appear on top.
+          collar (19% into TShirt SVG) lands at camera bottom (66%) */}
+      {OutfitComp ? (
+        <View
+          style={{
+            position: "absolute",
+            top: imgTop + Math.round(size * 0.5),
+            alignItems: "center",
+          }}
+        >
+          <OutfitComp size={outfitW} uid={`${outfit}_main`} />
+        </View>
+      ) : null}
+      {/* Pants/Bottom — rendered after outfit so they appear in front (layered over shirt hem) */}
       {BottomComp ? (
         <View
           style={{
@@ -286,7 +299,7 @@ function SnappyCharacter({
           <BottomComp size={bottomW} uid={`${bottom}_main`} />
         </View>
       ) : null}
-      {/* Shoes — sole bottom lands at foot bottom (91%) */}
+      {/* Shoes — in front of pants */}
       {ShoesComp ? (
         <View
           style={{
@@ -298,24 +311,12 @@ function SnappyCharacter({
           <ShoesComp size={shoesW} uid={`${shoes}_main`} />
         </View>
       ) : null}
-      {/* Outfit/shirt — collar (19% into TShirt SVG) lands at camera bottom (66%) */}
-      {OutfitComp ? (
-        <View
-          style={{
-            position: "absolute",
-            top: imgTop + Math.round(size * 0.55),
-            alignItems: "center",
-          }}
-        >
-          <OutfitComp size={outfitW} uid={`${outfit}_main`} />
-        </View>
-      ) : null}
-      {/* Glasses — lens center (45% into SVG) lands at face center (42%) */}
+      {/* Glasses — center of SVG (45% in) lands at face center (38%) */}
       {GlassesComp ? (
         <View
           style={{
             position: "absolute",
-            top: imgTop + Math.round(size * 0.32),
+            top: imgTop + Math.round(size * 0.28),
             alignItems: "center",
           }}
         >
