@@ -190,7 +190,7 @@ const HAT_ASPECT: Record<string, number> = {
 };
 
 function SnappyCharacter({
-  color,
+  color: _color,
   bg,
   hat,
   glasses,
@@ -274,7 +274,7 @@ function SnappyCharacter({
       >
         <Image
           source={require("../../assets/mascot.png")}
-          style={{ width: size, height: size, tintColor: color }}
+          style={{ width: size, height: size }}
           resizeMode="contain"
         />
       </View>
