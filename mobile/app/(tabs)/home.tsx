@@ -288,7 +288,7 @@ export default function HomeScreen() {
               <Text style={s.streakCount}>{streak} day streak</Text>
               <Text style={s.streakSub}>Keep it going — walk today!</Text>
             </View>
-            <ChevronRight size={18} color="#EA580C" />
+            <ChevronRight size={18} color={colors.mutedForeground} />
           </TouchableOpacity>
         )}
 
@@ -361,8 +361,8 @@ export default function HomeScreen() {
             onPress={() => router.push("/(tabs)/camera")}
             activeOpacity={0.85}
           >
-            <View style={[s.quickIcon, { backgroundColor: "#FFF3E0" }]}>
-              <MapPin size={20} color={colors.secondary} />
+            <View style={[s.quickIcon, { backgroundColor: primaryTint }]}>
+              <MapPin size={20} color={colors.primary} />
             </View>
             <View style={s.quickLabelRow}>
               <Text style={s.quickLabel}>Hunt</Text>
@@ -514,10 +514,10 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#FFF7ED",
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#FED7AA",
+    borderColor: colors.border,
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
@@ -525,7 +525,7 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFEDD5",
+    backgroundColor: primaryTint,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -534,10 +534,10 @@ const s = StyleSheet.create({
   streakCount: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#EA580C",
+    color: colors.primary,
     letterSpacing: -0.3,
   },
-  streakSub: { fontSize: 12, color: "#C2410C", marginTop: 1 },
+  streakSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 1 },
 
   // Hero
   heroCard: {
