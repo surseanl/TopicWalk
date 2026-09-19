@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
 import { WALK_COLORS } from "../../lib/topics";
@@ -83,6 +84,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
   const [username, setUsername] = useState("");
+  const [avatarBgId, setAvatarBgId] = useState<string | undefined>(undefined);
+  const [avatarTint, setAvatarTint] = useState<string | undefined>(undefined);
   const [todayPick, setTodayPick] = useState<DayPick | null>(null);
   const [streak, setStreak] = useState(0);
   const [recent, setRecent] = useState<RecentAlbum[]>([]);
@@ -118,10 +121,12 @@ export default function HomeScreen() {
   async function loadProfile(id: string) {
     const { data } = await supabase
       .from("tw_users")
-      .select("username")
+      .select("username, avatar_color, mascot_color")
       .eq("id", id)
       .maybeSingle();
     setUsername(data?.username ?? "");
+    setAvatarBgId(data?.avatar_color ?? undefined);
+    setAvatarTint(data?.mascot_color ?? undefined);
   }
 
   async function loadTodayPick() {
@@ -206,8 +211,11 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.greetingSmall}>{greeting()}</Text>
-          <Text style={s.greetingName}>{username || "Explorer"}</Text>
+          <View style={s.headerText}>
+            <Text style={s.greetingSmall}>{greeting()}</Text>
+            <Text style={s.greetingName}>{username || "Explorer"}</Text>
+          </View>
+          <SnappyAvatar bgId={avatarBgId} size={40} tintColor={avatarTint} />
         </View>
 
         {/* Streak */}
@@ -370,7 +378,13 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: { paddingTop: 4 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 4,
+  },
+  headerText: { flex: 1 },
   greetingSmall: {
     fontSize: 13,
     color: colors.mutedForeground,

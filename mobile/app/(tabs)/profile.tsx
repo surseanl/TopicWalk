@@ -17,7 +17,6 @@ import {
 import { useEffect, useState } from "react";
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,6 +29,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ColorPicker } from "../../components/ColorPicker";
+import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { SNAPPY_BACKGROUNDS } from "../../components/SnappyBgs";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
@@ -67,60 +67,6 @@ function computeStreak(dates: string[]): number {
 }
 
 const DEFAULT_MASCOT_COLOR = "#5CA3FF";
-
-// Measured content bounds inside the 496×498 mascot.png frame:
-//   content size 323×349, center at (222, 234)
-const MASCOT_FRAME_W = 496;
-const MASCOT_FRAME_H = 498;
-const MASCOT_CONTENT_CX = 222;
-const MASCOT_CONTENT_CY = 234;
-const MASCOT_CONTENT_H = 349;
-
-function SnappyAvatar({
-  bgId,
-  size = 120,
-  mascotSize,
-  tintColor,
-}: {
-  bgId?: string;
-  size?: number;
-  mascotSize?: number;
-  tintColor?: string;
-}) {
-  const circleSize = Math.round(size * 1.18);
-  const contentH = mascotSize ?? size;
-  const scale = contentH / MASCOT_CONTENT_H;
-  const imgW = Math.round(MASCOT_FRAME_W * scale);
-  const imgH = Math.round(MASCOT_FRAME_H * scale);
-  const left = Math.round(circleSize / 2 - MASCOT_CONTENT_CX * scale);
-  const top = Math.round(circleSize / 2 - MASCOT_CONTENT_CY * scale);
-  const bgDef =
-    SNAPPY_BACKGROUNDS.find((b) => b.id === bgId) ?? SNAPPY_BACKGROUNDS[0];
-  return (
-    <View
-      style={{
-        width: circleSize,
-        height: circleSize,
-        borderRadius: circleSize / 2,
-        overflow: "hidden",
-      }}
-    >
-      {bgDef.render(circleSize)}
-      <Image
-        source={require("../../assets/mascot.png")}
-        style={{
-          position: "absolute",
-          top,
-          left,
-          width: imgW,
-          height: imgH,
-          tintColor,
-        }}
-        resizeMode="stretch"
-      />
-    </View>
-  );
-}
 
 export default function ProfileScreen() {
   const router = useRouter();
