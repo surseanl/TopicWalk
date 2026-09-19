@@ -382,7 +382,7 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: { paddingTop: 4, gap: 2 },
+  header: { paddingTop: 4, gap: 0 },
   headerNameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -390,13 +390,13 @@ const s = StyleSheet.create({
   headerAvatarSlot: { flex: 1, alignItems: "center" },
   greetingSmall: {
     fontSize: 13,
-    lineHeight: 15,
+    lineHeight: 13,
     color: colors.mutedForeground,
     fontWeight: "500",
   },
   greetingName: {
     fontSize: 28,
-    lineHeight: 30,
+    lineHeight: 28,
     fontWeight: "900",
     letterSpacing: -1,
     color: colors.foreground,
@@ -409,8 +409,8 @@ const s = StyleSheet.create({
     alignSelf: "flex-start",
     backgroundColor: primaryTint,
     borderRadius: 100,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
   },
   streakFire: { fontSize: 13 },
   streakCount: {
