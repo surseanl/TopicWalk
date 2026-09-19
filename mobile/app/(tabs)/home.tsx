@@ -212,8 +212,10 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            <Text style={s.greetingSmall}>{greeting()}</Text>
-            <Text style={s.greetingName}>{username || "Explorer"}</Text>
+            <View>
+              <Text style={s.greetingSmall}>{greeting()}</Text>
+              <Text style={s.greetingName}>{username || "Explorer"}</Text>
+            </View>
             {streak > 0 && (
               <View style={s.streakBanner}>
                 <Text style={s.streakFire}>🔥</Text>
