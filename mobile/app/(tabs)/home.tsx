@@ -361,7 +361,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/(tabs)/camera")}
             activeOpacity={0.85}
           >
-            <View style={[s.quickIcon, { backgroundColor: "#EBF9FC" }]}>
+            <View style={[s.quickIcon, { backgroundColor: "#FFF3E0" }]}>
               <MapPin size={20} color={colors.secondary} />
             </View>
             <View style={s.quickLabelRow}>
@@ -587,7 +587,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#E8EEF8",
+    backgroundColor: colors.muted,
     borderRadius: 20,
     paddingVertical: 22,
     paddingHorizontal: 20,

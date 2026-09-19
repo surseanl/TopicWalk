@@ -7,7 +7,7 @@ const HIDDEN = new Set(["friends"]);
 const ICON_SIZE = 22;
 
 function tabIcon(name: string, focused: boolean) {
-  const color = focused ? colors.primary : "#78716c";
+  const color = focused ? colors.primary : "#9CA3AF";
   if (name === "home") return <House size={ICON_SIZE} color={color} />;
   if (name === "index") return <Footprints size={ICON_SIZE} color={color} />;
   if (name === "camera") return <Crosshair size={ICON_SIZE} color={color} />;
@@ -62,9 +62,9 @@ export function BottomNav({ state, descriptors, navigation }: any) {
 
 const s = StyleSheet.create({
   container: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.card,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#e7e5e4",
+    borderTopColor: colors.border,
     alignItems: "center",
     paddingTop: 8,
   },
@@ -82,7 +82,7 @@ const s = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#78716c",
+    color: "#9CA3AF",
   },
   labelActive: {
     color: colors.primary,
