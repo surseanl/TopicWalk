@@ -1,8 +1,8 @@
 // TopicWalk brand colors
-// primary  = logo teal "Topic" → #1BACD6  (main interactive color)
+// primary  = logo blue "Topic" → #5CA3FF  (main interactive color)
 // secondary = logo orange "Walk" → #FFBE59 (accent, used sparingly)
 export const colors = {
-  primary: "#1BACD6", // logo teal blue — buttons, active nav
+  primary: "#5CA3FF", // logo blue — buttons, active nav
   secondary: "#FFBE59", // logo orange — accent only (streak, highlights)
   background: "#FFFFFF", // pure white
   foreground: "#111111", // near black
@@ -13,5 +13,5 @@ export const colors = {
   destructive: "#ef4444",
 } as const;
 
-// Light teal tint — icon backgrounds, subtle highlights
-export const primaryTint = "#E8F8FD";
+// Light blue tint — icon backgrounds, subtle highlights
+export const primaryTint = "#EBF3FF";
