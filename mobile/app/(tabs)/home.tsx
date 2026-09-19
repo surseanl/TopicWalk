@@ -387,6 +387,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     paddingTop: 4,
+    gap: 20,
   },
   headerLeft: {
     flex: 1,
