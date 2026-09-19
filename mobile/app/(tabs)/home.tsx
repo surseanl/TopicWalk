@@ -237,7 +237,7 @@ export default function HomeScreen() {
           >
             <View style={[s.heroAccent, { backgroundColor: todayColor.hex }]} />
             <View
-              style={[s.heroInner, { backgroundColor: `${todayColor.hex}12` }]}
+              style={[s.heroInner, { backgroundColor: `${todayColor.hex}22` }]}
             >
               <Text style={s.heroEyebrow}>today's color</Text>
               <Text style={[s.heroColorName, { color: todayColor.hex }]}>
@@ -283,7 +283,7 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <View style={[s.quickIcon, { backgroundColor: primaryTint }]}>
-              <Footprints size={20} color={colors.primary} />
+              <Footprints size={26} color={colors.primary} />
             </View>
             <View style={s.quickLabelRow}>
               <Text style={s.quickLabel}>Color Walk</Text>
@@ -298,7 +298,7 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <View style={[s.quickIcon, { backgroundColor: primaryTint }]}>
-              <MapPin size={20} color={colors.primary} />
+              <MapPin size={26} color={colors.primary} />
             </View>
             <View style={s.quickLabelRow}>
               <Text style={s.quickLabel}>Hunt</Text>
@@ -434,8 +434,8 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  heroAccent: { width: 5 },
-  heroInner: { flex: 1, padding: 20, gap: 4 },
+  heroAccent: { width: 6 },
+  heroInner: { flex: 1, padding: 24, gap: 4 },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "600",
@@ -444,16 +444,16 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
   },
   heroColorName: {
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: "900",
-    letterSpacing: -1,
-    marginTop: 2,
+    letterSpacing: -1.5,
+    marginTop: 4,
   },
   heroFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 16,
   },
   heroMeta: { fontSize: 13, color: colors.mutedForeground },
   heroBtn: {
@@ -461,37 +461,39 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
   },
-  heroBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  heroBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
 
   // Spin card
   spinCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.muted,
+    backgroundColor: primaryTint,
     borderRadius: 20,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
   },
-  spinLeft: { gap: 3 },
+  spinLeft: { gap: 4 },
   spinEyebrow: {
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: colors.mutedForeground,
+    color: colors.primary,
   },
   spinTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: -0.5,
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.8,
     color: colors.foreground,
   },
   spinSub: { fontSize: 13, color: colors.mutedForeground },
-  spinGlyph: { fontSize: 44 },
+  spinGlyph: { fontSize: 52 },
 
   // Quick-start
   quickRow: { flexDirection: "row", gap: 12 },
@@ -505,12 +507,12 @@ const s = StyleSheet.create({
     gap: 6,
   },
   quickIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   quickLabelRow: {
     flexDirection: "row",
@@ -518,10 +520,10 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   quickLabel: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "800",
     color: colors.foreground,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   quickSub: { fontSize: 12, color: colors.mutedForeground, lineHeight: 16 },
 
