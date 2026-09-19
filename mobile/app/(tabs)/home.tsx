@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { Camera, ChevronRight, MapPin } from "lucide-react-native";
+import { Camera, ChevronRight, Footprints, MapPin } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   Image,
