@@ -381,9 +381,7 @@ export default function HomeScreen() {
                 color={colors.mutedForeground}
                 strokeWidth={1.5}
               />
-              <Text style={s.statNum}>
-                {(distanceM / 1609.34).toFixed(1)}
-              </Text>
+              <Text style={s.statNum}>{(distanceM / 1609.34).toFixed(1)}</Text>
               <Text style={s.statLabel}>miles walked</Text>
             </View>
             <View style={s.statCard}>
