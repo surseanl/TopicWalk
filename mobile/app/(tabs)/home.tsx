@@ -211,11 +211,9 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerText}>
-            <Text style={s.greetingSmall}>{greeting()}</Text>
+          <Text style={s.greetingSmall}>{greeting()}</Text>
+          <View style={s.headerNameRow}>
             <Text style={s.greetingName}>{username || "Explorer"}</Text>
-          </View>
-          <View style={s.headerAvatar}>
             <SnappyAvatar bgId={avatarBgId} size={64} tintColor={avatarTint} />
           </View>
         </View>
@@ -380,13 +378,12 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: {
+  header: { paddingTop: 4 },
+  headerNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 4,
+    justifyContent: "space-between",
   },
-  headerText: { flex: 1 },
-  headerAvatar: { width: 90, alignItems: "center" },
   greetingSmall: {
     fontSize: 13,
     color: colors.mutedForeground,
