@@ -215,7 +215,9 @@ export default function HomeScreen() {
             <Text style={s.greetingSmall}>{greeting()}</Text>
             <Text style={s.greetingName}>{username || "Explorer"}</Text>
           </View>
-          <SnappyAvatar bgId={avatarBgId} size={64} tintColor={avatarTint} />
+          <View style={s.headerAvatar}>
+            <SnappyAvatar bgId={avatarBgId} size={64} tintColor={avatarTint} />
+          </View>
         </View>
 
         {/* Streak */}
@@ -381,11 +383,10 @@ const s = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingTop: 4,
-    gap: 16,
   },
   headerText: { flex: 1 },
+  headerAvatar: { width: 90, alignItems: "center" },
   greetingSmall: {
     fontSize: 13,
     color: colors.mutedForeground,
