@@ -71,6 +71,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView from "react-native-webview";
+import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { LEAFLET_HTML } from "../../lib/leaflet-html";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
@@ -91,61 +92,62 @@ const SOLO_DAILY_KEY = "tw_solo_object_v1";
 type SoloObj = {
   icon: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   label: string;
+  emoji: string;
 };
 
 const SOLO_OBJECTS: SoloObj[] = [
   // Animals
-  { icon: Bug, label: "Insect" },
-  { icon: Snail, label: "Amphibian" },
-  { icon: Bird, label: "Bird" },
-  { icon: Turtle, label: "Reptile" },
-  { icon: Squirrel, label: "Small mammal" },
-  { icon: Dog, label: "Large mammal" },
-  { icon: Fish, label: "Fish" },
-  { icon: Grid3x3, label: "Spider web" },
-  { icon: Feather, label: "Feather" },
-  { icon: Shell, label: "Shell" },
-  { icon: Birdhouse, label: "Water bird" },
-  { icon: Footprints, label: "Animal tracks" },
-  { icon: Network, label: "Ant colony" },
+  { icon: Bug, label: "Insect", emoji: "🐛" },
+  { icon: Snail, label: "Amphibian", emoji: "🐌" },
+  { icon: Bird, label: "Bird", emoji: "🐦" },
+  { icon: Turtle, label: "Reptile", emoji: "🐢" },
+  { icon: Squirrel, label: "Small mammal", emoji: "🐿️" },
+  { icon: Dog, label: "Large mammal", emoji: "🐕" },
+  { icon: Fish, label: "Fish", emoji: "🐟" },
+  { icon: Grid3x3, label: "Spider web", emoji: "🕸️" },
+  { icon: Feather, label: "Feather", emoji: "🪶" },
+  { icon: Shell, label: "Shell", emoji: "🐚" },
+  { icon: Birdhouse, label: "Water bird", emoji: "🦆" },
+  { icon: Footprints, label: "Animal tracks", emoji: "🐾" },
+  { icon: Network, label: "Ant colony", emoji: "🐜" },
   // Sky & Weather
-  { icon: Cloud, label: "Cloud" },
-  { icon: Rainbow, label: "Rainbow" },
-  { icon: Moon, label: "Moon" },
-  { icon: CloudFog, label: "Fog" },
-  { icon: Sunrise, label: "Sunrise or sunset" },
-  { icon: Droplets, label: "Rain puddle" },
+  { icon: Cloud, label: "Cloud", emoji: "☁️" },
+  { icon: Rainbow, label: "Rainbow", emoji: "🌈" },
+  { icon: Moon, label: "Moon", emoji: "🌙" },
+  { icon: CloudFog, label: "Fog", emoji: "🌫️" },
+  { icon: Sunrise, label: "Sunrise or sunset", emoji: "🌅" },
+  { icon: Droplets, label: "Rain puddle", emoji: "💧" },
   // Plants
-  { icon: Flower, label: "Flower" },
-  { icon: TreePalm, label: "Cactus" },
-  { icon: Leaf, label: "Fallen leaves" },
-  { icon: Wheat, label: "Tall grass" },
-  { icon: TreeDeciduous, label: "Tree" },
-  { icon: TreePine, label: "Acorn or pinecone" },
-  { icon: LeafyGreen, label: "Vine" },
-  { icon: Clover, label: "Moss" },
-  { icon: Flower2, label: "Mushroom" },
+  { icon: Flower, label: "Flower", emoji: "🌸" },
+  { icon: TreePalm, label: "Cactus", emoji: "🌵" },
+  { icon: Leaf, label: "Fallen leaves", emoji: "🍂" },
+  { icon: Wheat, label: "Tall grass", emoji: "🌾" },
+  { icon: TreeDeciduous, label: "Tree", emoji: "🌳" },
+  { icon: TreePine, label: "Acorn or pinecone", emoji: "🌲" },
+  { icon: LeafyGreen, label: "Vine", emoji: "🌿" },
+  { icon: Clover, label: "Moss", emoji: "🍀" },
+  { icon: Flower2, label: "Mushroom", emoji: "🍄" },
   // Water
-  { icon: WavesHorizontal, label: "Reflection in water" },
-  { icon: WavesArrowDown, label: "Waterfall" },
-  { icon: Droplet, label: "Rock in water" },
+  { icon: WavesHorizontal, label: "Reflection in water", emoji: "🌊" },
+  { icon: WavesArrowDown, label: "Waterfall", emoji: "💦" },
+  { icon: Droplet, label: "Rock in water", emoji: "🪨" },
   // Structures
-  { icon: WavesArrowUp, label: "Fountain" },
-  { icon: Armchair, label: "Bench" },
-  { icon: Landmark, label: "Bridge" },
-  { icon: Castle, label: "Statue" },
-  { icon: Anchor, label: "Boat or anchor" },
-  { icon: BrickWall, label: "Stone wall" },
-  { icon: DoorOpen, label: "Colorful door" },
-  { icon: Building2, label: "Old building" },
-  { icon: Church, label: "Stained glass" },
-  { icon: Route, label: "Trail or path" },
-  { icon: SignpostBig, label: "Street sign" },
+  { icon: WavesArrowUp, label: "Fountain", emoji: "⛲" },
+  { icon: Armchair, label: "Bench", emoji: "🪑" },
+  { icon: Landmark, label: "Bridge", emoji: "🌉" },
+  { icon: Castle, label: "Statue", emoji: "🗿" },
+  { icon: Anchor, label: "Boat or anchor", emoji: "⚓" },
+  { icon: BrickWall, label: "Stone wall", emoji: "🧱" },
+  { icon: DoorOpen, label: "Colorful door", emoji: "🚪" },
+  { icon: Building2, label: "Old building", emoji: "🏛️" },
+  { icon: Church, label: "Stained glass", emoji: "⛪" },
+  { icon: Route, label: "Trail or path", emoji: "🛤️" },
+  { icon: SignpostBig, label: "Street sign", emoji: "🪧" },
   // Sports & Activity
-  { icon: Trophy, label: "Sports field or court" },
-  { icon: Dumbbell, label: "Gym equipment" },
-  { icon: Bike, label: "Bike rack or cyclist" },
-  { icon: Mountain, label: "Climbing structure" },
+  { icon: Trophy, label: "Sports field or court", emoji: "🏆" },
+  { icon: Dumbbell, label: "Gym equipment", emoji: "🏋️" },
+  { icon: Bike, label: "Bike rack or cyclist", emoji: "🚲" },
+  { icon: Mountain, label: "Climbing structure", emoji: "🧗" },
 ];
 
 const SOLO_DRUM = Array.from({ length: 6 }, () => SOLO_OBJECTS).flat();
@@ -841,6 +843,12 @@ export default function HuntScreen() {
   const [showHideTutorial, setShowHideTutorial] = useState(false);
   const [hideTutorialStep, setHideTutorialStep] = useState(0);
 
+  const [showSoloTour, setShowSoloTour] = useState(false);
+  const [showGroupTour, setShowGroupTour] = useState(false);
+  const slotCardRef = useRef<View>(null);
+  const spinSoloBtnRef = useRef<View>(null);
+  const createGroupBtnRef = useRef<View>(null);
+
   const soloSlotY0 = useRef(new Animated.Value(0)).current;
   const soloSlotY1 = useRef(new Animated.Value(0)).current;
   const prevPosRef = useRef<Pos | null>(null);
@@ -867,6 +875,18 @@ export default function HuntScreen() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (tab === "solo") {
+      void AsyncStorage.getItem("tw_tour_solo_v1").then((v) => {
+        if (!v) setShowSoloTour(true);
+      });
+    } else {
+      void AsyncStorage.getItem("tw_tour_group_v1").then((v) => {
+        if (!v) setShowGroupTour(true);
+      });
+    }
+  }, [tab]);
 
   // Auto-unlock tiles on a 30s interval
   useEffect(() => {
@@ -1529,8 +1549,47 @@ export default function HuntScreen() {
     );
   }
 
+  const soloTourSteps: CoachStep[] = [
+    {
+      ref: slotCardRef,
+      title: "Your daily objects",
+      body: "Two mystery objects are waiting to be found. Walk around and photograph each one!",
+    },
+    {
+      ref: spinSoloBtnRef,
+      title: "Spin to reveal",
+      body: "Tap Spin to see what you're hunting for today. Then set your play area and go find them!",
+    },
+  ];
+
+  const groupTourSteps: CoachStep[] = [
+    {
+      ref: createGroupBtnRef,
+      title: "Start a group hunt",
+      body: "Create a group and invite friends. Once you're in, go somewhere interesting and hide your mascot for them to find!",
+    },
+  ];
+
   return (
     <SafeAreaView edges={["bottom"]} style={s.safe}>
+      {showSoloTour && (
+        <CoachMark
+          steps={soloTourSteps}
+          onDone={() => {
+            setShowSoloTour(false);
+            void AsyncStorage.setItem("tw_tour_solo_v1", "1");
+          }}
+        />
+      )}
+      {showGroupTour && !huntGroup && (
+        <CoachMark
+          steps={groupTourSteps}
+          onDone={() => {
+            setShowGroupTour(false);
+            void AsyncStorage.setItem("tw_tour_group_v1", "1");
+          }}
+        />
+      )}
       {alertMsg && (
         <View pointerEvents="none" style={s.toast}>
           <Text style={s.toastText}>{alertMsg}</Text>
@@ -2031,6 +2090,7 @@ export default function HuntScreen() {
         {tab === "hunt" &&
           (!huntGroup ? (
             <TouchableOpacity
+              ref={createGroupBtnRef}
               onPress={() => {
                 setGroupModalMode("create");
                 setShowGroupModal(true);
@@ -2284,7 +2344,7 @@ export default function HuntScreen() {
         {tab === "solo" && (
           <>
             {/* Daily object slot machine */}
-            <View style={s.slotCard}>
+            <View ref={slotCardRef} style={s.slotCard}>
               <Text style={s.sectionLabel}>Today's Hunt</Text>
 
               {/* Two side-by-side drums */}
@@ -2369,6 +2429,7 @@ export default function HuntScreen() {
 
               {!soloObjRevealed && (
                 <TouchableOpacity
+                  ref={spinSoloBtnRef}
                   onPress={spinSoloObject}
                   disabled={soloObjSpinning}
                   style={[s.primaryBtn, { opacity: soloObjSpinning ? 0.5 : 1 }]}
@@ -2428,10 +2489,14 @@ export default function HuntScreen() {
                   center={soloCenter}
                   radiusMiles={soloRadius}
                   markersJson={JSON.stringify(
-                    soloFoundLocs.map((p) => ({
+                    soloFoundLocs.map((p, i) => ({
                       lat: p.lat,
                       lng: p.lng,
                       c: "#16a34a",
+                      e:
+                        soloObjIndices?.[i] !== undefined
+                          ? SOLO_OBJECTS[soloObjIndices[i]]?.emoji
+                          : undefined,
                     })),
                   )}
                 />

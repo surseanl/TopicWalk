@@ -5,6 +5,7 @@ import { TopNav } from "../../components/TopNav";
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       tabBar={(props) => <BottomNav {...props} />}
       screenOptions={{
         header: () => <TopNav />,
@@ -17,7 +18,10 @@ export default function TabLayout() {
         name="friends"
         options={{ title: "Friends", tabBarButton: () => null }}
       />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: "Profile", headerShown: false }}
+      />
     </Tabs>
   );
 }

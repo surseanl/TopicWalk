@@ -28,6 +28,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line } from "react-native-svg";
+import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { StarDisplay, StarRatingWidget } from "../../components/Stars";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
@@ -102,6 +103,10 @@ export default function WalkScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [showWalkTour, setShowWalkTour] = useState(false);
+  const wheelRef = useRef<View>(null);
+  const spinBtnRef = useRef<View>(null);
+
   const mascotY = useRef(new Animated.Value(0)).current;
   const mascotScale = useRef(new Animated.Value(1)).current;
   const mascotRotate = useRef(new Animated.Value(0)).current;
@@ -157,6 +162,10 @@ export default function WalkScreen() {
         setLoading(false);
       }
     });
+    void AsyncStorage.getItem("tw_tour_walk_v1").then((v) => {
+      if (!v) setShowWalkTour(true);
+    });
+
     return () => {
       subscription.unsubscribe();
       appStateSub.remove();
@@ -539,8 +548,30 @@ export default function WalkScreen() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
+  const walkTourSteps: CoachStep[] = [
+    {
+      ref: wheelRef,
+      title: "Your color wheel",
+      body: "A new color is revealed here every day. No two days are the same!",
+    },
+    {
+      ref: spinBtnRef,
+      title: "Tap Spin!",
+      body: "Hit Spin to reveal today's color, then head outside and photograph things that match.",
+    },
+  ];
+
   return (
     <SafeAreaView edges={["bottom"]} style={s.safe}>
+      {showWalkTour && (
+        <CoachMark
+          steps={walkTourSteps}
+          onDone={() => {
+            setShowWalkTour(false);
+            void AsyncStorage.setItem("tw_tour_walk_v1", "1");
+          }}
+        />
+      )}
       {/* Photo confirm modal */}
       <Modal
         visible={!!pendingAsset}
@@ -621,7 +652,7 @@ export default function WalkScreen() {
         </View>
 
         {/* Wheel */}
-        <View style={s.wheelSection}>
+        <View ref={wheelRef} style={s.wheelSection}>
           {/* Pointer */}
           <View style={s.pointerRow}>
             <View style={s.pointer} />
@@ -732,7 +763,12 @@ export default function WalkScreen() {
 
           {/* Button */}
           {!revealed && !isSpinning && (
-            <TouchableOpacity onPress={spin} style={s.btn} activeOpacity={0.85}>
+            <TouchableOpacity
+              ref={spinBtnRef}
+              onPress={spin}
+              style={s.btn}
+              activeOpacity={0.85}
+            >
               <Text style={s.btnText}>Spin</Text>
             </TouchableOpacity>
           )}
@@ -772,7 +808,7 @@ export default function WalkScreen() {
         {/* Photo count */}
         {isLocked && photoCount > 0 && (
           <Text style={s.photoCount}>
-            {photoCount} {photoCount === 1 ? "photo" : "photos"} today
+            {photoCount} {photoCount === 1 ? "photo" : "photos"} taken
           </Text>
         )}
 

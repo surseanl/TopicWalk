@@ -39,7 +39,13 @@
           "cameraPermission": "TopicWalk needs your camera to take walk photos."
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "TopicWalk uses your location to record the path of your walk."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
