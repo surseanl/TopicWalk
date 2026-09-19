@@ -1,15 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
+import { Camera, ChevronRight, MapPin } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import {
-  CalendarDays,
-  Camera,
-  ChevronRight,
-  Footprints,
-  MapPin,
-} from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
   Image,
   RefreshControl,
   ScrollView,
@@ -86,45 +79,17 @@ function computeStreak(dates: string[]): number {
   return streak;
 }
 
-const TAGLINES = [
-  "Keep going — great things take time!",
-  "Every walk counts. Let's go!",
-  "The best time to walk is now.",
-  "One color, one walk, one story.",
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [todayPick, setTodayPick] = useState<DayPick | null>(null);
-  const [distanceM, setDistanceM] = useState(0);
-  const [photos, setPhotos] = useState(0);
   const [streak, setStreak] = useState(0);
   const [recent, setRecent] = useState<RecentAlbum[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const mascotY = useRef(new Animated.Value(0)).current;
-  const tagline = useRef(
-    TAGLINES[Math.floor(Math.random() * TAGLINES.length)],
-  ).current;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(mascotY, {
-          toValue: -5,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(mascotY, {
-          toValue: 0,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -144,7 +109,6 @@ export default function HomeScreen() {
     await Promise.all([
       loadProfile(id),
       loadTodayPick(),
-      loadStats(id),
       loadRecent(id),
       loadStreak(id),
     ]);
@@ -168,23 +132,6 @@ export default function HomeScreen() {
         setTodayPick(p.date === today() ? p : null);
       }
     } catch {}
-  }
-
-  async function loadStats(id: string) {
-    const [distanceRes, photosRes] = await Promise.all([
-      supabase.from("tw_albums").select("distance_meters").eq("user_id", id),
-      supabase
-        .from("tw_submissions")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", id),
-    ]);
-    const totalM = (distanceRes.data ?? []).reduce(
-      (sum: number, a: { distance_meters: number | null }) =>
-        sum + (a.distance_meters ?? 0),
-      0,
-    );
-    setDistanceM(totalM);
-    setPhotos(photosRes.count ?? 0);
   }
 
   async function loadStreak(id: string) {
@@ -238,7 +185,6 @@ export default function HomeScreen() {
   }
 
   const todayColor = todayPick ? WALK_COLORS[todayPick.colorIdx] : null;
-  const hasStats = distanceM > 0 || photos > 0 || streak > 0;
 
   return (
     <SafeAreaView edges={["bottom"]} style={s.safe}>
@@ -260,18 +206,8 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerText}>
-            <Text style={s.greetingSmall}>{greeting()}</Text>
-            <Text style={s.greetingName}>{username || "Explorer"}</Text>
-            <Text style={s.tagline}>{tagline}</Text>
-          </View>
-          <View style={s.mascotWrap}>
-            <Animated.Image
-              source={require("../../assets/mascot.png")}
-              style={[s.mascot, { transform: [{ translateY: mascotY }] }]}
-              resizeMode="contain"
-            />
-          </View>
+          <Text style={s.greetingSmall}>{greeting()}</Text>
+          <Text style={s.greetingName}>{username || "Explorer"}</Text>
         </View>
 
         {/* Streak */}
@@ -372,41 +308,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Stats */}
-        {hasStats && (
-          <View style={s.statsRow}>
-            <View style={s.statCard}>
-              <Footprints
-                size={22}
-                color={colors.mutedForeground}
-                strokeWidth={1.5}
-              />
-              <Text style={s.statNum}>{(distanceM / 1609.34).toFixed(1)}</Text>
-              <Text style={s.statLabel}>miles walked</Text>
-            </View>
-            <View style={s.statCard}>
-              <Camera
-                size={22}
-                color={colors.mutedForeground}
-                strokeWidth={1.5}
-              />
-              <Text style={s.statNum}>{photos}</Text>
-              <Text style={s.statLabel}>
-                {photos === 1 ? "photo" : "photos"}
-              </Text>
-            </View>
-            <View style={s.statCard}>
-              <CalendarDays
-                size={22}
-                color={colors.mutedForeground}
-                strokeWidth={1.5}
-              />
-              <Text style={s.statNum}>{streak}</Text>
-              <Text style={s.statLabel}>day streak</Text>
-            </View>
-          </View>
-        )}
-
         {/* Recent activity */}
         {recent.length > 0 && (
           <View style={s.recentSection}>
@@ -479,12 +380,7 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  headerText: { flex: 1, paddingTop: 4, paddingRight: 12 },
+  header: { paddingTop: 4 },
   greetingSmall: {
     fontSize: 13,
     color: colors.mutedForeground,
@@ -497,18 +393,6 @@ const s = StyleSheet.create({
     letterSpacing: -1,
     color: colors.foreground,
   },
-  tagline: { fontSize: 13, color: colors.mutedForeground, marginTop: 4 },
-  mascotWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.muted,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  mascot: { width: 60, height: 60 },
-
   // Streak
   streakBanner: {
     flexDirection: "row",
@@ -640,32 +524,6 @@ const s = StyleSheet.create({
     letterSpacing: -0.3,
   },
   quickSub: { fontSize: 12, color: colors.mutedForeground, lineHeight: 16 },
-
-  // Stats
-  statsRow: { flexDirection: "row", gap: 10 },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    alignItems: "center",
-    gap: 2,
-  },
-  statNum: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: colors.foreground,
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: colors.mutedForeground,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
 
   // Recent
   recentSection: {
