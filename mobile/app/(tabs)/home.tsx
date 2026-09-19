@@ -215,18 +215,20 @@ export default function HomeScreen() {
           <View style={s.headerNameRow}>
             <Text style={s.greetingName}>{username || "Explorer"}</Text>
             <View style={s.headerAvatarSlot}>
-              <SnappyAvatar bgId={avatarBgId} size={64} tintColor={avatarTint} />
+              <SnappyAvatar
+                bgId={avatarBgId}
+                size={64}
+                tintColor={avatarTint}
+              />
             </View>
           </View>
+          {streak > 0 && (
+            <View style={s.streakBanner}>
+              <Text style={s.streakFire}>🔥</Text>
+              <Text style={s.streakCount}>{streak} day streak</Text>
+            </View>
+          )}
         </View>
-
-        {/* Streak */}
-        {streak > 0 && (
-          <View style={s.streakBanner}>
-            <Text style={s.streakFire}>🔥</Text>
-            <Text style={s.streakCount}>{streak} day streak</Text>
-          </View>
-        )}
 
         {/* Today's color */}
         {todayColor ? (
@@ -380,7 +382,7 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: { paddingTop: 4 },
+  header: { paddingTop: 4, gap: 4 },
   headerNameRow: {
     flexDirection: "row",
     alignItems: "center",
