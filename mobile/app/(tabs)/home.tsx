@@ -218,7 +218,7 @@ export default function HomeScreen() {
               <SnappyAvatar
                 bgId={avatarBgId}
                 size={90}
-                mascotSize={55}
+                mascotSize={68}
                 tintColor={avatarTint}
               />
             </View>
