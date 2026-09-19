@@ -212,11 +212,7 @@ export default function HomeScreen() {
 
         {/* Streak */}
         {streak > 0 && (
-          <TouchableOpacity
-            style={s.streakBanner}
-            activeOpacity={0.8}
-            onPress={() => router.push("/(tabs)/index" as never)}
-          >
+          <View style={s.streakBanner}>
             <View style={s.streakIconWrap}>
               <Text style={s.streakFire}>🔥</Text>
             </View>
@@ -224,8 +220,7 @@ export default function HomeScreen() {
               <Text style={s.streakCount}>{streak} day streak</Text>
               <Text style={s.streakSub}>Keep it going — walk today!</Text>
             </View>
-            <ChevronRight size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </View>
         )}
 
         {/* Today's color */}
