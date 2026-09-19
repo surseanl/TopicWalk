@@ -211,24 +211,24 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.greetingSmall}>{greeting()}</Text>
-          <View style={s.headerNameRow}>
+          <View style={s.headerLeft}>
+            <Text style={s.greetingSmall}>{greeting()}</Text>
             <Text style={s.greetingName}>{username || "Explorer"}</Text>
-            <View style={s.headerAvatarSlot}>
-              <SnappyAvatar
-                bgId={avatarBgId}
-                size={90}
-                mascotSize={68}
-                tintColor={avatarTint}
-              />
-            </View>
+            {streak > 0 && (
+              <View style={s.streakBanner}>
+                <Text style={s.streakFire}>🔥</Text>
+                <Text style={s.streakCount}>{streak} day streak</Text>
+              </View>
+            )}
           </View>
-          {streak > 0 && (
-            <View style={s.streakBanner}>
-              <Text style={s.streakFire}>🔥</Text>
-              <Text style={s.streakCount}>{streak} day streak</Text>
-            </View>
-          )}
+          <View style={s.headerAvatarSlot}>
+            <SnappyAvatar
+              bgId={avatarBgId}
+              size={90}
+              mascotSize={68}
+              tintColor={avatarTint}
+            />
+          </View>
         </View>
 
         {/* Today's color */}
@@ -383,12 +383,17 @@ const s = StyleSheet.create({
   },
 
   // Header
-  header: { paddingTop: 4, gap: 0 },
-  headerNameRow: {
+  header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
+    paddingTop: 4,
   },
-  headerAvatarSlot: { flex: 1, alignItems: "center" },
+  headerLeft: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  headerAvatarSlot: { alignItems: "center", justifyContent: "center" },
   greetingSmall: {
     fontSize: 13,
     lineHeight: 13,
