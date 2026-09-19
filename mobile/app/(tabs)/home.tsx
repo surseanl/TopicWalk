@@ -213,13 +213,8 @@ export default function HomeScreen() {
         {/* Streak */}
         {streak > 0 && (
           <View style={s.streakBanner}>
-            <View style={s.streakIconWrap}>
-              <Text style={s.streakFire}>🔥</Text>
-            </View>
-            <View style={s.streakText}>
-              <Text style={s.streakCount}>{streak} day streak</Text>
-              <Text style={s.streakSub}>Keep it going — walk today!</Text>
-            </View>
+            <Text style={s.streakFire}>🔥</Text>
+            <Text style={s.streakCount}>{streak} day streak</Text>
           </View>
         )}
 
@@ -392,31 +387,19 @@ const s = StyleSheet.create({
   streakBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  streakIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    gap: 6,
+    alignSelf: "flex-start",
     backgroundColor: primaryTint,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 100,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
   },
-  streakFire: { fontSize: 20 },
-  streakText: { flex: 1 },
+  streakFire: { fontSize: 13 },
   streakCount: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "600",
     color: colors.primary,
-    letterSpacing: -0.3,
   },
-  streakSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 1 },
 
   // Hero
   heroCard: {
