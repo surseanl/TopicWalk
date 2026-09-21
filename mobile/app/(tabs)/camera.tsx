@@ -68,6 +68,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView from "react-native-webview";
@@ -85,8 +86,8 @@ const TOTAL_TILES = 9;
 const _MIN_TILES_CAPTURE = 3;
 const MILES_TO_METERS = 1609.34;
 const TILE_SIZE = (Dimensions.get("window").width - 32) / 3;
-const MAP_H = 420;
-const SLOT_ITEM_H = 88;
+const MAP_H = 320;
+const SLOT_ITEM_H = 72;
 const SOLO_DAILY_KEY = "tw_solo_object_v1";
 
 type SoloObj = {
@@ -324,11 +325,13 @@ function PlayMap({
   center,
   radiusMiles,
   markersJson = "[]",
+  style,
 }: {
   myPos: Pos | null;
   center: Pos | null;
   radiusMiles: number;
   markersJson?: string;
+  style?: ViewStyle;
 }) {
   const webRef = useRef<WebView>(null);
   const readyRef = useRef(false);
@@ -360,7 +363,7 @@ function PlayMap({
   }
 
   return (
-    <View style={s.mapBox}>
+    <View style={style ? [s.mapBox, style] : s.mapBox}>
       <WebView
         ref={webRef}
         originWhitelist={["*"]}
@@ -789,7 +792,6 @@ export default function HuntScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [snappyColor, setSnappyColor] = useState("#22c55e");
-  const [snappyAccessory, setSnappyAccessory] = useState("");
   const [tab, setTab] = useState<"hunt" | "solo">("solo");
   const [mascots, setMascots] = useState<Mascot[]>([]);
   const [myPos, setMyPos] = useState<Pos | null>(null);
@@ -824,6 +826,7 @@ export default function HuntScreen() {
   const [isOutsideSoloArea, setIsOutsideSoloArea] = useState(false);
   const [newGroupRadius, setNewGroupRadius] = useState<2 | 4 | 6 | 8 | 10>(2);
   const [showMembersSheet, setShowMembersSheet] = useState(false);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [showSoloPicker, setShowSoloPicker] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [selectedMascot, setSelectedMascot] = useState<Mascot | null>(null);
@@ -1051,7 +1054,6 @@ export default function HuntScreen() {
       .maybeSingle();
     setDisplayName(data?.username ?? "");
     setSnappyColor(data?.snappy_color ?? "#22c55e");
-    setSnappyAccessory(data?.snappy_accessory ?? "");
     void loadInvites(session.user.id);
     const group = await loadHuntGroup(session.user.id);
     await fetchMascots(session.user.id, group);
@@ -1535,7 +1537,16 @@ export default function HuntScreen() {
   }
 
   const active = mascots.filter((m) => !m.found_at);
-  const found = mascots.filter((m) => m.found_at);
+  const myHides = mascots.filter((m) => m.hider_user_id === userId);
+
+  const nearbyMascot =
+    myPos != null
+      ? (active.find(
+          (m) =>
+            m.hider_user_id !== userId &&
+            haversineDistance(myPos.lat, myPos.lng, m.lat, m.lng) <= 100,
+        ) ?? null)
+      : null;
 
   if (!loading && !userId) {
     return (
@@ -2026,40 +2037,58 @@ export default function HuntScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content}>
-        <View>
-          <Text style={s.pageTitle}>Mascot Hunt</Text>
-          {myPos ? (
-            <Text style={{ fontSize: 12, color: colors.primary }}>
-              📍 GPS active
-            </Text>
-          ) : posError ? (
-            <Text style={{ fontSize: 12, color: colors.destructive }}>
-              {posError}
-            </Text>
-          ) : (
-            <Text style={s.muted}>Getting location…</Text>
-          )}
-        </View>
-
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {(["solo", "hunt"] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setTab(t)}
-              style={[s.subTab, tab === t && s.subTabActive]}
-            >
-              <Text style={[s.subTabText, tab === t && s.subTabTextActive]}>
-                {t === "hunt" ? "Group" : "Solo"}
+      <View style={s.pageHeader}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <View>
+            <Text style={s.pageTitle}>Mascot Hunt</Text>
+            {myPos ? (
+              <Text style={{ fontSize: 12, color: colors.primary }}>
+                📍 GPS active
               </Text>
-            </TouchableOpacity>
-          ))}
+            ) : posError ? (
+              <Text style={{ fontSize: 12, color: colors.destructive }}>
+                {posError}
+              </Text>
+            ) : (
+              <Text style={s.muted}>Getting location…</Text>
+            )}
+          </View>
+
+          <View style={s.tabSegment}>
+            {(["solo", "hunt"] as const).map((t, i) => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => setTab(t)}
+                style={[
+                  s.tabSegmentBtn,
+                  tab === t && s.tabSegmentBtnActive,
+                  i === 0 && s.tabSegmentBtnLeft,
+                ]}
+              >
+                <Text
+                  style={[
+                    s.tabSegmentText,
+                    tab === t && s.tabSegmentTextActive,
+                  ]}
+                >
+                  {t === "hunt" ? "Group" : "Solo"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
+      </View>
 
-        {/* ── HUNT ─────────────────────────────────────────────────────────── */}
-
-        {tab === "hunt" &&
-          pendingInvites.map((invite) => (
+      {/* ── HUNT ─────────────────────────────────────────────────────────── */}
+      {tab === "hunt" && (
+        <ScrollView contentContainerStyle={s.tabContent}>
+          {pendingInvites.map((invite) => (
             <View key={invite.id} style={s.inviteCard}>
               <View style={{ flex: 1 }}>
                 <Text
@@ -2087,8 +2116,7 @@ export default function HuntScreen() {
             </View>
           ))}
 
-        {tab === "hunt" &&
-          (!huntGroup ? (
+          {!huntGroup ? (
             <TouchableOpacity
               ref={createGroupBtnRef}
               onPress={() => {
@@ -2106,63 +2134,6 @@ export default function HuntScreen() {
             </TouchableOpacity>
           ) : (
             <>
-              {/* ── Group row ── */}
-              <View style={s.huntGroupRow}>
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  onPress={() => setShowMembersSheet(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={s.huntGroupName}>{huntGroup.name}</Text>
-                  <Text style={s.huntGroupSub}>
-                    {huntMembers.length}{" "}
-                    {huntMembers.length === 1 ? "member" : "members"} ·{" "}
-                    {huntGroup.invite_code}
-                  </Text>
-                </TouchableOpacity>
-                <View style={s.groupAvatarStack}>
-                  {huntMembers.slice(0, 3).map((m, i) => (
-                    <View
-                      key={m.id || m.user_id}
-                      style={[
-                        s.groupAvatar,
-                        { zIndex: 3 - i, marginLeft: i > 0 ? -10 : 0 },
-                      ]}
-                    >
-                      <Text style={s.groupAvatarLetter}>
-                        {m.display_name[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    </View>
-                  ))}
-                  {huntMembers.length > 3 && (
-                    <View
-                      style={[
-                        s.groupAvatar,
-                        { marginLeft: -10, backgroundColor: colors.muted },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.groupAvatarLetter,
-                          { color: colors.mutedForeground },
-                        ]}
-                      >
-                        +{huntMembers.length - 3}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={s.inlineInviteBtn}
-                  onPress={() => {
-                    setGroupModalMode("invite");
-                    setShowGroupModal(true);
-                  }}
-                >
-                  <Text style={s.inlineInviteBtnText}>+ Invite</Text>
-                </TouchableOpacity>
-              </View>
-
               {showGroupPicker ? (
                 <AreaPickerMap
                   initialPos={myPos}
@@ -2176,46 +2147,157 @@ export default function HuntScreen() {
                 />
               ) : (
                 <>
-                  {/* Play area map */}
-                  {myPos && (
-                    <>
-                      <View style={s.soloAreaHeader}>
-                        <Text style={s.sectionLabel}>
-                          {huntGroup.radius_miles ?? 2}-mile play area
-                        </Text>
-                        {userId === huntGroup.created_by && (
+                  {/* ── Group info + map card ── */}
+                  <View style={s.huntMapCard}>
+                    <View style={s.huntMapHeader}>
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        {/* Group name + code badge side by side */}
+                        <TouchableOpacity
+                          onPress={() => setShowMembersSheet(true)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          <Text
+                            style={s.huntGroupName}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {huntGroup.name}
+                          </Text>
+                          <View style={s.huntCodeBadge}>
+                            <Text style={s.huntCodeBadgeText}>
+                              {huntGroup.invite_code}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                        {/* Play area on the right */}
+                        {userId === huntGroup.created_by ? (
                           <TouchableOpacity
                             onPress={() => setShowGroupPicker(true)}
+                            style={s.playAreaBtn}
+                            activeOpacity={0.7}
                           >
-                            <Text style={s.changeLink}>Edit</Text>
+                            <Text style={s.playAreaBtnText}>
+                              📍 {huntGroup.radius_miles ?? 2}mi · Change
+                            </Text>
                           </TouchableOpacity>
+                        ) : (
+                          <View style={s.playAreaBadge}>
+                            <Text style={s.playAreaBadgeText}>
+                              📍 {huntGroup.radius_miles ?? 2}mi
+                            </Text>
+                          </View>
                         )}
                       </View>
-                      <PlayMap
-                        myPos={myPos}
-                        center={
-                          huntGroup.center_lat != null &&
-                          huntGroup.center_lng != null
-                            ? {
-                                lat: huntGroup.center_lat,
-                                lng: huntGroup.center_lng,
-                              }
-                            : myPos
-                        }
-                        radiusMiles={huntGroup.radius_miles ?? 2}
-                        markersJson={JSON.stringify(
-                          active
-                            .filter((m) => m.hider_user_id === userId)
-                            .map((m) => ({
-                              lat: m.lat,
-                              lng: m.lng,
-                              c: snappyColor,
-                              e: snappyAccessory,
-                            })),
-                        )}
-                      />
-                    </>
-                  )}
+                    </View>
+
+                    <View style={{ position: "relative" }}>
+                      {myPos && (
+                        <PlayMap
+                          myPos={myPos}
+                          center={
+                            huntGroup.center_lat != null &&
+                            huntGroup.center_lng != null
+                              ? {
+                                  lat: huntGroup.center_lat,
+                                  lng: huntGroup.center_lng,
+                                }
+                              : myPos
+                          }
+                          radiusMiles={huntGroup.radius_miles ?? 2}
+                          markersJson={JSON.stringify(
+                            active
+                              .filter((m) => m.hider_user_id === userId)
+                              .map((m) => ({
+                                lat: m.lat,
+                                lng: m.lng,
+                                c: snappyColor,
+                              })),
+                          )}
+                          style={{ height: 320, borderRadius: 0 }}
+                        />
+                      )}
+                      {/* Member overlay — semi-transparent, floats over map */}
+                      {nearbyMascot && (
+                        <TouchableOpacity
+                          style={s.captureOverlayBtn}
+                          activeOpacity={0.85}
+                          onPress={() => setSelectedMascot(nearbyMascot)}
+                        >
+                          <Text style={s.captureOverlayBtnText}>
+                            🎯 Capture nearby mascot!
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {myPos && (
+                        <View style={s.huntMemberOverlay}>
+                          <View style={{ flexDirection: "row" }}>
+                            {huntMembers.slice(0, 5).map((m, i) => {
+                              const memberId = m.id || m.user_id;
+                              const hasHidden = active.some(
+                                (mc) => mc.hider_user_id === m.user_id,
+                              );
+                              return (
+                                <TouchableOpacity
+                                  key={memberId}
+                                  activeOpacity={0.75}
+                                  onPress={() =>
+                                    setExpandedMemberId(
+                                      expandedMemberId === memberId
+                                        ? null
+                                        : memberId,
+                                    )
+                                  }
+                                  style={[
+                                    s.huntMemberAvatar,
+                                    {
+                                      marginLeft: i > 0 ? -5 : 0,
+                                      zIndex: 5 - i,
+                                    },
+                                  ]}
+                                >
+                                  <Text style={s.huntMemberInitial}>
+                                    {m.display_name[0]?.toUpperCase() ?? "?"}
+                                  </Text>
+                                  <View
+                                    style={[
+                                      s.huntMascotDot,
+                                      hasHidden && s.huntMascotDotActive,
+                                    ]}
+                                  />
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          <Text style={s.huntMemberNames} numberOfLines={1}>
+                            {expandedMemberId
+                              ? (huntMembers.find(
+                                  (m) =>
+                                    (m.id || m.user_id) === expandedMemberId,
+                                )?.display_name ?? "")
+                              : ""}
+                          </Text>
+                          <TouchableOpacity
+                            style={s.inlineInviteBtn}
+                            onPress={() => {
+                              setGroupModalMode("invite");
+                              setShowGroupModal(true);
+                            }}
+                          >
+                            <Text style={s.inlineInviteBtnText}>+ Invite</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
 
                   {isOutsideGroupArea && (
                     <View style={s.outsideWarning}>
@@ -2243,93 +2325,32 @@ export default function HuntScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Active section */}
-                  <Text style={s.huntSectionLabel}>
-                    Hunting{active.length > 0 ? ` (${active.length})` : ""}
-                  </Text>
-
-                  {loading ? (
-                    <ActivityIndicator color={colors.primary} />
-                  ) : active.length === 0 ? (
-                    <View style={s.emptyHunt}>
-                      <Text style={s.emptyHuntTitle}>Nothing hiding yet</Text>
-                      <Text style={s.emptyHuntSub}>
-                        Hide a mascot to get the hunt started!
-                      </Text>
-                    </View>
-                  ) : (
-                    active.map((m) => {
-                      const hiddenDt = new Date(m.hidden_at);
-                      const hiddenDate = hiddenDt.toLocaleDateString([], {
-                        month: "short",
-                        day: "numeric",
-                      });
-                      const hiddenTime = hiddenDt.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-                      const photoUrl = supabase.storage
-                        .from("game-photos")
-                        .getPublicUrl(m.photo_path).data.publicUrl;
-                      return (
-                        <TouchableOpacity
-                          key={m.id}
-                          onPress={() => setSelectedMascot(m)}
-                          style={s.huntCard}
-                          activeOpacity={0.72}
-                        >
-                          <Image
-                            source={{ uri: photoUrl }}
-                            style={s.huntThumb}
-                            resizeMode="cover"
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.huntCardName}>
-                              {m.hider_name}'s Mascot
-                            </Text>
-                            <Text style={s.huntCardMeta}>
-                              {hiddenDate} · {hiddenTime}
-                            </Text>
-                          </View>
-                          <Text style={s.huntChevron}>›</Text>
-                        </TouchableOpacity>
-                      );
-                    })
-                  )}
-
-                  {/* Captured section */}
-                  {found.length > 0 && (
+                  {/* ── My Hides ── */}
+                  {myHides.length > 0 && (
                     <>
-                      <Text style={s.huntSectionLabel}>
-                        Captured ({found.length})
-                      </Text>
-                      {found.map((m) => {
-                        const url = supabase.storage
+                      <Text style={s.myHidesLabel}>My Hides</Text>
+                      {myHides.map((m) => {
+                        const photoUrl = supabase.storage
                           .from("game-photos")
                           .getPublicUrl(m.photo_path).data.publicUrl;
-                        const elapsed =
-                          new Date(m.found_at ?? "").getTime() -
-                          new Date(m.hidden_at).getTime();
+                        const found = !!m.found_at;
                         return (
-                          <View
-                            key={m.id}
-                            style={[s.huntCard, s.huntCardFound]}
-                          >
+                          <View key={m.id} style={s.myHideRow}>
                             <Image
-                              source={{ uri: url }}
-                              style={s.huntThumb}
+                              source={{ uri: photoUrl }}
+                              style={s.myHideThumb}
                               resizeMode="cover"
                             />
                             <View style={{ flex: 1 }}>
-                              <Text style={s.huntCardName}>
-                                {m.hider_name}'s Mascot
+                              <Text style={s.myHideStatus}>
+                                {found ? "✓ Captured" : "🕵️ Still hiding"}
                               </Text>
-                              <Text style={s.huntCardMeta}>
-                                Found by {m.finder_name} ·{" "}
-                                {survivalStr(elapsed)}
+                              <Text style={s.myHideMeta}>
+                                {found
+                                  ? `Found by ${m.finder_name} · ${_elapsed(m.hidden_at)} after hiding`
+                                  : `Hidden ${_elapsed(m.hidden_at)} ago`}
                               </Text>
                             </View>
-                            <Text style={s.huntFoundBadge}>✓</Text>
                           </View>
                         );
                       })}
@@ -2338,180 +2359,176 @@ export default function HuntScreen() {
                 </>
               )}
             </>
-          ))}
+          )}
+        </ScrollView>
+      )}
 
-        {/* ── SOLO ─────────────────────────────────────────────────────────── */}
-        {tab === "solo" && (
-          <>
-            {/* Daily object slot machine */}
-            <View ref={slotCardRef} style={s.slotCard}>
-              <Text style={s.sectionLabel}>Today's Hunt</Text>
+      {/* ── SOLO ─────────────────────────────────────────────────────────── */}
+      {tab === "solo" && (
+        <View style={s.soloLayout}>
+          {/* Daily object slot machine */}
+          <View ref={slotCardRef} style={s.slotCard}>
+            <Text style={s.sectionLabel}>Today's Hunt</Text>
 
-              {/* Two side-by-side drums */}
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                {([soloSlotY0, soloSlotY1] as const).map((anim, col) => {
-                  const idx = soloObjIndices?.[col as 0 | 1] ?? null;
-                  const done = soloPhotoDone[col as 0 | 1];
-                  return (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: two fixed drum columns never reorder
-                    <View key={col} style={{ flex: 1, gap: 10 }}>
-                      <View style={s.slotWindow}>
-                        <View
-                          pointerEvents="none"
-                          style={[
-                            StyleSheet.absoluteFill,
-                            s.slotFadeTop,
-                            { zIndex: 2 },
-                          ]}
-                        />
-                        <View
-                          pointerEvents="none"
-                          style={[
-                            StyleSheet.absoluteFill,
-                            s.slotFadeBottom,
-                            { zIndex: 2 },
-                          ]}
-                        />
-                        <Animated.View
-                          style={{
-                            transform: [{ translateY: anim }],
-                            width: "100%",
-                          }}
-                        >
-                          {SOLO_DRUM.map((obj, i) => (
-                            <View
-                              // biome-ignore lint/suspicious/noArrayIndexKey: stable drum
-                              key={i}
-                              style={s.slotItem}
-                            >
-                              <obj.icon size={32} color={colors.foreground} />
-                              <Text style={s.slotLabel} numberOfLines={1}>
-                                {obj.label}
-                              </Text>
-                            </View>
-                          ))}
-                        </Animated.View>
-                      </View>
-
-                      {soloObjRevealed && idx !== null && !done && (
-                        <TouchableOpacity
-                          onPress={() => void takeSoloPhoto(col as 0 | 1)}
-                          disabled={soloPhotoUploading !== null}
-                          style={[
-                            s.primaryBtn,
-                            { opacity: soloPhotoUploading === col ? 0.5 : 1 },
-                          ]}
-                        >
-                          {soloPhotoUploading === col ? (
-                            <ActivityIndicator color="#fff" size="small" />
-                          ) : (
-                            <>
-                              <Camera color="#fff" size={15} />
-                              <Text
-                                style={[s.primaryBtnText, { fontSize: 13 }]}
-                              >
-                                Found it!
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      )}
-
-                      {done && (
-                        <View style={s.slotDoneChip}>
-                          <Text style={s.slotDoneText}>✓ Found</Text>
-                        </View>
-                      )}
+            {/* Two side-by-side drums */}
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              {([soloSlotY0, soloSlotY1] as const).map((anim, col) => {
+                const idx = soloObjIndices?.[col as 0 | 1] ?? null;
+                const done = soloPhotoDone[col as 0 | 1];
+                return (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: two fixed drum columns never reorder
+                  <View key={col} style={{ flex: 1, gap: 10 }}>
+                    <View style={s.slotWindow}>
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          StyleSheet.absoluteFill,
+                          s.slotFadeTop,
+                          { zIndex: 2 },
+                        ]}
+                      />
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          StyleSheet.absoluteFill,
+                          s.slotFadeBottom,
+                          { zIndex: 2 },
+                        ]}
+                      />
+                      <Animated.View
+                        style={{
+                          transform: [{ translateY: anim }],
+                          width: "100%",
+                        }}
+                      >
+                        {SOLO_DRUM.map((obj, i) => (
+                          <View
+                            // biome-ignore lint/suspicious/noArrayIndexKey: stable drum
+                            key={i}
+                            style={s.slotItem}
+                          >
+                            <obj.icon size={26} color={colors.foreground} />
+                            <Text style={s.slotLabel} numberOfLines={1}>
+                              {obj.label}
+                            </Text>
+                          </View>
+                        ))}
+                      </Animated.View>
                     </View>
-                  );
-                })}
-              </View>
 
-              {!soloObjRevealed && (
-                <TouchableOpacity
-                  ref={spinSoloBtnRef}
-                  onPress={spinSoloObject}
-                  disabled={soloObjSpinning}
-                  style={[s.primaryBtn, { opacity: soloObjSpinning ? 0.5 : 1 }]}
-                >
-                  {soloObjSpinning ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={s.primaryBtnText}>Spin</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+                    {soloObjRevealed && idx !== null && !done && (
+                      <TouchableOpacity
+                        onPress={() => void takeSoloPhoto(col as 0 | 1)}
+                        disabled={soloPhotoUploading !== null}
+                        style={[
+                          s.primaryBtn,
+                          { opacity: soloPhotoUploading === col ? 0.5 : 1 },
+                        ]}
+                      >
+                        {soloPhotoUploading === col ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <>
+                            <Camera color="#fff" size={15} />
+                            <Text style={[s.primaryBtnText, { fontSize: 13 }]}>
+                              Found it!
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
 
-              {soloPhotoDone[0] && soloPhotoDone[1] && (
-                <View style={s.slotAllDone}>
-                  <Text style={s.slotAllDoneText}>
-                    Both found! Great hunt today.
-                  </Text>
-                </View>
-              )}
+                    {done && (
+                      <View style={s.slotDoneChip}>
+                        <Text style={s.slotDoneText}>✓ Found</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
-            {/* Play area picker or map */}
-            {showSoloPicker || !soloRadius ? (
-              <AreaPickerMap
-                initialPos={myPos}
-                initialRadiusMiles={
-                  (soloRadius as 2 | 4 | 6 | 8 | 10 | null) ?? 2
-                }
-                onConfirm={async (center, radius) => {
-                  await setSoloPlayArea(radius, center);
-                  setShowSoloPicker(false);
-                }}
-                onCancel={
-                  soloRadius ? () => setShowSoloPicker(false) : undefined
-                }
-              />
-            ) : (
-              <>
-                <View style={s.soloAreaHeader}>
-                  <Text style={s.sectionLabel}>
-                    {soloRadius}-mile play area
-                  </Text>
-                  <TouchableOpacity onPress={() => setShowSoloPicker(true)}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: colors.primary,
-                        fontWeight: "600",
-                      }}
-                    >
-                      Change
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <PlayMap
-                  myPos={myPos}
-                  center={soloCenter}
-                  radiusMiles={soloRadius}
-                  markersJson={JSON.stringify(
-                    soloFoundLocs.map((p, i) => ({
-                      lat: p.lat,
-                      lng: p.lng,
-                      c: "#16a34a",
-                      e:
-                        soloObjIndices?.[i] !== undefined
-                          ? SOLO_OBJECTS[soloObjIndices[i]]?.emoji
-                          : undefined,
-                    })),
-                  )}
-                />
-                {isOutsideSoloArea && (
-                  <View style={s.outsideWarning}>
-                    <Text style={s.outsideWarningText}>
-                      You're outside your play area!
-                    </Text>
-                  </View>
+            {!soloObjRevealed && (
+              <TouchableOpacity
+                ref={spinSoloBtnRef}
+                onPress={spinSoloObject}
+                disabled={soloObjSpinning}
+                style={[s.primaryBtn, { opacity: soloObjSpinning ? 0.5 : 1 }]}
+              >
+                {soloObjSpinning ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={s.primaryBtnText}>Spin</Text>
                 )}
-              </>
+              </TouchableOpacity>
             )}
-          </>
-        )}
-      </ScrollView>
+
+            {soloPhotoDone[0] && soloPhotoDone[1] && (
+              <View style={s.slotAllDone}>
+                <Text style={s.slotAllDoneText}>
+                  Both found! Great hunt today.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Play area picker or map */}
+          {showSoloPicker || !soloRadius ? (
+            <AreaPickerMap
+              initialPos={myPos}
+              initialRadiusMiles={
+                (soloRadius as 2 | 4 | 6 | 8 | 10 | null) ?? 2
+              }
+              onConfirm={async (center, radius) => {
+                await setSoloPlayArea(radius, center);
+                setShowSoloPicker(false);
+              }}
+              onCancel={soloRadius ? () => setShowSoloPicker(false) : undefined}
+            />
+          ) : (
+            <>
+              <View style={s.soloAreaHeader}>
+                <Text style={s.sectionLabel}>{soloRadius}-mile play area</Text>
+                <TouchableOpacity onPress={() => setShowSoloPicker(true)}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: colors.primary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Change
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {isOutsideSoloArea && (
+                <View style={s.outsideWarning}>
+                  <Text style={s.outsideWarningText}>
+                    You're outside your play area!
+                  </Text>
+                </View>
+              )}
+              <PlayMap
+                myPos={myPos}
+                center={soloCenter}
+                radiusMiles={soloRadius}
+                markersJson={JSON.stringify(
+                  soloFoundLocs.map((p, i) => ({
+                    lat: p.lat,
+                    lng: p.lng,
+                    c: "#16a34a",
+                    e:
+                      soloObjIndices?.[i] !== undefined
+                        ? SOLO_OBJECTS[soloObjIndices[i]]?.emoji
+                        : undefined,
+                  })),
+                )}
+                style={{ flex: 1, height: undefined }}
+              />
+            </>
+          )}
+        </View>
+      )}
 
       {selectedMascot && (
         <MascotHuntModal
@@ -2535,16 +2552,28 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  content: {
+  pageHeader: {
     paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 48,
-    gap: 20,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  tabContent: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 20,
+    gap: 14,
+  },
+  soloLayout: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 14,
+    gap: 14,
   },
   pageTitle: {
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
     color: colors.foreground,
   },
   muted: { fontSize: 14, color: colors.mutedForeground },
@@ -2563,8 +2592,8 @@ const s = StyleSheet.create({
     padding: 16,
   },
   primaryBtn: {
-    height: 54,
-    borderRadius: 18,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
@@ -2572,7 +2601,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     letterSpacing: -0.2,
     color: "#fff",
@@ -2640,25 +2669,34 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  subTab: {
-    flex: 1,
-    borderRadius: 14,
+  tabSegment: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 9,
+    overflow: "hidden",
+  },
+  tabSegmentBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     alignItems: "center",
+    backgroundColor: colors.card,
   },
-  subTabActive: {
-    backgroundColor: colors.foreground,
-    borderColor: colors.foreground,
+  tabSegmentBtnActive: {
+    backgroundColor: colors.primary,
   },
-  subTabText: {
+  tabSegmentBtnLeft: {
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  tabSegmentText: {
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
+    fontWeight: "700",
     color: colors.mutedForeground,
+    letterSpacing: 0.2,
   },
-  subTabTextActive: { color: "#fff" },
+  tabSegmentTextActive: { color: "#fff" },
   mascotCard: {
     backgroundColor: colors.card,
     borderRadius: 18,
@@ -3048,11 +3086,11 @@ const s = StyleSheet.create({
   },
   slotCard: {
     backgroundColor: colors.card,
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 20,
-    gap: 16,
+    padding: 14,
+    gap: 10,
   },
   slotWindow: {
     height: SLOT_ITEM_H,
@@ -3069,7 +3107,7 @@ const s = StyleSheet.create({
     gap: 4,
   },
   slotLabel: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
     color: colors.foreground,
     letterSpacing: -0.2,
@@ -3247,25 +3285,46 @@ const s = StyleSheet.create({
   // ── Create group CTA ──────────────────────────────────────────────────────
   createGroupBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 22,
-    padding: 24,
-    gap: 8,
+    borderRadius: 18,
+    padding: 16,
+    gap: 6,
     alignItems: "center",
   },
   createGroupBtnTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "900",
     color: "#fff",
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   createGroupBtnSub: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255,255,255,0.75)",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 18,
   },
 
-  // ── Group row ─────────────────────────────────────────────────────────────
+  // ── Group + map card ──────────────────────────────────────────────────────
+  huntMapCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  huntMapHeader: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  huntGroupCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   huntGroupRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -3273,29 +3332,129 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   huntGroupName: {
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: "800",
     color: colors.foreground,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   huntGroupSub: {
     fontSize: 12,
     color: colors.mutedForeground,
+    fontWeight: "600",
+  },
+  huntGroupCode: {
+    fontSize: 11,
+    color: colors.mutedForeground,
     fontWeight: "500",
-    marginTop: 2,
+    marginTop: 4,
+    letterSpacing: 0.3,
+  },
+  huntCodeBadge: {
+    backgroundColor: colors.foreground,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  huntCodeBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.background,
+    letterSpacing: 1.2,
+  },
+  huntMemberChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.muted,
+    borderRadius: 20,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  huntMemberAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  huntMemberInitial: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  huntMascotDot: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.muted,
+    borderWidth: 1,
+    borderColor: colors.card,
+  },
+  huntMascotDotActive: {
+    backgroundColor: "#16a34a",
+  },
+  captureOverlayBtn: {
+    position: "absolute",
+    bottom: 10,
+    left: 16,
+    right: 16,
+    backgroundColor: "#16a34a",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  captureOverlayBtnText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.2,
+  },
+  huntMemberOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    backgroundColor: "rgba(0,0,0,0.30)",
+  },
+  huntMemberNames: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
+    flex: 1,
+    marginLeft: 6,
+  },
+  huntMemberUsername: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.foreground,
   },
   inlineInviteBtn: {
-    backgroundColor: `${colors.primary}18`,
+    backgroundColor: "rgba(255,255,255,0.20)",
     borderRadius: 99,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: `${colors.primary}33`,
+    borderColor: "rgba(255,255,255,0.35)",
   },
   inlineInviteBtnText: {
     fontSize: 12,
     fontWeight: "700",
-    color: colors.primary,
+    color: "#fff",
   },
 
   // ── Hide Here button ───────────────────────────────────────────────────────
@@ -3305,14 +3464,48 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     backgroundColor: "#16a34a",
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 18,
+    height: 54,
   },
   hideHereBtnText: {
     fontSize: 16,
     fontWeight: "900",
     color: "#fff",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+  },
+  myHidesLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.mutedForeground,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginTop: 4,
+  },
+  myHideRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  myHideThumb: {
+    width: 64,
+    height: 64,
+    backgroundColor: colors.muted,
+  },
+  myHideStatus: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  myHideMeta: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    fontWeight: "500",
+    marginTop: 2,
   },
   groupAvatarStack: {
     flexDirection: "row",
@@ -3336,41 +3529,80 @@ const s = StyleSheet.create({
 
   // ── Hunt list ─────────────────────────────────────────────────────────────
   huntSectionLabel: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "800",
     color: colors.mutedForeground,
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
-    marginTop: 4,
+  },
+  huntCountBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  huntCountBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
   },
 
   huntCard: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
+    alignItems: "stretch",
+    overflow: "hidden",
   },
   huntThumb: {
-    width: 78,
-    height: 78,
-    borderRadius: 16,
-    overflow: "hidden",
+    width: 92,
     backgroundColor: colors.muted,
+  },
+  huntCardInner: {
+    flex: 1,
+    padding: 14,
+    justifyContent: "center",
+    gap: 3,
+  },
+  huntActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  huntCardEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.primary,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  huntFoundLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#16a34a",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  huntCardArrow: {
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   huntCardName: {
     fontSize: 15,
     fontWeight: "800",
     color: colors.foreground,
     letterSpacing: -0.3,
+    marginTop: 2,
   },
   huntCardMeta: {
     fontSize: 12,
     color: colors.mutedForeground,
     fontWeight: "500",
+    marginTop: 1,
   },
   huntCardFound: {
     borderColor: "#bbf7d0",
@@ -3386,29 +3618,55 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
     fontWeight: "300",
   },
-  changeLink: {
-    fontSize: 13,
+  playAreaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${colors.primary}18`,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  playAreaBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.primary,
+  },
+  playAreaBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.muted,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  playAreaBadgeText: {
+    fontSize: 12,
     fontWeight: "600",
+    color: colors.mutedForeground,
   },
 
   // ── Empty hunt state ───────────────────────────────────────────────────────
   emptyHunt: {
     backgroundColor: colors.muted,
-    borderRadius: 18,
+    borderRadius: 20,
     paddingVertical: 36,
+    paddingHorizontal: 24,
     alignItems: "center",
     gap: 8,
   },
   emptyHuntTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "800",
     color: colors.foreground,
+    letterSpacing: -0.3,
   },
   emptyHuntSub: {
     fontSize: 13,
     color: colors.mutedForeground,
     textAlign: "center",
+    lineHeight: 19,
   },
 
   // ── Photo review screen ────────────────────────────────────────────────────

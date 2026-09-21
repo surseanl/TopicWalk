@@ -4,7 +4,7 @@
     {
       "name": "Expo Mobile",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd mobile && npx expo start --port 8081"],
+      "runtimeArgs": ["/c", "cd mobile && npx expo start --port 8081 --tunnel"],
       "port": 8081,
       "url": "http://localhost:8081"
     },
