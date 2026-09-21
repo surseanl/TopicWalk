@@ -166,12 +166,13 @@ export default function FriendsScreen() {
   async function sendRequest(toUserId: string) {
     if (!userId) return;
     setActionPending(toUserId);
-    await supabase.from("tw_friendships").insert({
-      requester_id: userId,
-      addressee_id: toUserId,
-      status: "pending",
-    });
-    await loadFriendships(userId);
+    const { error } = await supabase
+      .from("tw_friendships")
+      .upsert(
+        { requester_id: userId, addressee_id: toUserId, status: "pending" },
+        { onConflict: "requester_id,addressee_id" },
+      );
+    if (!error) await loadFriendships(userId);
     setActionPending(null);
   }
 

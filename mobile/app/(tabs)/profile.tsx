@@ -431,7 +431,7 @@ export default function ProfileScreen() {
 
   // ── Logged-in ─────────────────────────────────────────────────────────────
   if (session?.user) {
-    const isAdmin = session.user.email === "sean.s.lee09@gmail.com";
+    const isAdmin = session.user.app_metadata?.role === "admin";
     return (
       <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
         <Modal

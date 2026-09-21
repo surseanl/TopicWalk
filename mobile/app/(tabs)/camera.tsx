@@ -1055,7 +1055,7 @@ export default function HuntScreen() {
     userIdRef.current = session.user.id;
     const { data } = await supabase
       .from("tw_users")
-      .select("username, snappy_color, snappy_accessory")
+      .select("username, snappy_color")
       .eq("id", session.user.id)
       .maybeSingle();
     setDisplayName(data?.username ?? "");
@@ -1455,20 +1455,21 @@ export default function HuntScreen() {
 
   async function confirmHideMascot() {
     if (!pendingHidePhoto || !myPos || !userId || !huntGroupRef.current) return;
+    const photo = pendingHidePhoto;
     const radius = huntGroupRef.current.radius_miles ?? 5;
     setUploading(true);
     setPendingHidePhoto(null);
     try {
-      const ext = pendingHidePhoto.mimeType.split("/")[1] ?? "jpg";
+      const ext = photo.mimeType.split("/")[1] ?? "jpg";
       const path = `${userId}/mascot-${Date.now()}.${ext}`;
-      const binaryString = atob(pendingHidePhoto.base64);
+      const binaryString = atob(photo.base64);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       const { error } = await supabase.storage
         .from("game-photos")
-        .upload(path, bytes, { contentType: pendingHidePhoto.mimeType });
+        .upload(path, bytes, { contentType: photo.mimeType });
       if (error) {
         Alert.alert("Upload failed", error.message);
         return;

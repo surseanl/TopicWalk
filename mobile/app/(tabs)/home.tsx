@@ -93,7 +93,7 @@ function computeStreak(dates: string[]): number {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [_uid, setUid] = useState<string | null>(null);
+  const [uid, setUid] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [avatarBgId, setAvatarBgId] = useState<string | undefined>(undefined);
   const [avatarTint, setAvatarTint] = useState<string | undefined>(undefined);
@@ -118,7 +118,11 @@ export default function HomeScreen() {
     useCallback(() => {
       void loadTodayPick();
       void loadSoloDaily();
-    }, []),
+      if (uid) {
+        void loadStreak(uid);
+        void loadHuntGroup(uid);
+      }
+    }, [uid]),
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
@@ -281,7 +285,7 @@ export default function HomeScreen() {
         {todayColor ? (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => router.navigate("/" as never)}
+            onPress={() => router.navigate("/(tabs)/" as never)}
             style={s.heroCard}
           >
             <View style={[s.heroAccent, { backgroundColor: todayColor.hex }]} />
@@ -314,7 +318,7 @@ export default function HomeScreen() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => router.navigate("/" as never)}
+            onPress={() => router.navigate("/(tabs)/" as never)}
             style={s.heroCard}
           >
             <View style={[s.heroAccent, { backgroundColor: colors.border }]} />

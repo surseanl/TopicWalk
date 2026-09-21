@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -259,9 +260,7 @@ function ReelSlide({
       {/* ── Photo card ── */}
       <View style={s.photoCard}>
         {viewMode === "swipe" ? (
-          <FlatList
-            data={entry.photos}
-            keyExtractor={(_, i) => String(i)}
+          <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -269,16 +268,18 @@ function ReelSlide({
               const idx = Math.round(e.nativeEvent.contentOffset.x / PHOTO_W);
               setPhotoIndex(idx);
             }}
-            getItemLayout={(_, index) => ({
-              length: PHOTO_W,
-              offset: PHOTO_W * index,
-              index,
-            })}
-            renderItem={({ item: url }) => (
-              <Image source={{ uri: url }} style={s.photo} resizeMode="cover" />
-            )}
-            style={{ borderRadius: 28, overflow: "hidden" }}
-          />
+            style={{ borderRadius: 28 }}
+          >
+            {entry.photos.map((url, i) => (
+              <Image
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable photo order
+                key={i}
+                source={{ uri: url }}
+                style={s.photo}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
         ) : (
           <View style={s.gridWrap}>
             {entry.photos.map((url, i) => (

@@ -206,7 +206,7 @@ export default function WalkScreen() {
       const activeIdx = active.findIndex((c) => c.name === storedColor?.name);
       if (activeIdx >= 0) {
         const sd = 360 / active.length;
-        wheelRot.setValue((7 * 360 + (360 - activeIdx * sd)) % 360);
+        wheelRot.setValue(7 * 360 + (360 - activeIdx * sd));
       }
       revealOpacity.setValue(1);
       revealTranslate.setValue(0);
