@@ -545,8 +545,8 @@ export default function ProfileScreen() {
               <TouchableOpacity onPress={openEdit} activeOpacity={0.85}>
                 <SnappyAvatar
                   bgId={snappyBg}
-                  size={130}
-                  mascotSize={100}
+                  size={100}
+                  mascotSize={76}
                   tintColor={snappyColor}
                 />
               </TouchableOpacity>
@@ -816,7 +816,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 48,
-    gap: 20,
+    gap: 24,
   },
 
   // Top bar
@@ -844,14 +844,14 @@ const s = StyleSheet.create({
   editPillText: { fontSize: 14, fontWeight: "600", color: colors.foreground },
 
   // Avatar section
-  avatarSection: { alignItems: "center", gap: 10 },
+  avatarSection: { alignItems: "center", gap: 6 },
   avatarWrap: { position: "relative" },
   onlineDot: {
     position: "absolute",
-    bottom: 4,
-    right: 4,
-    width: 14,
-    height: 14,
+    bottom: 2,
+    right: 2,
+    width: 13,
+    height: 13,
     borderRadius: 7,
     backgroundColor: "#22c55e",
     borderWidth: 2.5,
@@ -862,12 +862,13 @@ const s = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.4,
     color: colors.foreground,
+    marginTop: 4,
   },
   profileBio: {
     fontSize: 14,
     color: colors.mutedForeground,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
     paddingHorizontal: 20,
   },
   bioPlaceholder: {

@@ -1,16 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
-import { Camera, ChevronRight, Footprints, MapPin } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import {
-  Image,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ChevronRight } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { supabase } from "../../lib/supabase";
@@ -22,15 +14,6 @@ type DayPick = {
   colorIdx: number;
   albumId: string | null;
   photoCount: number;
-};
-
-type RecentAlbum = {
-  id: string;
-  color_name: string;
-  color_hex: string;
-  created_at: string;
-  photo_count: number;
-  thumbnail_url: string | null;
 };
 
 function today() {
@@ -49,6 +32,34 @@ function greeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+function formatDateHeader() {
+  const now = new Date();
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
 }
 
 function relativeTime(iso: string) {
@@ -82,14 +93,33 @@ function computeStreak(dates: string[]): number {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [uid, setUid] = useState<string | null>(null);
+  const [_uid, setUid] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [avatarBgId, setAvatarBgId] = useState<string | undefined>(undefined);
   const [avatarTint, setAvatarTint] = useState<string | undefined>(undefined);
   const [todayPick, setTodayPick] = useState<DayPick | null>(null);
   const [streak, setStreak] = useState(0);
-  const [recent, setRecent] = useState<RecentAlbum[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [totalWalks, setTotalWalks] = useState(0);
+  const [soloDaily, setSoloDaily] = useState<{
+    indices: [number, number];
+    done: [boolean, boolean];
+  } | null>(null);
+  const [huntGroupId, setHuntGroupId] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [huntMemberCount, setHuntMemberCount] = useState(0);
+  const [longestHidden, setLongestHidden] = useState<{
+    id: string;
+    hider_name: string;
+    hidden_at: string;
+  } | null>(null);
+  useFocusEffect(
+    // biome-ignore lint/correctness/useExhaustiveDependencies: stable functions, focus-only refresh
+    useCallback(() => {
+      void loadTodayPick();
+      void loadSoloDaily();
+    }, []),
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
@@ -112,10 +142,42 @@ export default function HomeScreen() {
     await Promise.all([
       loadProfile(id),
       loadTodayPick(),
-      loadRecent(id),
+      loadSoloDaily(),
       loadStreak(id),
+      loadHuntGroup(id),
     ]);
-    setRefreshing(false);
+  }
+
+  async function loadHuntGroup(uid: string) {
+    const { data } = await supabase
+      .from("tw_hunt_members")
+      .select("group_id")
+      .eq("user_id", uid)
+      .limit(1)
+      .maybeSingle();
+    const gid = data?.group_id ?? null;
+    setHuntGroupId(gid);
+    if (gid) {
+      const { count } = await supabase
+        .from("tw_hunt_members")
+        .select("id", { count: "exact", head: true })
+        .eq("group_id", gid);
+      setHuntMemberCount(count ?? 0);
+      if ((count ?? 0) > 1) await loadLongestHidden(gid, uid);
+    }
+  }
+
+  async function loadLongestHidden(groupId: string, uid: string) {
+    const { data } = await supabase
+      .from("tw_mascots")
+      .select("id, hider_name, hidden_at")
+      .eq("hunt_group_id", groupId)
+      .neq("hider_user_id", uid)
+      .is("found_at", null)
+      .order("hidden_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    setLongestHidden(data ?? null);
   }
 
   async function loadProfile(id: string) {
@@ -127,6 +189,22 @@ export default function HomeScreen() {
     setUsername(data?.username ?? "");
     setAvatarBgId(data?.avatar_color ?? undefined);
     setAvatarTint(data?.mascot_color ?? undefined);
+  }
+
+  async function loadSoloDaily() {
+    try {
+      const raw = await AsyncStorage.getItem("tw_solo_object_v1");
+      if (!raw) return;
+      const p = JSON.parse(raw) as {
+        date: string;
+        indices: [number, number];
+        done?: [boolean, boolean];
+      };
+      const todayStr = new Date().toISOString().split("T")[0] ?? "";
+      if (p.date === todayStr) {
+        setSoloDaily({ indices: p.indices, done: p.done ?? [false, false] });
+      }
+    } catch {}
   }
 
   async function loadTodayPick() {
@@ -152,69 +230,23 @@ export default function HomeScreen() {
       ),
     ] as string[];
     setStreak(computeStreak(dates));
-  }
-
-  async function loadRecent(id: string) {
-    const { data } = await supabase
-      .from("tw_albums")
-      .select(
-        "id, color_name, color_hex, created_at, tw_submissions(photo_path)",
-      )
-      .eq("user_id", id)
-      .order("created_at", { ascending: false })
-      .limit(4);
-    setRecent(
-      (data ?? []).map(
-        (a: {
-          id: string;
-          color_name: string;
-          color_hex: string;
-          created_at: string;
-          tw_submissions: { photo_path: string }[];
-        }) => {
-          const first = a.tw_submissions?.[0]?.photo_path ?? null;
-          return {
-            id: a.id,
-            color_name: a.color_name,
-            color_hex: a.color_hex,
-            created_at: a.created_at,
-            photo_count: a.tw_submissions?.length ?? 0,
-            thumbnail_url: first
-              ? supabase.storage.from("game-photos").getPublicUrl(first).data
-                  .publicUrl
-              : null,
-          };
-        },
-      ),
-    );
+    setTotalWalks(dates.length);
   }
 
   const todayColor = todayPick ? WALK_COLORS[todayPick.colorIdx] : null;
 
   return (
-    <SafeAreaView edges={["bottom"]} style={s.safe}>
-      <ScrollView
-        contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              if (uid) {
-                setRefreshing(true);
-                void load(uid);
-              }
-            }}
-            tintColor={colors.primary}
-          />
-        }
-      >
+    <SafeAreaView edges={[]} style={s.safe}>
+      <View style={s.content}>
         {/* Header */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            <View>
-              <Text style={s.greetingSmall}>{greeting()}</Text>
-              <Text style={s.greetingName}>{username || "Explorer"}</Text>
+            <View style={{ gap: 4 }}>
+              <Text style={s.greetingName}>
+                <Text style={s.greetingHello}>{greeting()}, </Text>
+                {username || "Explorer"}
+              </Text>
+              <Text style={s.greetingSmall}>{formatDateHeader()}</Text>
             </View>
             {streak > 0 && (
               <View style={s.streakBanner}>
@@ -222,6 +254,17 @@ export default function HomeScreen() {
                 <Text style={s.streakCount}>{streak} day streak</Text>
               </View>
             )}
+            <View style={s.statsRow}>
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{totalWalks}</Text>
+                <Text style={s.statLabel}>walks</Text>
+              </View>
+              <View style={s.statDivider} />
+              <View style={s.statItem}>
+                <Text style={s.statValue}>{todayPick?.photoCount ?? 0}</Text>
+                <Text style={s.statLabel}>photos today</Text>
+              </View>
+            </View>
           </View>
           <View style={s.headerAvatarSlot}>
             <SnappyAvatar
@@ -237,140 +280,222 @@ export default function HomeScreen() {
         {todayColor ? (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => router.push("/(tabs)/index" as never)}
+            onPress={() => router.navigate("/" as never)}
             style={s.heroCard}
           >
             <View style={[s.heroAccent, { backgroundColor: todayColor.hex }]} />
             <View
               style={[s.heroInner, { backgroundColor: `${todayColor.hex}22` }]}
             >
-              <Text style={s.heroEyebrow}>today's color</Text>
-              <Text style={[s.heroColorName, { color: todayColor.hex }]}>
-                {todayColor.name}
-              </Text>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>today's color</Text>
+                <Text style={[s.heroColorName, { color: todayColor.hex }]}>
+                  {todayColor.name}
+                </Text>
+              </View>
               <View style={s.heroFooter}>
                 <Text style={s.heroMeta}>
                   {todayPick?.photoCount
-                    ? `${todayPick.photoCount} ${todayPick.photoCount === 1 ? "photo" : "photos"} captured`
+                    ? `${todayPick.photoCount} ${todayPick.photoCount === 1 ? "photo" : "photos"} taken — keep going!`
                     : todayPick?.albumId
-                      ? "walk started"
-                      : "ready to walk"}
+                      ? "Walk started — take your first photo!"
+                      : `Go outside and snap anything ${todayColor.name.toLowerCase()}!`}
                 </Text>
                 <View style={[s.heroBtn, { backgroundColor: todayColor.hex }]}>
-                  <Camera size={13} color="#fff" />
                   <Text style={s.heroBtnText}>
-                    {todayPick?.albumId ? "continue" : "start"}
+                    {todayPick?.albumId ? "Continue" : "Start Walk"}
                   </Text>
+                  <ChevronRight size={12} color="#fff" />
                 </View>
               </View>
             </View>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={s.spinCard}
-            onPress={() => router.push("/(tabs)/index" as never)}
             activeOpacity={0.9}
+            onPress={() => router.navigate("/" as never)}
+            style={s.heroCard}
           >
-            <View style={s.spinLeft}>
-              <Text style={s.spinEyebrow}>today's color</Text>
-              <Text style={s.spinTitle}>Not revealed yet</Text>
-              <Text style={s.spinSub}>Tap to spin the wheel</Text>
-            </View>
-            <Text style={s.spinGlyph}>🎡</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Quick-start */}
-        <View style={s.quickRow}>
-          <TouchableOpacity
-            style={s.quickCard}
-            onPress={() => router.push("/(tabs)/index" as never)}
-            activeOpacity={0.85}
-          >
-            <View style={[s.quickIcon, { backgroundColor: primaryTint }]}>
-              <Footprints size={26} color={colors.primary} />
-            </View>
-            <View style={s.quickLabelRow}>
-              <Text style={s.quickLabel}>Color Walk</Text>
-              <ChevronRight size={14} color={colors.mutedForeground} />
-            </View>
-            <Text style={s.quickSub}>Photograph today's color</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={s.quickCard}
-            onPress={() => router.push("/(tabs)/camera")}
-            activeOpacity={0.85}
-          >
-            <View style={[s.quickIcon, { backgroundColor: primaryTint }]}>
-              <MapPin size={26} color={colors.primary} />
-            </View>
-            <View style={s.quickLabelRow}>
-              <Text style={s.quickLabel}>Hunt</Text>
-              <ChevronRight size={14} color={colors.mutedForeground} />
-            </View>
-            <Text style={s.quickSub}>Find hidden objects nearby</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Recent activity */}
-        {recent.length > 0 && (
-          <View style={s.recentSection}>
-            <TouchableOpacity
-              style={s.recentHeader}
-              activeOpacity={0.7}
-              onPress={() => router.push("/(tabs)/index" as never)}
-            >
-              <Text style={s.recentHeading}>Recent activity</Text>
-              <ChevronRight size={14} color={colors.mutedForeground} />
-            </TouchableOpacity>
-            {recent.map((album, i) => (
-              <TouchableOpacity
-                key={album.id}
-                style={[s.recentRow, i < recent.length - 1 && s.recentDivider]}
-                activeOpacity={0.7}
-                onPress={() =>
-                  router.push({
-                    pathname: "/album/[id]",
-                    params: {
-                      id: album.id,
-                      color: album.color_hex,
-                      name: album.color_name,
-                      paths: "[]",
-                    },
-                  })
-                }
-              >
-                {album.thumbnail_url ? (
-                  <Image
-                    source={{ uri: album.thumbnail_url }}
-                    style={s.thumb}
-                  />
-                ) : (
-                  <View
-                    style={[
-                      s.thumbPlaceholder,
-                      { backgroundColor: `${album.color_hex}33` },
-                    ]}
-                  >
-                    <View
-                      style={[s.thumbDot, { backgroundColor: album.color_hex }]}
-                    />
-                  </View>
-                )}
-                <View style={s.recentText}>
-                  <Text style={s.recentName}>{album.color_name}</Text>
-                  <Text style={s.recentMeta}>
-                    {album.photo_count > 0 ? `Photo · ` : ""}
-                    {relativeTime(album.created_at)}
-                  </Text>
+            <View style={[s.heroAccent, { backgroundColor: colors.border }]} />
+            <View style={[s.heroInner, { backgroundColor: colors.muted }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>today's color</Text>
+                <Text
+                  style={[s.heroColorName, { color: colors.mutedForeground }]}
+                >
+                  Spin to start
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  Find out which color to capture today
+                </Text>
+                <View
+                  style={[
+                    s.heroBtn,
+                    { backgroundColor: colors.mutedForeground },
+                  ]}
+                >
+                  <Text style={s.heroBtnText}>Spin Now</Text>
+                  <ChevronRight size={12} color="#fff" />
                 </View>
-                <ChevronRight size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            ))}
-          </View>
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
-      </ScrollView>
+
+        {/* Solo hunt */}
+        {soloDaily ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(tabs)/camera")}
+            style={s.heroCard}
+          >
+            <View style={[s.heroAccent, { backgroundColor: "#D97706" }]} />
+            <View style={[s.heroInner, { backgroundColor: "#FFF3DC" }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>solo hunt</Text>
+                <Text style={[s.heroColorName, { color: "#D97706" }]}>
+                  {soloDaily.done.every(Boolean)
+                    ? "All done!"
+                    : "2 topics to find"}
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  {soloDaily.done.every(Boolean)
+                    ? "Both topics captured today"
+                    : `${soloDaily.done.filter(Boolean).length}/2 captured — keep hunting!`}
+                </Text>
+                <View style={[s.heroBtn, { backgroundColor: "#D97706" }]}>
+                  <Text style={s.heroBtnText}>
+                    {soloDaily.done.every(Boolean) ? "View" : "Hunt Now"}
+                  </Text>
+                  <ChevronRight size={12} color="#fff" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(tabs)/camera")}
+            style={s.heroCard}
+          >
+            <View style={[s.heroAccent, { backgroundColor: colors.border }]} />
+            <View style={[s.heroInner, { backgroundColor: colors.muted }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>solo hunt</Text>
+                <Text
+                  style={[s.heroColorName, { color: colors.mutedForeground }]}
+                >
+                  2 topics to find
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  Spin to get your daily photo challenges
+                </Text>
+                <View
+                  style={[
+                    s.heroBtn,
+                    { backgroundColor: colors.mutedForeground },
+                  ]}
+                >
+                  <Text style={s.heroBtnText}>Spin Now</Text>
+                  <ChevronRight size={12} color="#fff" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Mascot hunt — group-aware */}
+        {!huntGroupId || huntMemberCount <= 1 ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(tabs)/camera")}
+            style={s.heroCard}
+          >
+            <View style={[s.heroAccent, { backgroundColor: colors.border }]} />
+            <View style={[s.heroInner, { backgroundColor: colors.muted }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>mascot hunt</Text>
+                <Text
+                  style={[s.heroColorName, { color: colors.mutedForeground }]}
+                >
+                  Play with friends
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  Join or create a group to hide and seek mascots
+                </Text>
+                <View
+                  style={[
+                    s.heroBtn,
+                    { backgroundColor: colors.mutedForeground },
+                  ]}
+                >
+                  <Text style={s.heroBtnText}>Join Group</Text>
+                  <ChevronRight size={12} color="#fff" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : longestHidden ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(tabs)/camera")}
+            style={s.heroCard}
+          >
+            <View style={[s.heroAccent, { backgroundColor: "#D97706" }]} />
+            <View style={[s.heroInner, { backgroundColor: "#FFF3DC" }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>mascot hunt</Text>
+                <Text style={[s.heroColorName, { color: "#D97706" }]}>
+                  {longestHidden.hider_name}'s mascot
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  Hidden {relativeTime(longestHidden.hidden_at)} — can you find
+                  it?
+                </Text>
+                <View style={[s.heroBtn, { backgroundColor: "#D97706" }]}>
+                  <Text style={s.heroBtnText}>Find It</Text>
+                  <ChevronRight size={12} color="#fff" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(tabs)/camera")}
+            style={s.heroCard}
+          >
+            <View style={[s.heroAccent, { backgroundColor: colors.primary }]} />
+            <View style={[s.heroInner, { backgroundColor: primaryTint }]}>
+              <View style={s.heroLabel}>
+                <Text style={s.heroEyebrow}>mascot hunt</Text>
+                <Text style={[s.heroColorName, { color: colors.primary }]}>
+                  Hide your mascot
+                </Text>
+              </View>
+              <View style={s.heroFooter}>
+                <Text style={s.heroMeta}>
+                  Your group is waiting for you to hide one
+                </Text>
+                <View style={[s.heroBtn, { backgroundColor: colors.primary }]}>
+                  <Text style={s.heroBtnText}>Hide Now</Text>
+                  <ChevronRight size={12} color="#fff" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -378,34 +503,69 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 60,
+    paddingTop: 16,
+    paddingBottom: 16,
     gap: 14,
   },
 
   // Header
   header: {
     flexDirection: "row",
-    alignItems: "stretch",
-    paddingTop: 4,
-    gap: 20,
+    alignItems: "center",
+    minHeight: 150,
+    gap: 12,
   },
   headerLeft: {
     flex: 1,
-    justifyContent: "space-between",
-    paddingVertical: 6,
+    justifyContent: "center",
+    gap: 14,
   },
-  headerAvatarSlot: { alignItems: "center", justifyContent: "center" },
+  headerAvatarSlot: {
+    width: 110,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.foreground,
+    letterSpacing: -0.5,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.border,
+  },
   greetingSmall: {
     fontSize: 13,
-    lineHeight: 13,
+    lineHeight: 17,
     color: colors.mutedForeground,
     fontWeight: "500",
   },
+  greetingHello: {
+    fontWeight: "300",
+    color: colors.mutedForeground,
+  },
   greetingName: {
     fontSize: 28,
-    lineHeight: 28,
+    lineHeight: 32,
     fontWeight: "900",
     letterSpacing: -1,
     color: colors.foreground,
@@ -439,8 +599,9 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  heroAccent: { width: 6 },
-  heroInner: { flex: 1, padding: 24, gap: 4 },
+  heroAccent: { width: 5 },
+  heroInner: { flex: 1, padding: 16, gap: 10 },
+  heroLabel: { gap: 2 },
   heroEyebrow: {
     fontSize: 11,
     fontWeight: "600",
@@ -449,129 +610,26 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
   },
   heroColorName: {
-    fontSize: 42,
+    fontSize: 30,
     fontWeight: "900",
-    letterSpacing: -1.5,
-    marginTop: 4,
+    letterSpacing: -1,
+    marginTop: 1,
   },
   heroFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 16,
   },
-  heroMeta: { fontSize: 13, color: colors.mutedForeground },
+  heroMeta: { fontSize: 13, color: colors.mutedForeground, flexShrink: 1 },
   heroBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 5,
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 9,
+    minWidth: 90,
   },
   heroBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
-
-  // Spin card
-  spinCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.muted,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 28,
-    paddingHorizontal: 24,
-  },
-  spinLeft: { gap: 4 },
-  spinEyebrow: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.mutedForeground,
-  },
-  spinTitle: {
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.8,
-    color: colors.foreground,
-  },
-  spinSub: { fontSize: 13, color: colors.mutedForeground },
-  spinGlyph: { fontSize: 52 },
-
-  // Quick-start
-  quickRow: { flexDirection: "row", gap: 12 },
-  quickCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 6,
-  },
-  quickIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  quickLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  quickLabel: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: colors.foreground,
-    letterSpacing: -0.4,
-  },
-  quickSub: { fontSize: 12, color: colors.mutedForeground, lineHeight: 16 },
-
-  // Recent
-  recentSection: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-    paddingHorizontal: 16,
-  },
-  recentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  recentHeading: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.mutedForeground,
-  },
-  recentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-  },
-  recentDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  thumb: { width: 48, height: 48, borderRadius: 10 },
-  thumbPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  thumbDot: { width: 14, height: 14, borderRadius: 7 },
-  recentText: { flex: 1, gap: 2 },
-  recentName: { fontSize: 14, fontWeight: "600", color: colors.foreground },
-  recentMeta: { fontSize: 12, color: colors.mutedForeground },
 });
