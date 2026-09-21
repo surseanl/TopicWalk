@@ -25,10 +25,16 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
 
-type FriendUser = { id: string; username: string };
+type FriendUser = {
+  id: string;
+  username: string;
+  avatarBg?: string;
+  mascotColor?: string;
+};
 type RichFriendship = {
   id: string;
   requester_id: string;
@@ -132,9 +138,19 @@ export default function FriendsScreen() {
     );
     const { data: users } = await supabase
       .from("tw_users")
-      .select("id, username")
+      .select("id, username, avatar_color, mascot_color")
       .in("id", otherIds);
-    const userMap = new Map((users ?? []).map((u) => [u.id, u]));
+    const userMap = new Map(
+      (users ?? []).map((u) => [
+        u.id,
+        {
+          id: u.id,
+          username: u.username,
+          avatarBg: u.avatar_color ?? undefined,
+          mascotColor: u.mascot_color ?? undefined,
+        } as FriendUser,
+      ]),
+    );
 
     setFriendships(
       rows.map((f) => ({
@@ -524,11 +540,11 @@ export default function FriendsScreen() {
             <View style={s.listCard}>
               {incoming.map((f, i) => (
                 <View key={f.id} style={[s.listRow, i > 0 && s.borderTop]}>
-                  <View style={s.avatar}>
-                    <Text style={s.avatarText}>
-                      {(f.friend?.username ?? "?")[0].toUpperCase()}
-                    </Text>
-                  </View>
+                  <SnappyAvatar
+                    bgId={f.friend?.avatarBg}
+                    tintColor={f.friend?.mascotColor}
+                    size={32}
+                  />
                   <Text style={[s.listName, { flex: 1 }]}>
                     {f.friend?.username ?? "Unknown"}
                   </Text>
@@ -564,13 +580,11 @@ export default function FriendsScreen() {
             <View style={s.listCard}>
               {outgoing.map((f, i) => (
                 <View key={f.id} style={[s.listRow, i > 0 && s.borderTop]}>
-                  <View style={[s.avatar, { backgroundColor: colors.muted }]}>
-                    <Text
-                      style={[s.avatarText, { color: colors.mutedForeground }]}
-                    >
-                      {(f.friend?.username ?? "?")[0].toUpperCase()}
-                    </Text>
-                  </View>
+                  <SnappyAvatar
+                    bgId={f.friend?.avatarBg}
+                    tintColor={f.friend?.mascotColor}
+                    size={32}
+                  />
                   <Text style={[s.listName, { flex: 1 }]}>
                     {f.friend?.username ?? "Unknown"}
                   </Text>
@@ -601,11 +615,11 @@ export default function FriendsScreen() {
             <View style={s.listCard}>
               {accepted.map((f, i) => (
                 <View key={f.id} style={[s.listRow, i > 0 && s.borderTop]}>
-                  <View style={s.avatar}>
-                    <Text style={s.avatarText}>
-                      {(f.friend?.username ?? "?")[0].toUpperCase()}
-                    </Text>
-                  </View>
+                  <SnappyAvatar
+                    bgId={f.friend?.avatarBg}
+                    tintColor={f.friend?.mascotColor}
+                    size={32}
+                  />
                   <Text style={[s.listName, { flex: 1 }]}>
                     {f.friend?.username ?? "Unknown"}
                   </Text>

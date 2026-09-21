@@ -4,9 +4,12 @@ import { useRouter } from "expo-router";
 import {
   CalendarDays,
   Camera,
+  Check,
   ChevronLeft,
-  Lock,
+  ChevronRight,
   RotateCcw,
+  Settings2,
+  Users2,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -18,7 +21,6 @@ import {
   Easing,
   Image,
   Modal,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,16 +31,27 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line } from "react-native-svg";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
-import { StarDisplay, StarRatingWidget } from "../../components/Stars";
 import { supabase } from "../../lib/supabase";
-import { colors, primaryTint } from "../../lib/theme";
+import { colors } from "../../lib/theme";
 import { WALK_COLORS, type WalkColor } from "../../lib/topics";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const EMOJIS = ["👍", "❤️", "😂", "🔥", "😮"];
 const DAILY_KEY = "tw_color_v3";
-const SLICE_DEG = 360 / WALK_COLORS.length;
+const WHEEL_COLORS_KEY = "tw_wheel_colors_v1";
+
+const DEFAULT_ACTIVE = new Set([
+  "Red",
+  "Orange",
+  "Yellow",
+  "Green",
+  "Blue",
+  "Purple",
+  "Pink",
+  "Brown",
+  "Gray",
+  "Black",
+]);
 
 function uuid(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -60,21 +73,6 @@ type DayPick = {
   colorIdx: number;
   albumId: string | null;
   photoCount: number;
-};
-
-type AlbumPhoto = { photo_path: string };
-type AlbumReaction = { emoji: string; user_id: string };
-type AlbumRating = { user_id: string; score: number };
-type Album = {
-  id: string;
-  user_id: string;
-  display_name: string;
-  color_name: string;
-  color_hex: string;
-  created_at: string;
-  tw_submissions: AlbumPhoto[];
-  tw_album_reactions: AlbumReaction[];
-  tw_album_ratings: AlbumRating[];
 };
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -99,11 +97,17 @@ export default function WalkScreen() {
   const [pendingAsset, setPendingAsset] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [feed, setFeed] = useState<Album[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   const [showWalkTour, setShowWalkTour] = useState(false);
+  const [activeColorNames, setActiveColorNames] = useState<Set<string>>(
+    new Set(DEFAULT_ACTIVE),
+  );
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [pendingSwap, setPendingSwap] = useState<string | null>(null);
+
+  const activeColors = WALK_COLORS.filter((c) => activeColorNames.has(c.name));
+  const sliceDeg = activeColors.length > 0 ? 360 / activeColors.length : 36;
+
   const wheelRef = useRef<View>(null);
   const spinBtnRef = useRef<View>(null);
 
@@ -132,7 +136,6 @@ export default function WalkScreen() {
       revealOpacity.setValue(0);
       revealTranslate.setValue(16);
       void AsyncStorage.removeItem(DAILY_KEY);
-      if (uidRef.current) void fetchFeed(uidRef.current);
     } else {
       currentDateRef.current = d;
     }
@@ -140,7 +143,22 @@ export default function WalkScreen() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
-    void restorePick();
+    async function loadAndRestore() {
+      let active = WALK_COLORS;
+      try {
+        const stored = await AsyncStorage.getItem(WHEEL_COLORS_KEY);
+        if (stored) {
+          const names: string[] = JSON.parse(stored);
+          const filtered = WALK_COLORS.filter((c) => names.includes(c.name));
+          if (filtered.length === 10) {
+            active = filtered;
+            setActiveColorNames(new Set(filtered.map((c) => c.name)));
+          }
+        }
+      } catch {}
+      await restorePick(active);
+    }
+    void loadAndRestore();
     void initUser();
     currentDateRef.current = today();
 
@@ -158,8 +176,6 @@ export default function WalkScreen() {
       if (s?.user) void initUser();
       else {
         setUid(null);
-        setFeed([]);
-        setLoading(false);
       }
     });
     void AsyncStorage.getItem("tw_tour_walk_v1").then((v) => {
@@ -173,7 +189,7 @@ export default function WalkScreen() {
     };
   }, []);
 
-  async function restorePick() {
+  async function restorePick(active: WalkColor[]) {
     try {
       const raw = await AsyncStorage.getItem(DAILY_KEY);
       if (!raw) return;
@@ -186,8 +202,12 @@ export default function WalkScreen() {
         setPhotoCount(p.photoCount);
         setIsLocked(true);
       }
-      // Snap wheel to landed position (no animation)
-      wheelRot.setValue(landingDeg(p.colorIdx) % 360);
+      const storedColor = WALK_COLORS[p.colorIdx];
+      const activeIdx = active.findIndex((c) => c.name === storedColor?.name);
+      if (activeIdx >= 0) {
+        const sd = 360 / active.length;
+        wheelRot.setValue((7 * 360 + (360 - activeIdx * sd)) % 360);
+      }
       revealOpacity.setValue(1);
       revealTranslate.setValue(0);
     } catch {}
@@ -213,12 +233,8 @@ export default function WalkScreen() {
     return `${y}-${m}-${d}`;
   }
 
-  function landingDeg(idx: number) {
-    // Dot i sits at angle i*SLICE_DEG in the wheel frame (0° = top).
-    // After a clockwise rotation of θ, the pointer (fixed at top) sees the
-    // dot that was at (360 − θ) mod 360.  To see dot i: θ = 360 − i*SLICE_DEG.
-    // Add 7 full extra rotations for a satisfying long spin.
-    return 7 * 360 + (360 - idx * SLICE_DEG);
+  function landingDeg(activeIdx: number) {
+    return 7 * 360 + (360 - activeIdx * sliceDeg);
   }
 
   async function initUser() {
@@ -226,7 +242,6 @@ export default function WalkScreen() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.user) {
-      setLoading(false);
       return;
     }
     const id = session.user.id;
@@ -238,69 +253,6 @@ export default function WalkScreen() {
       .eq("id", id)
       .maybeSingle();
     setDisplayName(data?.username ?? "");
-    await fetchFeed(id);
-  }
-
-  async function fetchFeed(id: string) {
-    const { data: fs } = await supabase
-      .from("tw_friendships")
-      .select("requester_id, addressee_id")
-      .eq("status", "accepted")
-      .or(`requester_id.eq.${id},addressee_id.eq.${id}`);
-    const friendIds = (fs ?? []).map((f) =>
-      f.requester_id === id ? f.addressee_id : f.requester_id,
-    );
-
-    const sel =
-      "*, tw_submissions(photo_path), tw_album_reactions(*), tw_album_ratings(*)";
-    // Rolling 24-hour window: photos disappear from feed exactly 24h after posting
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    // Own albums — always visible regardless of share status
-    const { data: ownData, error: ownErr } = await supabase
-      .from("tw_albums")
-      .select(sel)
-      .eq("user_id", id)
-      .gte("created_at", since)
-      .order("created_at", { ascending: false });
-    if (ownErr) console.warn("fetchFeed own:", ownErr.message);
-
-    // Friends' shared albums (group_id = their uuid)
-    let friendData: Album[] = [];
-    if (friendIds.length > 0) {
-      const { data: fd, error: friendErr } = await supabase
-        .from("tw_albums")
-        .select(sel)
-        .in("group_id", friendIds)
-        .gte("created_at", since)
-        .order("created_at", { ascending: false });
-      if (friendErr) console.warn("fetchFeed friends:", friendErr.message);
-      if (fd) friendData = fd as Album[];
-    }
-
-    // Merge and de-duplicate (own albums may overlap if shared to feed)
-    const seen = new Set<string>();
-    const all: Album[] = [];
-    for (const a of [...(ownData ?? []), ...friendData]) {
-      if (!seen.has(a.id)) {
-        seen.add(a.id);
-        all.push(a as Album);
-      }
-    }
-    all.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-
-    setFeed(all);
-    setLoading(false);
-    setRefreshing(false);
-  }
-
-  async function onRefresh() {
-    if (!uidRef.current) return;
-    setRefreshing(true);
-    await fetchFeed(uidRef.current);
   }
 
   // ── Animations ──────────────────────────────────────────────────────────────
@@ -386,20 +338,22 @@ export default function WalkScreen() {
 
   function spin() {
     if (isSpinning || revealed) return;
-    const idx = Math.floor(Math.random() * WALK_COLORS.length);
+    const activeIdx = Math.floor(Math.random() * activeColors.length);
+    const pickedColor = activeColors[activeIdx];
+    const globalIdx = WALK_COLORS.findIndex((c) => c.name === pickedColor.name);
     mascotPush();
     setTimeout(() => {
       setIsSpinning(true);
       Animated.timing(wheelRot, {
-        toValue: landingDeg(idx),
+        toValue: landingDeg(activeIdx),
         duration: 3800,
         easing: Easing.out(Easing.exp),
         useNativeDriver: true,
       }).start(() => {
         setIsSpinning(false);
-        setColorIdx(idx);
+        setColorIdx(globalIdx);
         setRevealed(true);
-        void savePick(idx, null, 0);
+        void savePick(globalIdx, null, 0);
         showReveal();
         mascotCelebrate();
       });
@@ -414,6 +368,25 @@ export default function WalkScreen() {
     setAlbumCreated(false);
     setPhotoCount(0);
     await savePick(colorIdx, aId, 0);
+  }
+
+  async function handleColorTap(name: string) {
+    if (revealed) return;
+    const isActive = activeColorNames.has(name);
+
+    if (isActive) {
+      // Mark/unmark this color for swap-out
+      setPendingSwap(pendingSwap === name ? null : name);
+    } else {
+      // Inactive tapped — only do something if one is pending swap-out
+      if (!pendingSwap) return;
+      const next = new Set(activeColorNames);
+      next.delete(pendingSwap);
+      next.add(name);
+      setPendingSwap(null);
+      setActiveColorNames(next);
+      await AsyncStorage.setItem(WHEEL_COLORS_KEY, JSON.stringify([...next]));
+    }
   }
 
   async function ensureAlbum(aId: string, color: WalkColor): Promise<boolean> {
@@ -493,42 +466,9 @@ export default function WalkScreen() {
       const n = photoCount + 1;
       setPhotoCount(n);
       await savePick(colorIdx, albumId, n);
-      if (uidRef.current) await fetchFeed(uidRef.current);
     } finally {
       setUploading(false);
     }
-  }
-
-  async function reactToAlbum(aId: string, emoji: string) {
-    if (!uid) return;
-    const album = feed.find((a) => a.id === aId);
-    const mine = album?.tw_album_reactions.find((r) => r.user_id === uid);
-    if (mine?.emoji === emoji) {
-      await supabase
-        .from("tw_album_reactions")
-        .delete()
-        .eq("album_id", aId)
-        .eq("user_id", uid);
-    } else {
-      await supabase
-        .from("tw_album_reactions")
-        .upsert(
-          { album_id: aId, user_id: uid, emoji },
-          { onConflict: "album_id,user_id" },
-        );
-    }
-    if (uidRef.current) void fetchFeed(uidRef.current);
-  }
-
-  async function rateAlbum(aId: string, score: number) {
-    if (!uid) return;
-    await supabase
-      .from("tw_album_ratings")
-      .upsert(
-        { album_id: aId, user_id: uid, score },
-        { onConflict: "album_id,user_id" },
-      );
-    if (uidRef.current) void fetchFeed(uidRef.current);
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -628,340 +568,329 @@ export default function WalkScreen() {
         </View>
       </Modal>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
+      {/* Customize wheel modal */}
+      <Modal
+        visible={showCustomize}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowCustomize(false);
+          setPendingSwap(null);
+        }}
       >
+        <View style={s.customizeOverlay}>
+          <View style={s.customizeSheet}>
+            <View style={s.customizeHeader}>
+              <Text style={s.customizeTitle}>Customize Wheel</Text>
+              <Text style={s.customizeSub}>
+                {pendingSwap
+                  ? "Now tap a color to swap it in"
+                  : "Tap an active color to swap it out"}
+              </Text>
+            </View>
+            <ScrollView
+              style={s.colorGridScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={s.colorGrid}>
+                {WALK_COLORS.map((c) => {
+                  const active = activeColorNames.has(c.name);
+                  const isPending = pendingSwap === c.name;
+                  const isLight =
+                    c.name === "White" ||
+                    c.name === "Tan" ||
+                    c.name === "Silver";
+                  const dimInactive = !active && !pendingSwap;
+                  return (
+                    <TouchableOpacity
+                      key={c.name}
+                      style={s.colorGridItem}
+                      onPress={() => handleColorTap(c.name)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          s.colorGridCircle,
+                          { backgroundColor: c.hex },
+                          isLight && s.colorGridCircleBorder,
+                          isPending && s.colorGridCirclePending,
+                          dimInactive && s.colorGridCircleOff,
+                        ]}
+                      >
+                        {isPending ? (
+                          <Text style={s.colorGridSwapIcon}>↕</Text>
+                        ) : active ? (
+                          <Check
+                            size={18}
+                            color={isLight ? "#555" : "#fff"}
+                            strokeWidth={3}
+                          />
+                        ) : null}
+                      </View>
+                      <Text
+                        style={[
+                          s.colorGridLabel,
+                          dimInactive && { opacity: 0.4 },
+                        ]}
+                      >
+                        {c.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+            {revealed && (
+              <Text style={s.customizeNote}>
+                Changes apply on your next spin
+              </Text>
+            )}
+            <TouchableOpacity
+              style={s.customizeDone}
+              onPress={() => {
+                setShowCustomize(false);
+                setPendingSwap(null);
+              }}
+            >
+              <Text style={s.customizeDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <View style={s.content}>
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.title}>Color Walk</Text>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={s.title}>Color Walk</Text>
+            <Text style={s.subtitle}>Spin the wheel, snap a color photo.</Text>
+          </View>
+          <View style={{ gap: 6 }}>
+            <TouchableOpacity
+              onPress={() => router.push("/feed")}
+              style={s.headerPill}
+            >
+              <Users2 size={14} color={colors.foreground} />
+              <Text style={s.headerPillText}>Feed</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/archive")}
+              style={s.headerPill}
+            >
+              <CalendarDays size={14} color={colors.foreground} />
+              <Text style={s.headerPillText}>Past Walks</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Wheel + customize — fills remaining space */}
+        <View style={s.wheelGroup}>
+          <View ref={wheelRef} style={s.wheelSection}>
+            {/* Pointer */}
+            <View style={s.pointerRow}>
+              <View style={s.pointer} />
+            </View>
+
+            {/* Spinning wheel */}
+            <Animated.View
+              style={[s.wheelWrap, { transform: [{ rotate: wheelDeg }] }]}
+            >
+              <Svg
+                width={WHEEL}
+                height={WHEEL}
+                viewBox={`0 0 ${WHEEL} ${WHEEL}`}
+              >
+                {/* Background */}
+                <Circle cx={WC} cy={WC} r={WR} fill="#F7F7F7" />
+
+                {/* Dividers between color dots (drawn first, dots go on top) */}
+                {activeColors.map((_, i) => {
+                  const mid = i * sliceDeg + sliceDeg / 2;
+                  const p1 = dotPos(WC, WC, WR * 0.28, mid);
+                  const p2 = dotPos(WC, WC, WR * 0.97, mid);
+                  return (
+                    <Line
+                      key={`div-${mid}`}
+                      x1={p1.x.toFixed(1)}
+                      y1={p1.y.toFixed(1)}
+                      x2={p2.x.toFixed(1)}
+                      y2={p2.y.toFixed(1)}
+                      stroke="#D0D0D0"
+                      strokeWidth={1.5}
+                    />
+                  );
+                })}
+
+                {/* Colored dots */}
+                {activeColors.map((c, i) => {
+                  const p = dotPos(WC, WC, WR * 0.65, i * sliceDeg);
+                  return (
+                    <Circle
+                      key={c.name}
+                      cx={p.x.toFixed(1)}
+                      cy={p.y.toFixed(1)}
+                      r={WR * 0.165}
+                      fill={c.hex}
+                      stroke={
+                        c.name === "White" ||
+                        c.name === "Tan" ||
+                        c.name === "Silver"
+                          ? "#C8C8C8"
+                          : "#FFFFFF"
+                      }
+                      strokeWidth={3}
+                    />
+                  );
+                })}
+
+                {/* Outer border */}
+                <Circle
+                  cx={WC}
+                  cy={WC}
+                  r={WR}
+                  fill="none"
+                  stroke="#C8C8C8"
+                  strokeWidth={2}
+                />
+
+                {/* Center hub */}
+                <Circle
+                  cx={WC}
+                  cy={WC}
+                  r={WR * 0.2}
+                  fill="#FFFFFF"
+                  stroke="#D0D0D0"
+                  strokeWidth={1.5}
+                />
+                <Circle cx={WC} cy={WC} r={WR * 0.065} fill="#C8C8C8" />
+              </Svg>
+            </Animated.View>
+          </View>
+
+          {/* Customize colors */}
           <TouchableOpacity
-            onPress={() => router.push("/archive")}
-            style={s.iconBtn}
+            style={[s.customizeBtn, revealed && { opacity: 0.35 }]}
+            onPress={() => setShowCustomize(true)}
+            activeOpacity={0.7}
           >
-            <CalendarDays size={18} color={colors.foreground} />
+            <Settings2 size={14} color={colors.mutedForeground} />
+            <Text style={s.customizeBtnText}>
+              {revealed ? "Customize wheel" : "Customize your colors"}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Wheel */}
-        <View ref={wheelRef} style={s.wheelSection}>
-          {/* Pointer */}
-          <View style={s.pointerRow}>
-            <View style={s.pointer} />
-          </View>
-
-          {/* Spinning wheel */}
+        {/* Bottom card — reveal + action + count */}
+        <View style={s.bottomCard}>
+          {/* Revealed color */}
           <Animated.View
-            style={[s.wheelWrap, { transform: [{ rotate: wheelDeg }] }]}
-          >
-            <Svg width={WHEEL} height={WHEEL} viewBox={`0 0 ${WHEEL} ${WHEEL}`}>
-              {/* Background */}
-              <Circle cx={WC} cy={WC} r={WR} fill="#F7F7F7" />
-
-              {/* Dividers between color dots (drawn first, dots go on top) */}
-              {WALK_COLORS.map((_, i) => {
-                const mid = i * SLICE_DEG + SLICE_DEG / 2;
-                const p1 = dotPos(WC, WC, WR * 0.28, mid);
-                const p2 = dotPos(WC, WC, WR * 0.97, mid);
-                return (
-                  <Line
-                    key={`div-${mid}`}
-                    x1={p1.x.toFixed(1)}
-                    y1={p1.y.toFixed(1)}
-                    x2={p2.x.toFixed(1)}
-                    y2={p2.y.toFixed(1)}
-                    stroke="#D0D0D0"
-                    strokeWidth={1.5}
-                  />
-                );
-              })}
-
-              {/* Colored dots */}
-              {WALK_COLORS.map((c, i) => {
-                const p = dotPos(WC, WC, WR * 0.65, i * SLICE_DEG);
-                return (
-                  <Circle
-                    key={c.name}
-                    cx={p.x.toFixed(1)}
-                    cy={p.y.toFixed(1)}
-                    r={WR * 0.165}
-                    fill={c.hex}
-                    stroke="#FFFFFF"
-                    strokeWidth={3}
-                  />
-                );
-              })}
-
-              {/* Outer border */}
-              <Circle
-                cx={WC}
-                cy={WC}
-                r={WR}
-                fill="none"
-                stroke="#C8C8C8"
-                strokeWidth={2}
-              />
-
-              {/* Center hub */}
-              <Circle
-                cx={WC}
-                cy={WC}
-                r={WR * 0.2}
-                fill="#FFFFFF"
-                stroke="#D0D0D0"
-                strokeWidth={1.5}
-              />
-              <Circle cx={WC} cy={WC} r={WR * 0.065} fill="#C8C8C8" />
-            </Svg>
-          </Animated.View>
-        </View>
-
-        {/* Revealed color */}
-        <Animated.View
-          style={[
-            s.revealRow,
-            {
-              opacity: revealOpacity,
-              transform: [{ translateY: revealTranslate }],
-            },
-          ]}
-        >
-          {color && (
-            <>
-              <View style={[s.revealDot, { backgroundColor: color.hex }]} />
-              <Text style={s.revealName}>{color.name}</Text>
-              {isLocked && <Lock size={13} color={colors.mutedForeground} />}
-            </>
-          )}
-        </Animated.View>
-
-        {/* Actions */}
-        <View style={s.actionRow}>
-          {/* Mascot */}
-          <Animated.Image
-            source={require("../../assets/mascot.png")}
             style={[
-              s.mascot,
+              s.revealRow,
               {
+                opacity: revealOpacity,
+                transform: [{ translateY: revealTranslate }],
+              },
+            ]}
+          >
+            {color && (
+              <>
+                <View
+                  style={[
+                    s.revealDot,
+                    { backgroundColor: color.hex },
+                    color.name === "White" && s.revealDotBorder,
+                  ]}
+                />
+                <Text style={s.revealName}>{color.name}</Text>
+              </>
+            )}
+          </Animated.View>
+
+          {/* Actions */}
+          <View style={s.actionRow}>
+            {/* Mascot */}
+            <Animated.View
+              style={{
                 transform: [
                   { translateY: mascotY },
                   { scale: mascotScale },
                   { rotate: mascotDeg },
                 ],
-              },
-            ]}
-            resizeMode="contain"
-          />
-
-          {/* Button */}
-          {!revealed && !isSpinning && (
-            <TouchableOpacity
-              ref={spinBtnRef}
-              onPress={spin}
-              style={s.btn}
-              activeOpacity={0.85}
+              }}
             >
-              <Text style={s.btnText}>Spin</Text>
-            </TouchableOpacity>
-          )}
+              <Image
+                source={require("../../assets/mascot.png")}
+                style={[s.mascot, { tintColor: color?.hex ?? undefined }]}
+                resizeMode="contain"
+              />
+            </Animated.View>
 
-          {isSpinning && (
-            <View style={[s.btn, s.btnMuted]}>
-              <ActivityIndicator color="#fff" size="small" />
+            {/* Button */}
+            {!revealed && !isSpinning && (
+              <TouchableOpacity
+                ref={spinBtnRef}
+                onPress={spin}
+                style={s.btn}
+                activeOpacity={0.85}
+              >
+                <Text style={s.btnText}>Spin</Text>
+                <ChevronRight size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+
+            {isSpinning && (
+              <View style={[s.btn, s.btnMuted]}>
+                <ActivityIndicator color="#fff" size="small" />
+              </View>
+            )}
+
+            {revealed && !isLocked && (
+              <TouchableOpacity
+                onPress={startWalk}
+                style={[s.btn, color ? { backgroundColor: color.hex } : {}]}
+                activeOpacity={0.85}
+              >
+                <View style={s.btnLeft}>
+                  <Camera size={20} color="#fff" />
+                  <Text style={s.btnText}>Start Walk</Text>
+                </View>
+                <ChevronRight size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+
+            {isLocked && (
+              <TouchableOpacity
+                onPress={takePhoto}
+                disabled={uploading}
+                style={[
+                  s.btn,
+                  color ? { backgroundColor: color.hex } : {},
+                  { opacity: uploading ? 0.55 : 1 },
+                ]}
+                activeOpacity={0.85}
+              >
+                <View style={s.btnLeft}>
+                  <Camera size={20} color="#fff" />
+                  <Text style={s.btnText}>
+                    {uploading ? "Uploading…" : "Take Photo"}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Photo count */}
+          {isLocked && photoCount > 0 && (
+            <View style={s.photoCountRow}>
+              <Camera size={14} color={colors.mutedForeground} />
+              <Text style={s.photoCount}>
+                {photoCount} {photoCount === 1 ? "photo" : "photos"} taken
+              </Text>
             </View>
           )}
-
-          {revealed && !isLocked && (
-            <TouchableOpacity
-              onPress={startWalk}
-              style={[s.btn, color ? { backgroundColor: color.hex } : {}]}
-              activeOpacity={0.85}
-            >
-              <Camera size={17} color="#fff" />
-              <Text style={s.btnText}>Start Walk</Text>
-            </TouchableOpacity>
-          )}
-
-          {isLocked && (
-            <TouchableOpacity
-              onPress={takePhoto}
-              disabled={uploading}
-              style={[s.btn, { opacity: uploading ? 0.55 : 1 }]}
-              activeOpacity={0.85}
-            >
-              <Camera size={16} color="#fff" />
-              <Text style={s.btnText}>
-                {uploading ? "Uploading…" : "Take Photo"}
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
-
-        {/* Photo count */}
-        {isLocked && photoCount > 0 && (
-          <Text style={s.photoCount}>
-            {photoCount} {photoCount === 1 ? "photo" : "photos"} taken
-          </Text>
-        )}
-
-        {/* Feed label */}
-        <Text style={s.feedLabel}>Today</Text>
-
-        {/* Feed */}
-        {!uid ? (
-          <View style={s.emptyCard}>
-            <Lock size={18} color={colors.mutedForeground} />
-            <Text style={s.emptyTitle}>Sign in to see the feed</Text>
-            <Text style={s.emptySub}>Go to Profile to get started.</Text>
-          </View>
-        ) : loading ? (
-          <View style={s.emptyCard}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : feed.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Text style={s.emptySub}>No albums yet — be the first 📸</Text>
-          </View>
-        ) : (
-          feed.map((album) => {
-            const CW = sw - 32;
-            const isOwn = album.user_id === uid;
-            const myRating = album.tw_album_ratings.find(
-              (r) => r.user_id === uid,
-            );
-            const photos = album.tw_submissions;
-
-            return (
-              <TouchableOpacity
-                key={album.id}
-                style={s.card}
-                activeOpacity={0.92}
-                onPress={() =>
-                  router.push({
-                    pathname: "/album/[id]",
-                    params: {
-                      id: album.id,
-                      color: album.color_hex,
-                      name: album.color_name,
-                      paths: JSON.stringify(
-                        album.tw_submissions.map((p) => p.photo_path),
-                      ),
-                    },
-                  })
-                }
-              >
-                {photos.length > 0 && (
-                  <View>
-                    <ScrollView
-                      horizontal
-                      pagingEnabled
-                      showsHorizontalScrollIndicator={false}
-                      style={{ width: CW, height: CW * 0.75 }}
-                    >
-                      {photos.map((p, i) => {
-                        const url = supabase.storage
-                          .from("game-photos")
-                          .getPublicUrl(p.photo_path).data.publicUrl;
-                        return (
-                          <Image
-                            // biome-ignore lint/suspicious/noArrayIndexKey: stable
-                            key={i}
-                            source={{ uri: url }}
-                            style={{ width: CW, height: CW * 0.75 }}
-                            resizeMode="cover"
-                          />
-                        );
-                      })}
-                    </ScrollView>
-                    {photos.length > 1 && (
-                      <View style={s.photoBadge}>
-                        <Text style={s.photoBadgeText}>📷 {photos.length}</Text>
-                      </View>
-                    )}
-                    <View
-                      style={[
-                        s.colorStrip,
-                        { backgroundColor: album.color_hex },
-                      ]}
-                    />
-                  </View>
-                )}
-
-                <View style={s.cardBody}>
-                  <View style={s.cardRow}>
-                    <Text style={s.cardName} numberOfLines={1}>
-                      {album.display_name}
-                    </Text>
-                    <View
-                      style={[
-                        s.chip,
-                        { backgroundColor: `${album.color_hex}22` },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          s.chipDot,
-                          { backgroundColor: album.color_hex },
-                        ]}
-                      />
-                      <Text style={[s.chipText, { color: album.color_hex }]}>
-                        {album.color_name}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={s.cardRow}>
-                    {isOwn ? (
-                      <StarDisplay ratings={album.tw_album_ratings} />
-                    ) : (
-                      <StarRatingWidget
-                        submissionId={album.id}
-                        myScore={myRating ? Number(myRating.score) : null}
-                        onRate={rateAlbum}
-                      />
-                    )}
-                    {!isOwn && album.tw_album_ratings.length > 0 && (
-                      <StarDisplay ratings={album.tw_album_ratings} />
-                    )}
-                  </View>
-
-                  <View style={s.reactRow}>
-                    {EMOJIS.map((emoji) => {
-                      const count = album.tw_album_reactions.filter(
-                        (r) => r.emoji === emoji,
-                      ).length;
-                      const mine = album.tw_album_reactions.some(
-                        (r) => r.emoji === emoji && r.user_id === uid,
-                      );
-                      return (
-                        <TouchableOpacity
-                          key={emoji}
-                          onPress={() => reactToAlbum(album.id, emoji)}
-                          style={[s.react, mine && s.reactActive]}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={{ fontSize: 14 }}>{emoji}</Text>
-                          {count > 0 && (
-                            <Text style={s.reactCount}>{count}</Text>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -971,35 +900,151 @@ export default function WalkScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 56,
-    gap: 22,
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    gap: 16,
   },
 
   // Header
   header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.6,
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -1,
     color: colors.foreground,
   },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  subtitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+    lineHeight: 20,
+  },
+  headerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: colors.muted,
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  headerPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.foreground,
+  },
+
+  // Customize button (below wheel)
+  customizeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  customizeBtnText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+  },
+
+  // Customize modal
+  customizeOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  customizeSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 44,
+    gap: 24,
+  },
+  customizeHeader: { gap: 4 },
+  customizeTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    color: colors.foreground,
+  },
+  customizeSub: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+  },
+  colorGridScroll: { maxHeight: 340 },
+  colorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  colorGridItem: {
+    width: "17%",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 2,
+  },
+  colorGridCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
+  colorGridCircleBorder: { borderWidth: 1.5, borderColor: "#C8C8C8" },
+  colorGridCircleOff: { opacity: 0.2 },
+  colorGridCirclePending: {
+    borderWidth: 3,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  colorGridSwapIcon: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "800",
+  },
+  colorGridLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.foreground,
+    textAlign: "center",
+  },
+  customizeNote: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  customizeDone: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  customizeDoneText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
 
   // Wheel
-  wheelSection: { alignItems: "center" },
+  wheelGroup: { flex: 1, gap: 0 },
+  wheelSection: { flex: 1, alignItems: "center", justifyContent: "center" },
   pointerRow: { alignItems: "center", marginBottom: 2, zIndex: 2 },
   pointer: {
     width: 0,
@@ -1019,47 +1064,62 @@ const s = StyleSheet.create({
     elevation: 8,
   },
 
+  // Bottom card
+  bottomCard: {
+    backgroundColor: colors.muted,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 18,
+    gap: 14,
+  },
+
   // Reveal
   revealRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 10,
-    minHeight: 36,
+    minHeight: 28,
   },
-  revealDot: { width: 20, height: 20, borderRadius: 10 },
+  revealDot: { width: 22, height: 22, borderRadius: 11 },
+  revealDotBorder: { borderWidth: 1.5, borderColor: "#C8C8C8" },
   revealName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
     color: colors.foreground,
   },
 
   // Actions
   actionRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  mascot: { width: 56, height: 56, flexShrink: 0 },
+  mascot: { width: 52, height: 52, flexShrink: 0 },
   btn: {
     flex: 1,
-    height: 52,
-    borderRadius: 14,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+  },
+  btnLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   btnFlex: { flex: 1 },
   btnMuted: { opacity: 0.5 },
   btnText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
     color: "#fff",
     letterSpacing: -0.2,
   },
   outBtn: {
     flex: 1,
-    height: 52,
-    borderRadius: 14,
+    height: 62,
+    borderRadius: 31,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.card,
@@ -1070,94 +1130,16 @@ const s = StyleSheet.create({
   photoRow: { flex: 1, flexDirection: "row", gap: 8 },
 
   // Photo count
+  photoCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
   photoCount: {
-    textAlign: "center",
     fontSize: 13,
     color: colors.mutedForeground,
     fontWeight: "500",
-  },
-
-  // Feed
-  feedLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    color: colors.mutedForeground,
-  },
-  emptyCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 32,
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyTitle: { fontSize: 15, fontWeight: "600", color: colors.foreground },
-  emptySub: {
-    fontSize: 13,
-    color: colors.mutedForeground,
-    textAlign: "center",
-  },
-
-  // Feed card
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  colorStrip: { height: 3 },
-  photoBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  photoBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
-  cardBody: { padding: 14, gap: 10 },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  cardName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.foreground,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  chipDot: { width: 8, height: 8, borderRadius: 4 },
-  chipText: { fontSize: 11, fontWeight: "700" },
-  reactRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  react: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: colors.muted,
-  },
-  reactActive: { backgroundColor: primaryTint },
-  reactCount: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.mutedForeground,
   },
 
   // Photo confirm modal
