@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowLeft, Camera, MapPin, TriangleAlert, Trophy } from "lucide-react";
+import { ArrowLeft, Camera, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import Globe from "~/components/ui/globe";
@@ -10,20 +11,21 @@ import {
   bearingArrow,
   formatDistance,
   GLOBAL_LANDMARKS,
-  getDailySpawn,
   haversineDistance,
 } from "~/lib/geo";
 import type { Identity } from "~/lib/identity";
 import { getIdentity } from "~/lib/identity";
 import { createClient } from "~/lib/supabase/client";
+import { syncIdentityFromSupabase } from "~/lib/sync-identity";
 import { imageExt, validateImage } from "~/lib/upload";
 import { cn } from "~/lib/utils";
 
 const CAPTURE_RADIUS = 100; // meters
-const TILE_WALK_METERS = 300; // meters to unlock one tile by walking
+const TILE_WALK_METERS = 300; // meters to unlock one tile by walking (group hunt)
+const TILE_WALK_SOLO = 1609.34; // 1 mile per tile (solo mode)
 const AUTO_TILE_MS = 5 * 60 * 1000; // one auto-tile every 5 minutes
 const TOTAL_TILES = 9; // 3×3 grid
-const MIN_TILES_CAPTURE = 3; // must reveal at least 3/9 tiles before capturing
+const MIN_TILES_CAPTURE = 3; // must reveal at least 3/9 tiles before capturing (group)
 const MILES_TO_METERS = 1609.34;
 
 type Mascot = {
@@ -57,6 +59,24 @@ type TileProgress = {
   lastAutoMs: number;
 };
 
+type SoloMascot = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  category: string;
+  hints: Array<{ tile: number; text: string; photoUrl: string | null }>;
+  captured: boolean;
+};
+
+type SoloDay = {
+  date: string;
+  mascots: SoloMascot[];
+  tilesRevealed: number;
+  metersSinceTile: number;
+  totalWalked: number;
+};
+
 type Pos = { lat: number; lng: number };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -82,6 +102,16 @@ function survivalStr(ms: number): string {
 
 function metersToMiles(m: number): string {
   return `${(m / MILES_TO_METERS).toFixed(2)} mi`;
+}
+
+function approxDistance(meters: number): string {
+  const mi = meters / MILES_TO_METERS;
+  if (mi > 5) return "> 5 mi";
+  if (mi > 2) return "2–5 mi";
+  if (mi > 1) return "1–2 mi";
+  if (mi > 0.5) return "½–1 mi";
+  if (meters > 200) return "< ½ mi";
+  return "< 200m";
 }
 
 function makeTileOrder(seed: string): number[] {
@@ -144,6 +174,61 @@ function saveHintData(
   } catch {}
 }
 
+const soloKey = (date: string) => `tw_solo_${date}`;
+
+function loadSoloDay(date: string): SoloDay | null {
+  try {
+    const raw = localStorage.getItem(soloKey(date));
+    if (raw) return JSON.parse(raw) as SoloDay;
+  } catch {}
+  return null;
+}
+
+function saveSoloDay(day: SoloDay) {
+  try {
+    localStorage.setItem(soloKey(day.date), JSON.stringify(day));
+  } catch {}
+}
+
+const CATEGORY_INFO: Record<
+  string,
+  { emoji: string; label: string; color: string }
+> = {
+  park: { emoji: "🌳", label: "Park", color: "oklch(0.32 0.10 148)" },
+  nature_reserve: {
+    emoji: "🌿",
+    label: "Nature Reserve",
+    color: "oklch(0.28 0.09 148)",
+  },
+  museum: { emoji: "🏛️", label: "Museum", color: "oklch(0.32 0.10 280)" },
+  attraction: {
+    emoji: "⭐",
+    label: "Attraction",
+    color: "oklch(0.38 0.12 80)",
+  },
+  viewpoint: {
+    emoji: "🔭",
+    label: "Viewpoint",
+    color: "oklch(0.35 0.09 210)",
+  },
+  library: { emoji: "📚", label: "Library", color: "oklch(0.32 0.09 230)" },
+  historic: {
+    emoji: "🏺",
+    label: "Historic Site",
+    color: "oklch(0.36 0.10 55)",
+  },
+};
+
+function getCategoryInfo(cat: string) {
+  return (
+    CATEGORY_INFO[cat] ?? {
+      emoji: "📍",
+      label: "Place",
+      color: "oklch(0.32 0.04 0)",
+    }
+  );
+}
+
 // ── TileOverlay component ─────────────────────────────────────────────────────
 
 function TileOverlay({
@@ -176,16 +261,21 @@ function TileOverlay({
 
 export default function SeekPage() {
   const supabase = createClient();
+  const router = useRouter();
   const hideFileRef = useRef<HTMLInputElement>(null);
   const captureFileRef = useRef<HTMLInputElement>(null);
   const mascotsRef = useRef<Mascot[]>([]);
   const prevPosRef = useRef<Pos | null>(null);
+  const myPosRef = useRef<Pos | null>(null);
   const firstFetchRef = useRef(true);
   const knownCapturedRef = useRef<Set<string>>(new Set());
   const fetchedHintTilesRef = useRef<Record<string, number>>({});
+  const soloDayRef = useRef<SoloDay | null>(null);
+  const soloFetchedTileRef = useRef(0);
+  const soloInitRef = useRef(false);
+  const soloCaptureFileRef = useRef<HTMLInputElement>(null);
 
   const [identity, setIdentity] = useState<Identity | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
   const [tab, setTab] = useState<"hunt" | "solo" | "leaderboard">("hunt");
   const [mascots, setMascots] = useState<Mascot[]>([]);
   const [myPos, setMyPos] = useState<Pos | null>(null);
@@ -196,8 +286,16 @@ export default function SeekPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderRow[]>([]);
   const [progress, setProgress] = useState<Record<string, TileProgress>>({});
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
-  const [soloSpawn, setSoloSpawn] = useState<Pos | null>(null);
-  const [soloCaptured, setSoloCaptured] = useState(false);
+
+  // solo mode state
+  const [soloMascots, setSoloMascots] = useState<SoloMascot[]>([]);
+  const [soloTiles, setSoloTiles] = useState(0);
+  const [soloMetersSince, setSoloMetersSince] = useState(0);
+  const [soloTotalWalked, setSoloTotalWalked] = useState(0);
+  const [soloLoading, setSoloLoading] = useState(false);
+  const [soloCaptureTarget, setSoloCaptureTarget] = useState<string | null>(
+    null,
+  );
 
   // hide flow state
   const [hideStep, setHideStep] = useState<"pickRadius" | "walking" | null>(
@@ -213,27 +311,26 @@ export default function SeekPage() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
-    const id = getIdentity();
-    if (!id) {
-      setIsGuest(true);
-      setLoading(false);
+    async function init() {
+      let id = getIdentity();
+      if (!id || id.isGuest) {
+        const synced = await syncIdentityFromSupabase(supabase);
+        if (!synced) {
+          router.replace("/auth?tab=signup");
+          return;
+        }
+        id = getIdentity();
+      }
+      if (!id || id.isGuest) {
+        router.replace("/auth?tab=signup");
+        return;
+      }
+      setIdentity(id);
+      fetchMascots(id);
+      setInterval(() => fetchMascots(id as Identity), 8000);
       startGps();
-      return;
     }
-    if (id.isGuest) {
-      setIsGuest(true);
-      setLoading(false);
-      setTab("solo");
-      startGps();
-      return;
-    }
-    setIdentity(id);
-    fetchMascots(id);
-    const interval = setInterval(() => fetchMascots(id), 8000);
-    startGps();
-    return () => {
-      clearInterval(interval);
-    };
+    void init();
   }, []);
 
   function startGps() {
@@ -250,45 +347,102 @@ export default function SeekPage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }
 
-  // ── compute daily solo spawn once GPS is available ─────────────────────────
+  // ── init solo mascots once GPS is available ───────────────────────────────
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchSoloPlaces is stable within render
   useEffect(() => {
-    if (!myPos || soloSpawn) return;
-    const today = new Date().toISOString().split("T")[0];
-    setSoloSpawn(getDailySpawn(myPos.lat, myPos.lng, today ?? ""));
-  }, [myPos, soloSpawn]);
+    if (!myPos || soloInitRef.current) return;
+    soloInitRef.current = true;
+    const today = new Date().toISOString().split("T")[0] ?? "";
+    const saved = loadSoloDay(today);
+    if (saved) {
+      soloDayRef.current = saved;
+      setSoloMascots(saved.mascots);
+      setSoloTiles(saved.tilesRevealed);
+      setSoloMetersSince(saved.metersSinceTile);
+      setSoloTotalWalked(saved.totalWalked);
+      soloFetchedTileRef.current = saved.tilesRevealed;
+    } else {
+      void fetchSoloPlaces(myPos, today);
+    }
+  }, [myPos]);
 
   // ── track walking distance → unlock tiles ─────────────────────────────────
 
   useEffect(() => {
-    if (!myPos || !identity) return;
+    if (!myPos) return;
+    myPosRef.current = myPos;
     const prev = prevPosRef.current;
     if (prev) {
       const delta = haversineDistance(prev.lat, prev.lng, myPos.lat, myPos.lng);
       if (delta > 2 && delta < 500) {
-        setProgress((prev) => {
-          const next = { ...prev };
-          const active = mascotsRef.current.filter(
-            (m) => !m.found_at && m.hider_user_id !== identity.userId,
-          );
-          for (const m of active) {
-            const p = next[m.id] ?? loadProgress(m.id, identity.userId);
-            let { revealed, metersSinceTile, totalWalked } = p;
-            totalWalked += delta;
-            metersSinceTile += delta;
-            while (
-              metersSinceTile >= TILE_WALK_METERS &&
-              revealed < TOTAL_TILES
-            ) {
-              revealed++;
-              metersSinceTile -= TILE_WALK_METERS;
-            }
-            const updated = { ...p, revealed, metersSinceTile, totalWalked };
-            next[m.id] = updated;
-            saveProgress(m.id, identity.userId, updated);
+        // ── Solo walking (always, no identity needed) ──
+        const day = soloDayRef.current;
+        if (day) {
+          let { tilesRevealed, metersSinceTile, totalWalked } = day;
+          totalWalked += delta;
+          metersSinceTile += delta;
+          while (
+            metersSinceTile >= TILE_WALK_SOLO &&
+            tilesRevealed < TOTAL_TILES
+          ) {
+            tilesRevealed++;
+            metersSinceTile -= TILE_WALK_SOLO;
           }
-          return next;
-        });
+          const updatedDay: SoloDay = {
+            ...day,
+            tilesRevealed,
+            metersSinceTile,
+            totalWalked,
+          };
+          soloDayRef.current = updatedDay;
+          saveSoloDay(updatedDay);
+          setSoloTiles(tilesRevealed);
+          setSoloMetersSince(metersSinceTile);
+          setSoloTotalWalked(totalWalked);
+        }
+
+        // ── Group hunt walking (identity only) ──
+        if (identity) {
+          setProgress((prev) => {
+            const next = { ...prev };
+            const active = mascotsRef.current.filter(
+              (m) => !m.found_at && m.hider_user_id !== identity.userId,
+            );
+            for (const m of active) {
+              const center =
+                m.center_lat != null && m.center_lng != null
+                  ? { lat: m.center_lat, lng: m.center_lng }
+                  : { lat: m.lat, lng: m.lng };
+              const radiusMeters = (m.radius_miles ?? 5) * MILES_TO_METERS;
+              if (
+                haversineDistance(
+                  myPos.lat,
+                  myPos.lng,
+                  center.lat,
+                  center.lng,
+                ) > radiusMeters
+              )
+                continue;
+
+              const p = next[m.id] ?? loadProgress(m.id, identity.userId);
+              let { revealed, metersSinceTile, totalWalked } = p;
+              totalWalked += delta;
+              metersSinceTile += delta;
+              while (
+                metersSinceTile >= TILE_WALK_METERS &&
+                revealed < TOTAL_TILES
+              ) {
+                revealed++;
+                metersSinceTile -= TILE_WALK_METERS;
+              }
+              const updated = { ...p, revealed, metersSinceTile, totalWalked };
+              next[m.id] = updated;
+              saveProgress(m.id, identity.userId, updated);
+            }
+            return next;
+          });
+        }
       }
     }
     prevPosRef.current = myPos;
@@ -300,12 +454,25 @@ export default function SeekPage() {
     if (!identity) return;
     const interval = setInterval(() => {
       const now = Date.now();
+      const pos = myPosRef.current;
       setProgress((prev) => {
         const next = { ...prev };
         const active = mascotsRef.current.filter(
           (m) => !m.found_at && m.hider_user_id !== identity.userId,
         );
         for (const m of active) {
+          if (pos) {
+            const center =
+              m.center_lat != null && m.center_lng != null
+                ? { lat: m.center_lat, lng: m.center_lng }
+                : { lat: m.lat, lng: m.lng };
+            const radiusMeters = (m.radius_miles ?? 5) * MILES_TO_METERS;
+            if (
+              haversineDistance(pos.lat, pos.lng, center.lat, center.lng) >
+              radiusMeters
+            )
+              continue;
+          }
           const p = next[m.id] ?? loadProgress(m.id, identity.userId);
           const autoTiles = Math.floor((now - p.lastAutoMs) / AUTO_TILE_MS);
           if (autoTiles > 0 && p.revealed < TOTAL_TILES) {
@@ -416,6 +583,131 @@ export default function SeekPage() {
     } catch {
       // silent fail — hints are non-critical
     }
+  }
+
+  // ── fetch solo hints when new tiles unlock ───────────────────────────────
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchSoloHintForTile stable within render
+  useEffect(() => {
+    if (soloTiles <= soloFetchedTileRef.current || soloMascots.length === 0)
+      return;
+    for (let tile = soloFetchedTileRef.current + 1; tile <= soloTiles; tile++) {
+      for (const mascot of soloMascots) {
+        void fetchSoloHintForTile(mascot, tile);
+      }
+    }
+    soloFetchedTileRef.current = soloTiles;
+  }, [soloTiles, soloMascots]);
+
+  async function fetchSoloPlaces(pos: Pos, date: string) {
+    setSoloLoading(true);
+    try {
+      const res = await fetch("/api/solo-places", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: pos.lat, lng: pos.lng, date }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch places");
+      const data = (await res.json()) as {
+        mascots: Array<{
+          id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          category: string;
+        }>;
+      };
+      const mascots: SoloMascot[] = data.mascots.map((m) => ({
+        ...m,
+        hints: [],
+        captured: false,
+      }));
+      const day: SoloDay = {
+        date,
+        mascots,
+        tilesRevealed: 0,
+        metersSinceTile: 0,
+        totalWalked: 0,
+      };
+      soloDayRef.current = day;
+      saveSoloDay(day);
+      setSoloMascots(mascots);
+      setSoloTiles(0);
+      setSoloMetersSince(0);
+      setSoloTotalWalked(0);
+    } catch (e) {
+      console.error("Solo places error:", e);
+    } finally {
+      setSoloLoading(false);
+    }
+  }
+
+  async function fetchSoloHintForTile(mascot: SoloMascot, tile: number) {
+    try {
+      const res = await fetch("/api/solo-hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          placeName: mascot.name,
+          placeCategory: mascot.category,
+          lat: mascot.lat,
+          lng: mascot.lng,
+          tileNumber: tile,
+        }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        hint?: string;
+        photoUrl?: string | null;
+      };
+      const hint = data.hint?.trim();
+      if (!hint) return;
+      setSoloMascots((prev) => {
+        const next = prev.map((m) => {
+          if (m.id !== mascot.id) return m;
+          return {
+            ...m,
+            hints: [
+              ...m.hints,
+              { tile, text: hint, photoUrl: data.photoUrl ?? null },
+            ],
+          };
+        });
+        const day = soloDayRef.current;
+        if (day) {
+          const updatedDay = { ...day, mascots: next };
+          soloDayRef.current = updatedDay;
+          saveSoloDay(updatedDay);
+        }
+        return next;
+      });
+    } catch {
+      // hints non-critical
+    }
+  }
+
+  function handleSoloCaptureFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (soloCaptureFileRef.current) soloCaptureFileRef.current.value = "";
+    const target = soloCaptureTarget;
+    setSoloCaptureTarget(null);
+    if (!e.target.files?.[0] || !target) return;
+    handleSoloCapture(target);
+  }
+
+  function handleSoloCapture(mascotId: string) {
+    setSoloMascots((prev) => {
+      const next = prev.map((m) =>
+        m.id === mascotId ? { ...m, captured: true } : m,
+      );
+      const day = soloDayRef.current;
+      if (day) {
+        const updatedDay = { ...day, mascots: next };
+        soloDayRef.current = updatedDay;
+        saveSoloDay(updatedDay);
+      }
+      return next;
+    });
+    showAlert("🎯 Solo mascot captured!");
   }
 
   // ── data fetching ─────────────────────────────────────────────────────────
@@ -697,7 +989,7 @@ export default function SeekPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href={isGuest ? "/" : "/home"}>
+        <Link href="/home">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -754,223 +1046,218 @@ export default function SeekPage() {
       {/* ── HUNT TAB ────────────────────────────────────────────────────────── */}
       {tab === "hunt" && (
         <div className="space-y-4">
-          {isGuest ? (
-            <div className="rounded-2xl border bg-muted/30 p-8 space-y-4 text-center">
-              <MapPin className="h-10 w-10 mx-auto text-muted-foreground" />
-              <h2 className="text-lg font-bold">Hunt with friends</h2>
-              <p className="text-sm text-muted-foreground">
-                Create an account to hide mascots and hunt with your group.
-              </p>
+          <input
+            ref={hideFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleHidePhoto}
+          />
+          <input
+            ref={captureFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleCapturePhoto}
+          />
+
+          {/* Walking-to-hide panel */}
+          {hideStep === "walking" && hideCenter && hideRadius ? (
+            <div
+              className={cn(
+                "rounded-2xl border-2 p-5 space-y-4 transition-colors",
+                walkOutOfBounds
+                  ? "border-destructive bg-destructive/5"
+                  : "border-primary bg-primary/5",
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🚶</span>
+                <div>
+                  <p className="font-bold">Walk to your hiding spot</p>
+                  <p className="text-xs text-muted-foreground">
+                    {hideRadius}-mile play radius from your start
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {metersToMiles(walkDist)} from start
+                  </span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      walkOutOfBounds
+                        ? "text-destructive"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {walkOutOfBounds
+                      ? "⚠️ Out of bounds!"
+                      : `${metersToMiles(walkRemaining)} remaining`}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      walkOutOfBounds ? "bg-destructive" : "bg-primary",
+                    )}
+                    style={{ width: `${walkPct * 100}%` }}
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-2">
-                <Link href="/auth" className="flex-1">
-                  <Button className="w-full">Sign Up</Button>
-                </Link>
-                <Link href="/auth" className="flex-1">
-                  <Button variant="outline" className="w-full">
-                    Log In
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={cancelHide}
+                  disabled={hiding}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={takeHidePhoto}
+                  disabled={hiding || walkOutOfBounds}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {hiding ? "Saving…" : "Take Photo Here"}
+                </Button>
               </div>
             </div>
           ) : (
-            <>
-              <input
-                ref={hideFileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleHidePhoto}
-              />
-              <input
-                ref={captureFileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleCapturePhoto}
-              />
+            <button
+              type="button"
+              className="w-full h-14 rounded-2xl bg-foreground text-background text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+              onClick={startHide}
+              disabled={hideStep === "pickRadius"}
+            >
+              <Camera className="h-4 w-4" />
+              Hide Mascot Here
+            </button>
+          )}
 
-              {/* Walking-to-hide panel */}
-              {hideStep === "walking" && hideCenter && hideRadius ? (
-                <div
-                  className={cn(
-                    "rounded-2xl border-2 p-5 space-y-4 transition-colors",
-                    walkOutOfBounds
-                      ? "border-destructive bg-destructive/5"
-                      : "border-primary bg-primary/5",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">🚶</span>
-                    <div>
-                      <p className="font-bold">Walk to your hiding spot</p>
-                      <p className="text-xs text-muted-foreground">
-                        {hideRadius}-mile play radius from your start
-                      </p>
-                    </div>
-                  </div>
+          {/* Active mascots */}
+          <div className="space-y-2">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              Active ({active.length})
+            </h2>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm animate-pulse">
+                Loading…
+              </div>
+            ) : active.length === 0 ? (
+              <div className="rounded-xl bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                No mascots hidden yet. Be the first!
+              </div>
+            ) : (
+              active.map((m) => {
+                const url = supabase.storage
+                  .from("game-photos")
+                  .getPublicUrl(m.photo_path).data.publicUrl;
+                const dist = myPos
+                  ? haversineDistance(myPos.lat, myPos.lng, m.lat, m.lng)
+                  : null;
+                const dir = myPos
+                  ? bearing(myPos.lat, myPos.lng, m.lat, m.lng)
+                  : null;
+                const close = dist !== null && dist <= CAPTURE_RADIUS;
+                const centerPos =
+                  m.center_lat != null && m.center_lng != null
+                    ? { lat: m.center_lat, lng: m.center_lng }
+                    : null;
+                const distToCenter =
+                  myPos && centerPos
+                    ? haversineDistance(
+                        myPos.lat,
+                        myPos.lng,
+                        centerPos.lat,
+                        centerPos.lng,
+                      )
+                    : null;
+                const inPlayArea =
+                  distToCenter !== null &&
+                  distToCenter <= (m.radius_miles ?? 5) * MILES_TO_METERS;
+                const isOwn = m.hider_user_id === identity?.userId;
+                const prog = progress[m.id] ?? {
+                  revealed: 0,
+                  metersSinceTile: 0,
+                  totalWalked: 0,
+                  lastAutoMs: 0,
+                };
+                const canCapture =
+                  close && !isOwn && prog.revealed >= MIN_TILES_CAPTURE;
+                const tilesLeft = Math.max(
+                  0,
+                  MIN_TILES_CAPTURE - prog.revealed,
+                );
+                const metersToNextTile = Math.max(
+                  0,
+                  TILE_WALK_METERS - prog.metersSinceTile,
+                );
+                const mascotHints = hints[m.id] ?? [];
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        {metersToMiles(walkDist)} from start
-                      </span>
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          walkOutOfBounds
-                            ? "text-destructive"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {walkOutOfBounds
-                          ? "⚠️ Out of bounds!"
-                          : `${metersToMiles(walkRemaining)} remaining`}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-500",
-                          walkOutOfBounds ? "bg-destructive" : "bg-primary",
-                        )}
-                        style={{ width: `${walkPct * 100}%` }}
+                return (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      "rounded-2xl border-2 overflow-hidden",
+                      canCapture
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border",
+                    )}
+                  >
+                    {/* Tiled photo */}
+                    <div className="relative w-full aspect-square">
+                      {/* biome-ignore lint/performance/noImgElement: Supabase storage public URL */}
+                      <img
+                        src={url}
+                        alt="Hiding spot"
+                        className="w-full h-full object-cover"
                       />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={cancelHide}
-                      disabled={hiding}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={takeHidePhoto}
-                      disabled={hiding || walkOutOfBounds}
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      {hiding ? "Saving…" : "Take Photo Here"}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="w-full h-14 rounded-2xl bg-foreground text-background text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
-                  onClick={startHide}
-                  disabled={hideStep === "pickRadius"}
-                >
-                  <Camera className="h-4 w-4" />
-                  Hide Mascot Here
-                </button>
-              )}
-
-              {/* Active mascots */}
-              <div className="space-y-2">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Active ({active.length})
-                </h2>
-                {loading ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm animate-pulse">
-                    Loading…
-                  </div>
-                ) : active.length === 0 ? (
-                  <div className="rounded-xl bg-muted/50 p-6 text-center text-sm text-muted-foreground">
-                    No mascots hidden yet. Be the first!
-                  </div>
-                ) : (
-                  active.map((m) => {
-                    const url = supabase.storage
-                      .from("game-photos")
-                      .getPublicUrl(m.photo_path).data.publicUrl;
-                    const dist = myPos
-                      ? haversineDistance(myPos.lat, myPos.lng, m.lat, m.lng)
-                      : null;
-                    const dir = myPos
-                      ? bearing(myPos.lat, myPos.lng, m.lat, m.lng)
-                      : null;
-                    const close = dist !== null && dist <= CAPTURE_RADIUS;
-                    const isOwn = m.hider_user_id === identity?.userId;
-                    const prog = progress[m.id] ?? {
-                      revealed: 0,
-                      metersSinceTile: 0,
-                      totalWalked: 0,
-                      lastAutoMs: 0,
-                    };
-                    const canCapture =
-                      close && !isOwn && prog.revealed >= MIN_TILES_CAPTURE;
-                    const tilesLeft = Math.max(
-                      0,
-                      MIN_TILES_CAPTURE - prog.revealed,
-                    );
-                    const metersToNextTile = Math.max(
-                      0,
-                      TILE_WALK_METERS - prog.metersSinceTile,
-                    );
-                    const mascotHints = hints[m.id] ?? [];
-
-                    return (
-                      <div
-                        key={m.id}
-                        className={cn(
-                          "rounded-2xl border-2 overflow-hidden",
-                          canCapture
-                            ? "border-primary ring-2 ring-primary/20"
-                            : "border-border",
-                        )}
-                      >
-                        {/* Tiled photo */}
-                        <div className="relative w-full aspect-square">
-                          {/* biome-ignore lint/performance/noImgElement: Supabase storage public URL */}
-                          <img
-                            src={url}
-                            alt="Hiding spot"
-                            className="w-full h-full object-cover"
-                          />
-                          {!isOwn && (
-                            <TileOverlay
-                              mascotId={m.id}
-                              revealed={prog.revealed}
-                            />
-                          )}
-                          {/* Tile count badge */}
-                          {!isOwn && (
-                            <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-bold shadow">
-                              {prog.revealed}/{TOTAL_TILES} tiles
-                            </div>
-                          )}
-                          {isOwn && (
-                            <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
-                              Your mascot
-                            </div>
-                          )}
-                          {/* Radius badge */}
-                          {m.radius_miles && (
-                            <div className="absolute top-2 left-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
-                              📍 {m.radius_miles} mi radius
-                            </div>
-                          )}
+                      {!isOwn && (
+                        <TileOverlay mascotId={m.id} revealed={prog.revealed} />
+                      )}
+                      {/* Tile count badge */}
+                      {!isOwn && (
+                        <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-bold shadow">
+                          {prog.revealed}/{TOTAL_TILES} tiles
                         </div>
+                      )}
+                      {isOwn && (
+                        <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
+                          Your mascot
+                        </div>
+                      )}
+                      {/* Radius badge */}
+                      {m.radius_miles && (
+                        <div className="absolute top-2 left-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
+                          📍 {m.radius_miles} mi radius
+                        </div>
+                      )}
+                    </div>
 
-                        {/* Info row */}
-                        <div className="p-3 space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="font-semibold text-sm">
-                                {m.hider_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {elapsed(m.hidden_at)} ago
-                              </p>
-                            </div>
-                            {dist !== null && (
-                              <div className="text-right flex-shrink-0">
+                    {/* Info row */}
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-sm">
+                            {m.hider_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {elapsed(m.hidden_at)} ago
+                          </p>
+                        </div>
+                        {dist !== null && (
+                          <div className="text-right flex-shrink-0">
+                            {isOwn ? (
+                              <>
                                 <p className="font-bold text-primary text-sm">
                                   {formatDistance(dist)}
                                 </p>
@@ -979,127 +1266,170 @@ export default function SeekPage() {
                                     {bearingArrow(dir)}
                                   </p>
                                 )}
-                              </div>
+                              </>
+                            ) : prog.revealed === 0 ? (
+                              distToCenter !== null ? (
+                                inPlayArea ? (
+                                  <p className="text-xs font-semibold text-primary">
+                                    In area ✓
+                                  </p>
+                                ) : (
+                                  <>
+                                    <p className="font-bold text-primary text-sm">
+                                      {formatDistance(distToCenter)}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      from area
+                                    </p>
+                                  </>
+                                )
+                              ) : null
+                            ) : prog.revealed <= 3 ? (
+                              <>
+                                <p className="font-bold text-primary text-sm">
+                                  {approxDistance(dist)}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  approx
+                                </p>
+                              </>
+                            ) : prog.revealed <= 6 ? (
+                              <p className="font-bold text-primary text-sm">
+                                {formatDistance(dist)}
+                              </p>
+                            ) : (
+                              <>
+                                <p className="font-bold text-primary text-sm">
+                                  {formatDistance(dist)}
+                                </p>
+                                {dir !== null && (
+                                  <p className="text-xl leading-none">
+                                    {bearingArrow(dir)}
+                                  </p>
+                                )}
+                              </>
                             )}
-                          </div>
-
-                          {!isOwn && (
-                            <div className="space-y-1.5">
-                              {/* Walk progress bar */}
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>
-                                  🚶 {formatDistance(prog.totalWalked)} walked
-                                </span>
-                                <span className="text-border">·</span>
-                                <span>
-                                  next tile in{" "}
-                                  {formatDistance(metersToNextTile)}
-                                </span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full bg-secondary rounded-full transition-all duration-500"
-                                  style={{
-                                    width: `${(prog.metersSinceTile / TILE_WALK_METERS) * 100}%`,
-                                  }}
-                                />
-                              </div>
-
-                              {canCapture ? (
-                                <Button
-                                  size="sm"
-                                  className="w-full mt-1"
-                                  onClick={() => startCapture(m.id)}
-                                  disabled={captureTarget === m.id}
-                                >
-                                  <Camera className="h-4 w-4 mr-1.5" />
-                                  {captureTarget === m.id
-                                    ? "Uploading…"
-                                    : "📸 Capture Mascot!"}
-                                </Button>
-                              ) : close && prog.revealed < MIN_TILES_CAPTURE ? (
-                                <p className="text-xs text-muted-foreground text-center">
-                                  You're close! Reveal {tilesLeft} more tile
-                                  {tilesLeft !== 1 ? "s" : ""} to capture
-                                </p>
-                              ) : !close ? (
-                                <p className="text-xs text-muted-foreground text-center">
-                                  Walk closer — need to be within{" "}
-                                  {CAPTURE_RADIUS}m
-                                </p>
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* AI hints */}
-                        {!isOwn && mascotHints.length > 0 && (
-                          <div className="border-t px-3 pb-3 pt-2.5 space-y-1.5">
-                            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                              💡 Clues
-                            </p>
-                            <div className="space-y-1">
-                              {mascotHints.map((hint, hintIdx) => (
-                                <div
-                                  key={`${m.id}-${hint}`}
-                                  className="text-xs bg-muted/60 rounded-lg px-3 py-2 text-foreground/80 leading-relaxed"
-                                >
-                                  <span className="font-mono text-primary/70 mr-1.5 text-[10px]">
-                                    #{hintIdx + 1}
-                                  </span>
-                                  {hint}
-                                </div>
-                              ))}
-                            </div>
                           </div>
                         )}
                       </div>
-                    );
-                  })
-                )}
-              </div>
 
-              {/* Found mascots */}
-              {found.length > 0 && (
-                <div className="space-y-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                    Found ({found.length})
-                  </h2>
-                  {found.map((m) => {
-                    const url = supabase.storage
-                      .from("game-photos")
-                      .getPublicUrl(m.photo_path).data.publicUrl;
-                    const ms =
-                      new Date(m.found_at ?? "").getTime() -
-                      new Date(m.hidden_at).getTime();
-                    return (
-                      <div
-                        key={m.id}
-                        className="rounded-xl border overflow-hidden opacity-60"
-                      >
-                        <div className="flex">
-                          {/* biome-ignore lint/performance/noImgElement: Supabase storage public URL */}
-                          <img
-                            src={url}
-                            alt="Found mascot"
-                            className="h-16 w-16 object-cover flex-shrink-0 grayscale"
-                          />
-                          <div className="p-3">
-                            <p className="text-sm font-medium">
-                              {m.hider_name}'s mascot
-                            </p>
+                      {!isOwn && (
+                        <div className="space-y-1.5">
+                          {/* Walk progress bar */}
+                          {myPos && !inPlayArea && (
                             <p className="text-xs text-muted-foreground">
-                              Survived {survivalStr(ms)} · Found by{" "}
-                              {m.finder_name}
+                              ⚠️ Enter the play area to earn tiles
                             </p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>
+                              🚶 {formatDistance(prog.totalWalked)} walked
+                            </span>
+                            <span className="text-border">·</span>
+                            <span>
+                              next tile in {formatDistance(metersToNextTile)}
+                            </span>
                           </div>
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full bg-secondary rounded-full transition-all duration-500"
+                              style={{
+                                width: `${(prog.metersSinceTile / TILE_WALK_METERS) * 100}%`,
+                              }}
+                            />
+                          </div>
+
+                          {canCapture ? (
+                            <Button
+                              size="sm"
+                              className="w-full mt-1"
+                              onClick={() => startCapture(m.id)}
+                              disabled={captureTarget === m.id}
+                            >
+                              <Camera className="h-4 w-4 mr-1.5" />
+                              {captureTarget === m.id
+                                ? "Uploading…"
+                                : "📸 Capture Mascot!"}
+                            </Button>
+                          ) : close && prog.revealed < MIN_TILES_CAPTURE ? (
+                            <p className="text-xs text-muted-foreground text-center">
+                              You're close! Reveal {tilesLeft} more tile
+                              {tilesLeft !== 1 ? "s" : ""} to capture
+                            </p>
+                          ) : !close ? (
+                            <p className="text-xs text-muted-foreground text-center">
+                              Walk closer — need to be within {CAPTURE_RADIUS}m
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI hints */}
+                    {!isOwn && mascotHints.length > 0 && (
+                      <div className="border-t px-3 pb-3 pt-2.5 space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                          💡 Clues
+                        </p>
+                        <div className="space-y-1">
+                          {mascotHints.map((hint, hintIdx) => (
+                            <div
+                              key={`${m.id}-${hint}`}
+                              className="text-xs bg-muted/60 rounded-lg px-3 py-2 text-foreground/80 leading-relaxed"
+                            >
+                              <span className="font-mono text-primary/70 mr-1.5 text-[10px]">
+                                #{hintIdx + 1}
+                              </span>
+                              {hint}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Found mascots */}
+          {found.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                Found ({found.length})
+              </h2>
+              {found.map((m) => {
+                const url = supabase.storage
+                  .from("game-photos")
+                  .getPublicUrl(m.photo_path).data.publicUrl;
+                const ms =
+                  new Date(m.found_at ?? "").getTime() -
+                  new Date(m.hidden_at).getTime();
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-xl border overflow-hidden opacity-60"
+                  >
+                    <div className="flex">
+                      {/* biome-ignore lint/performance/noImgElement: Supabase storage public URL */}
+                      <img
+                        src={url}
+                        alt="Found mascot"
+                        className="h-16 w-16 object-cover flex-shrink-0 grayscale"
+                      />
+                      <div className="p-3">
+                        <p className="text-sm font-medium">
+                          {m.hider_name}'s mascot
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Survived {survivalStr(ms)} · Found by {m.finder_name}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
@@ -1107,115 +1437,265 @@ export default function SeekPage() {
       {/* ── SOLO TAB ────────────────────────────────────────────────────────── */}
       {tab === "solo" && (
         <div className="space-y-4">
-          {/* Daily spawn card */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <MapPin className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold text-sm">Today's Mascot</p>
-                  <p className="text-xs text-muted-foreground">
-                    Within 5 miles
-                  </p>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                Resets midnight
-              </span>
+          {/* Hidden file input for solo capture */}
+          <input
+            ref={soloCaptureFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleSoloCaptureFileChange}
+          />
+
+          {/* Walk progress header */}
+          <div className="rounded-2xl border bg-card p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                Today's walk
+              </p>
+              <p className="text-2xl font-black tabular-nums">
+                {(soloTotalWalked / MILES_TO_METERS).toFixed(2)}
+                <span className="text-sm font-semibold text-muted-foreground ml-1">
+                  mi
+                </span>
+              </p>
             </div>
-
-            {/* Loading */}
-            {!myPos && !posError && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-pulse" />
-                Getting your location…
-              </div>
-            )}
-
-            {/* Inline error */}
-            {posError && (
-              <div className="flex items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2.5">
-                <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-destructive" />
-                <p className="text-xs text-muted-foreground">{posError}</p>
-              </div>
-            )}
-
-            {/* Distance + direction */}
-            {myPos && soloSpawn && !soloCaptured && (
-              <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3.5">
-                <div>
-                  <p className="text-3xl font-black tabular-nums">
-                    {formatDistance(
-                      haversineDistance(
-                        myPos.lat,
-                        myPos.lng,
-                        soloSpawn.lat,
-                        soloSpawn.lng,
-                      ),
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">away</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-4xl leading-none">
-                    {bearingArrow(
-                      bearing(
-                        myPos.lat,
-                        myPos.lng,
-                        soloSpawn.lat,
-                        soloSpawn.lng,
-                      ),
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    head this way
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Capture button */}
-            {myPos &&
-              soloSpawn &&
-              haversineDistance(
-                myPos.lat,
-                myPos.lng,
-                soloSpawn.lat,
-                soloSpawn.lng,
-              ) <= CAPTURE_RADIUS &&
-              !soloCaptured && (
-                <button
-                  type="button"
-                  className="w-full h-12 rounded-2xl bg-foreground text-background text-sm font-bold transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-[0.98]"
-                  onClick={() => setSoloCaptured(true)}
-                >
-                  You're here — Capture!
-                </button>
-              )}
-
-            {/* Captured state */}
-            {soloCaptured && (
-              <div className="text-center space-y-1.5 py-3">
-                <p className="text-3xl">🎉</p>
-                <p className="font-bold">Captured!</p>
-                <p className="text-xs text-muted-foreground">
-                  Come back tomorrow for a new spawn.
-                </p>
-              </div>
-            )}
+            <div className="text-right">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+                Tiles
+              </p>
+              <p className="text-2xl font-black tabular-nums">
+                {soloTiles}
+                <span className="text-sm font-semibold text-muted-foreground">
+                  /{TOTAL_TILES}
+                </span>
+              </p>
+            </div>
           </div>
 
-          {/* Global landmarks globe */}
-          <div className="space-y-2">
+          {/* Section header */}
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+            Today's Mascots
+          </h2>
+
+          {/* GPS loading */}
+          {!myPos && !posError && (
+            <div className="text-center py-8 text-muted-foreground text-sm animate-pulse">
+              Getting your location…
+            </div>
+          )}
+
+          {/* Fetching places */}
+          {soloLoading && (
+            <div className="text-center py-8 text-muted-foreground text-sm animate-pulse">
+              Finding today's mascots nearby…
+            </div>
+          )}
+
+          {/* Mascot cards */}
+          {!soloLoading &&
+            soloMascots.map((m) => {
+              const info = getCategoryInfo(m.category);
+              const dist = myPos
+                ? haversineDistance(myPos.lat, myPos.lng, m.lat, m.lng)
+                : null;
+              const dir = myPos
+                ? bearing(myPos.lat, myPos.lng, m.lat, m.lng)
+                : null;
+              const close = dist !== null && dist <= CAPTURE_RADIUS;
+              const canCapture = close && soloTiles >= 1 && !m.captured;
+              const latestPhoto = [...m.hints]
+                .reverse()
+                .find((h) => h.photoUrl)?.photoUrl;
+              const photoBlur = latestPhoto
+                ? Math.max(0, 20 - (soloTiles - 3) * 5)
+                : 0;
+
+              return (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "rounded-2xl border-2 overflow-hidden",
+                    canCapture
+                      ? "border-primary ring-2 ring-primary/20"
+                      : m.captured
+                        ? "border-border opacity-70"
+                        : "border-border",
+                  )}
+                >
+                  {/* Photo / category card with tile overlay */}
+                  <div className="relative w-full aspect-square">
+                    {latestPhoto ? (
+                      // biome-ignore lint/performance/noImgElement: Mapillary external URL
+                      <img
+                        src={latestPhoto}
+                        alt="Street-level hint"
+                        className="w-full h-full object-cover transition-all duration-700"
+                        style={{
+                          filter: `blur(${photoBlur}px)`,
+                          transform: "scale(1.06)",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{ background: info.color }}
+                      >
+                        <span className="text-8xl opacity-25">
+                          {info.emoji}
+                        </span>
+                      </div>
+                    )}
+                    <TileOverlay mascotId={m.id} revealed={soloTiles} />
+                    <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-bold shadow">
+                      {soloTiles}/{TOTAL_TILES} tiles
+                    </div>
+                    <div className="absolute top-2 left-2 bg-background/90 rounded-full px-2.5 py-1 text-xs font-semibold shadow">
+                      {info.emoji} {info.label}
+                    </div>
+                    {m.captured && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                        <div className="text-center">
+                          <p className="text-5xl">🎯</p>
+                          <p className="font-bold text-sm mt-1">Captured!</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info + hints */}
+                  <div className="p-3 space-y-2.5">
+                    {/* Name row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {soloTiles >= 7 ? m.name : "Mystery Location"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Resets tomorrow
+                        </p>
+                      </div>
+                      {dist !== null && !m.captured && (
+                        <div className="text-right flex-shrink-0">
+                          {soloTiles === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Walk to reveal
+                            </p>
+                          ) : soloTiles <= 3 ? (
+                            <>
+                              <p className="font-bold text-primary text-sm">
+                                {approxDistance(dist)}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                approx
+                              </p>
+                            </>
+                          ) : soloTiles <= 6 ? (
+                            <p className="font-bold text-primary text-sm">
+                              {formatDistance(dist)}
+                            </p>
+                          ) : (
+                            <>
+                              <p className="font-bold text-primary text-sm">
+                                {formatDistance(dist)}
+                              </p>
+                              {dir !== null && (
+                                <p className="text-xl leading-none">
+                                  {bearingArrow(dir)}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Walk progress */}
+                    {!m.captured && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>
+                            🚶 {(soloTotalWalked / MILES_TO_METERS).toFixed(2)}{" "}
+                            mi walked
+                          </span>
+                          <span className="text-border">·</span>
+                          <span>
+                            next tile in{" "}
+                            {(
+                              (TILE_WALK_SOLO - soloMetersSince) /
+                              MILES_TO_METERS
+                            ).toFixed(2)}{" "}
+                            mi
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-secondary rounded-full transition-all duration-500"
+                            style={{
+                              width: `${(soloMetersSince / TILE_WALK_SOLO) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hints */}
+                    {m.hints.length > 0 && (
+                      <div className="space-y-1.5 pt-1 border-t">
+                        <p className="text-xs font-semibold text-muted-foreground pt-1">
+                          💡 Clues
+                        </p>
+                        <div className="space-y-1">
+                          {m.hints.map((h, idx) => (
+                            <div
+                              key={`${m.id}-t${h.tile}`}
+                              className="text-xs bg-muted/60 rounded-lg px-3 py-2 text-foreground/80 leading-relaxed"
+                            >
+                              <span className="font-mono text-primary/70 mr-1.5 text-[10px]">
+                                #{idx + 1}
+                              </span>
+                              {h.text}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Capture action */}
+                    {!m.captured &&
+                      (canCapture ? (
+                        <Button
+                          size="sm"
+                          className="w-full mt-1"
+                          onClick={() => {
+                            setSoloCaptureTarget(m.id);
+                            soloCaptureFileRef.current?.click();
+                          }}
+                        >
+                          <Camera className="h-4 w-4 mr-1.5" />
+                          Capture Mascot!
+                        </Button>
+                      ) : close && soloTiles < 1 ? (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Walk 1 mile to unlock capture
+                        </p>
+                      ) : !close ? (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Get within {CAPTURE_RADIUS}m to capture
+                        </p>
+                      ) : null)}
+                  </div>
+                </div>
+              );
+            })}
+
+          {/* Globe */}
+          <div className="space-y-2 pt-2">
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-              Global Landmarks
+              Explore the World
             </h2>
             <p className="text-xs text-muted-foreground">
-              Mascots hide at famous spots worldwide. Spin the globe and tap a
-              pin to see how far you are.
+              Spin the globe to see famous spots around the world.
             </p>
           </div>
           <div className="-mx-4">
@@ -1227,25 +1707,7 @@ export default function SeekPage() {
       {/* ── LEADERBOARD TAB ──────────────────────────────────────────────────── */}
       {tab === "leaderboard" && (
         <div className="space-y-4">
-          {isGuest ? (
-            <div className="rounded-2xl border bg-muted/30 p-8 space-y-4 text-center">
-              <Trophy className="h-10 w-10 mx-auto text-muted-foreground" />
-              <h2 className="text-lg font-bold">Group leaderboard</h2>
-              <p className="text-sm text-muted-foreground">
-                Sign up to compete with friends.
-              </p>
-              <div className="flex gap-2">
-                <Link href="/auth" className="flex-1">
-                  <Button className="w-full">Sign Up</Button>
-                </Link>
-                <Link href="/auth" className="flex-1">
-                  <Button variant="outline" className="w-full">
-                    Log In
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          ) : leaderboard.length === 0 ? (
+          {leaderboard.length === 0 ? (
             <div className="rounded-xl bg-muted/50 p-8 text-center text-sm text-muted-foreground">
               No data yet — start hiding mascots!
             </div>

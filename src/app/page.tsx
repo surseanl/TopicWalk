@@ -22,13 +22,22 @@ type CursorFrame = { x: number; y: number; t: number; click?: boolean };
 
 // y values are expressed as % of the 448px phone content area (phone height 512 - 32 notch - 32 bar)
 const CURSOR_SEQUENCES: Record<string, CursorFrame[][]> = {
-  "free-walk": [
-    // Step 0 — Pick a topic: tap the Color card (top-left, ~130px from top)
+  "free-walk-locked": [
+    // Locked state — tap "Lock in topic" button (~72% from top)
     [
-      { x: 52, y: 75, t: 0 },
+      { x: 50, y: 40, t: 0 },
+      { x: 50, y: 72, t: 700 },
+      { x: 50, y: 72, t: 1100, click: true },
+      { x: 55, y: 50, t: 2000 },
+    ],
+  ],
+  "free-walk": [
+    // Step 0 — Pick a topic: tap Color card (Goldenrod card already shows below)
+    [
+      { x: 50, y: 40, t: 0 },
       { x: 27, y: 29, t: 700 },
       { x: 27, y: 29, t: 1100, click: true },
-      { x: 55, y: 55, t: 2100 },
+      { x: 55, y: 50, t: 2000 },
     ],
     // Step 1 — Lock in: tap "Take / Upload Photo" button (~324px from top = 72%)
     [
@@ -153,436 +162,13 @@ function PhoneCursor({ stepIndex, mode }: { stepIndex: number; mode: string }) {
         {clicking && (
           <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
         )}
-      </div>
-    </div>
-  );
-}
-
-// ── Hero phone animations ─────────────────────────────────────────────
-
-function HeroPhoneLeft() {
-  const [phase, setPhase] = useState(0);
-  const [cx, setCx] = useState(142);
-  const [cy, setCy] = useState(420);
-  const [clicking, setClicking] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    const T: ReturnType<typeof setTimeout>[] = [];
-
-    function clearAll() {
-      T.forEach(clearTimeout);
-      T.length = 0;
-    }
-
-    function sched(fn: () => void, ms: number) {
-      T.push(setTimeout(fn, ms));
-    }
-
-    function runPhase(p: number) {
-      if (!alive) return;
-      clearAll();
-      setPhase(p);
-      setClicking(false);
-      if (p === 0) {
-        setCx(142);
-        setCy(420);
-        sched(() => {
-          setCx(76);
-          setCy(112);
-        }, 600);
-        sched(() => setClicking(true), 1250);
-        sched(() => setClicking(false), 1650);
-        sched(() => runPhase(1), 2200);
-      } else if (p === 1) {
-        setCx(230);
-        setCy(60);
-        sched(() => {
-          setCx(142);
-          setCy(355);
-        }, 700);
-        sched(() => setClicking(true), 1350);
-        sched(() => setClicking(false), 1750);
-        sched(() => runPhase(2), 2300);
-      } else {
-        setCx(50);
-        setCy(100);
-        sched(() => {
-          setCx(142);
-          setCy(390);
-        }, 700);
-        sched(() => setClicking(true), 1350);
-        sched(() => setClicking(false), 1750);
-        sched(() => runPhase(0), 2800);
-      }
-    }
-
-    T.push(setTimeout(() => runPhase(0), 800));
-
-    return () => {
-      alive = false;
-      T.forEach(clearTimeout);
-    };
-  }, []);
-
-  const screens = [
-    /* Phase 0 – topic picker */
-    <div key="p0" className="flex flex-col h-full">
-      <div className="px-4 pt-4 pb-3 border-b border-border/40">
-        <p className="font-bold text-sm">Free Walk</p>
-        <p className="text-xs text-muted-foreground">
-          Pick a topic · Take a photo
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2.5 p-4">
-        <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col items-center gap-2">
-          <div className="w-11 h-11 rounded-xl bg-amber-400/90 flex items-center justify-center">
-            <div className="w-5 h-5 rounded-full bg-orange-600" />
-          </div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">
-            Color
-          </p>
-        </div>
-        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
-          <div className="w-11 h-11 rounded-xl bg-sky-400/80 flex items-center justify-center">
-            <div className="w-0 h-0 border-l-[9px] border-r-[9px] border-b-[15px] border-l-transparent border-r-transparent border-b-sky-700" />
-          </div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-sky-600">
-            Shape
-          </p>
-        </div>
-        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
-          <div className="w-11 h-11 rounded-xl bg-violet-400/80 flex items-center justify-center">
-            <span className="text-violet-900 font-black text-xl leading-none">
-              +
+        {clicking && (
+          <div className="absolute left-1/2 -top-7 animate-click-pop pointer-events-none">
+            <span className="text-[10px] font-bold text-white bg-gray-900/80 px-2 py-0.5 rounded-full shadow whitespace-nowrap">
+              click!
             </span>
           </div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600">
-            Theme
-          </p>
-        </div>
-        <div className="rounded-xl border border-border p-4 flex flex-col items-center gap-2 opacity-55">
-          <div className="w-11 h-11 rounded-xl bg-emerald-400/80 flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-emerald-800" />
-          </div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">
-            Object
-          </p>
-        </div>
-      </div>
-      <div className="mx-4 rounded-xl bg-muted/40 p-3 text-center">
-        <p className="text-[11px] text-muted-foreground">
-          Tap a category to begin
-        </p>
-      </div>
-    </div>,
-    /* Phase 1 – color selected + camera */
-    <div key="p1" className="flex flex-col h-full">
-      <div className="px-4 pt-4 pb-3 border-b border-border/40">
-        <p className="font-bold text-sm">Free Walk</p>
-        <p className="text-xs text-muted-foreground">
-          Pick a topic · Take a photo
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2 px-4 pt-3 pb-2 opacity-50">
-        <div className="rounded-xl border-2 border-primary p-2 flex items-center gap-2 bg-primary/5">
-          <div className="w-7 h-7 rounded-lg bg-amber-400 shrink-0 flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-orange-600" />
-          </div>
-          <p className="text-[10px] font-bold text-orange-600">Color</p>
-        </div>
-        {(["Shape", "Theme", "Object"] as const).map((l) => (
-          <div
-            key={l}
-            className="rounded-xl border border-border p-2 flex items-center gap-2"
-          >
-            <div className="w-7 h-7 rounded-lg bg-muted shrink-0" />
-            <p className="text-[10px] text-muted-foreground">{l}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mx-4 mt-2 rounded-xl bg-card border border-border shadow-sm p-3 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
-          <div className="w-4 h-4 rounded-full bg-orange-600" />
-        </div>
-        <div>
-          <p className="text-[9px] font-bold text-orange-600 uppercase tracking-widest">
-            Color · Today
-          </p>
-          <p className="font-bold text-sm leading-tight">Goldenrod #CA8A04</p>
-        </div>
-      </div>
-      <p className="text-[10px] text-center text-muted-foreground mt-2 px-4">
-        🔒 Today's pick — resets at midnight
-      </p>
-      <div className="px-4 mt-3">
-        <div className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2">
-          <Camera className="h-4 w-4" />
-          Take / Upload Photo
-        </div>
-      </div>
-    </div>,
-    /* Phase 2 – AI result */
-    <div key="p2" className="flex flex-col h-full">
-      <div className="relative h-36 bg-amber-100 dark:bg-amber-900/25 flex items-center justify-center overflow-hidden shrink-0">
-        <Camera className="h-16 w-16 text-amber-300" />
-        <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
-          Color · Goldenrod
-        </div>
-      </div>
-      <div className="flex flex-col items-center gap-1 pt-4 pb-3 shrink-0">
-        <div className="text-5xl font-extrabold text-primary leading-none">
-          87
-        </div>
-        <p className="text-xs text-muted-foreground font-medium">out of 100</p>
-      </div>
-      <div className="mx-4 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 p-3">
-        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-          ✓ Confident match!
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          The warm amber hue clearly matches Goldenrod. Great find!
-        </p>
-      </div>
-      <div className="px-4 mt-3">
-        <div className="w-full h-9 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
-          Share to feed →
-        </div>
-      </div>
-    </div>,
-  ];
-
-  return (
-    <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
-      <div
-        className="relative bg-background rounded-[2rem] overflow-hidden"
-        style={{ height: "530px" }}
-      >
-        <div className="bg-foreground/5 flex justify-center py-3">
-          <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
-        </div>
-        <div className="relative overflow-hidden" style={{ height: "458px" }}>
-          {screens[phase]}
-          <div
-            className="absolute pointer-events-none z-50"
-            style={{
-              left: cx,
-              top: cy,
-              transition:
-                "left 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.2, 0.64, 1)",
-            }}
-          >
-            <div className="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8">
-              <div
-                className={cn(
-                  "absolute inset-0 rounded-full bg-gray-900/55 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-150",
-                  clicking ? "scale-75" : "scale-100",
-                )}
-              />
-              {clicking && (
-                <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
-      </div>
-    </div>
-  );
-}
-
-const HUNT_TILES_FAR = [
-  { k: "f0", r: false },
-  { k: "f1", r: false },
-  { k: "f2", r: true },
-  { k: "f3", r: false },
-  { k: "f4", r: false },
-  { k: "f5", r: true },
-  { k: "f6", r: true },
-  { k: "f7", r: false },
-  { k: "f8", r: false },
-];
-const HUNT_TILES_NEAR = [
-  { k: "n0", r: true },
-  { k: "n1", r: true },
-  { k: "n2", r: true },
-  { k: "n3", r: true },
-  { k: "n4", r: true },
-  { k: "n5", r: true },
-  { k: "n6", r: true },
-  { k: "n7", r: false },
-  { k: "n8", r: true },
-];
-
-function HeroPhoneRight() {
-  const [phase, setPhase] = useState(0);
-  const [cx, setCx] = useState(200);
-  const [cy, setCy] = useState(380);
-  const [clicking, setClicking] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    const T: ReturnType<typeof setTimeout>[] = [];
-
-    function clearAll() {
-      T.forEach(clearTimeout);
-      T.length = 0;
-    }
-
-    function sched(fn: () => void, ms: number) {
-      T.push(setTimeout(fn, ms));
-    }
-
-    function runPhase(p: number) {
-      if (!alive) return;
-      clearAll();
-      setPhase(p);
-      setClicking(false);
-      if (p === 0) {
-        setCx(200);
-        setCy(380);
-        sched(() => {
-          setCx(58);
-          setCy(110);
-        }, 600);
-        sched(() => {
-          setCx(226);
-          setCy(194);
-        }, 1700);
-        sched(() => {
-          setCx(58);
-          setCy(278);
-        }, 2700);
-        sched(() => runPhase(1), 3900);
-      } else {
-        setCx(60);
-        setCy(140);
-        sched(() => {
-          setCx(142);
-          setCy(355);
-        }, 700);
-        sched(() => setClicking(true), 1350);
-        sched(() => setClicking(false), 1750);
-        sched(() => runPhase(0), 2800);
-      }
-    }
-
-    T.push(setTimeout(() => runPhase(0), 1200));
-
-    return () => {
-      alive = false;
-      T.forEach(clearTimeout);
-    };
-  }, []);
-
-  const screens = [
-    /* Phase 0 – hunting */
-    <div key="h0" className="flex flex-col h-full">
-      <div className="px-4 pt-4 pb-3 border-b border-border/40">
-        <p className="font-bold text-sm">Sean's mascot</p>
-        <p className="text-xs text-secondary font-semibold">📍 280m away</p>
-      </div>
-      <div className="px-4 pt-3">
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-amber-50 dark:bg-amber-950/30">
-          <div className="absolute inset-0 flex items-center justify-center opacity-20">
-            <Camera className="h-14 w-14 text-amber-700" />
-          </div>
-          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-            {HUNT_TILES_FAR.map(({ k, r }) => (
-              <div
-                key={k}
-                className={cn(
-                  "border border-background/20",
-                  r ? "bg-transparent" : "bg-gray-800/80",
-                )}
-              />
-            ))}
-          </div>
-          <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            2 / 9
-          </div>
-        </div>
-      </div>
-      <div className="mx-4 mt-3 rounded-xl bg-muted/50 p-3">
-        <p className="text-[9px] font-bold text-secondary uppercase tracking-widest mb-0.5">
-          Clue #2
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          "There's outdoor seating nearby and open sky above."
-        </p>
-      </div>
-    </div>,
-    /* Phase 1 – in range, capture */
-    <div key="h1" className="flex flex-col h-full">
-      <div className="px-4 pt-4 pb-3 border-b border-border/40">
-        <p className="font-bold text-sm">Sean's mascot</p>
-        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-          📍 18m — in range!
-        </p>
-      </div>
-      <div className="px-4 pt-3">
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-amber-50 dark:bg-amber-950/30">
-          <div className="absolute inset-0 flex items-center justify-center opacity-45">
-            <Camera className="h-14 w-14 text-amber-700" />
-          </div>
-          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-            {HUNT_TILES_NEAR.map(({ k, r }) => (
-              <div
-                key={k}
-                className={cn(
-                  "border border-background/20",
-                  r ? "bg-transparent" : "bg-gray-800/80",
-                )}
-              />
-            ))}
-          </div>
-          <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-            8 / 9
-          </div>
-        </div>
-      </div>
-      <div className="px-4 mt-3">
-        <div className="w-full h-11 rounded-xl bg-secondary text-secondary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md">
-          🎯 Capture!
-        </div>
-      </div>
-    </div>,
-  ];
-
-  return (
-    <div className="bg-secondary rounded-[2.5rem] p-[8px] shadow-xl w-[300px]">
-      <div
-        className="relative bg-background rounded-[2rem] overflow-hidden"
-        style={{ height: "530px" }}
-      >
-        <div className="bg-foreground/5 flex justify-center py-3">
-          <div className="w-20 h-1.5 bg-foreground/20 rounded-full" />
-        </div>
-        <div className="relative overflow-hidden" style={{ height: "458px" }}>
-          {screens[phase]}
-          <div
-            className="absolute pointer-events-none z-50"
-            style={{
-              left: cx,
-              top: cy,
-              transition:
-                "left 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.5s cubic-bezier(0.34, 1.2, 0.64, 1)",
-            }}
-          >
-            <div className="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8">
-              <div
-                className={cn(
-                  "absolute inset-0 rounded-full bg-gray-900/55 border-[2.5px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-150",
-                  clicking ? "scale-75" : "scale-100",
-                )}
-              />
-              {clicking && (
-                <div className="absolute inset-0 rounded-full border-2 border-white/60 animate-ping" />
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-28 h-1 bg-foreground/20 rounded-full" />
+        )}
       </div>
     </div>
   );
@@ -594,42 +180,22 @@ export default function LandingPage() {
   const whyMarkerRef = useRef<HTMLDivElement>(null);
   const modesMarkerRef = useRef<HTMLDivElement>(null);
   const formMarkerRef = useRef<HTMLDivElement>(null);
-  const [visitedSections, setVisitedSections] = useState<Set<number>>(
-    new Set(),
-  );
   const [selectedStep, setSelectedStep] = useState(0);
   const [featureSlide, setFeatureSlide] = useState(0);
   const [howItWorksMode, setHowItWorksMode] = useState<
     "free-walk" | "mascot-hunt"
   >("free-walk");
+  const [topicLocked, setTopicLocked] = useState(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setTopicLocked is stable
+  useEffect(() => {
+    setTopicLocked(false);
+  }, [selectedStep, howItWorksMode]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
     const id = getIdentity();
     if (id && !id.isGuest) router.replace("/home");
-  }, []);
-
-  useEffect(() => {
-    const markers = [
-      [whyMarkerRef, 0],
-      [modesMarkerRef, 1],
-      [formMarkerRef, 2],
-    ] as const;
-    const observers = markers.map(([ref, idx]) => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting)
-            setVisitedSections((prev) => new Set([...prev, idx]));
-        },
-        { rootMargin: "0px 0px -25% 0px", threshold: 0.5 },
-      );
-      if (ref.current) observer.observe(ref.current);
-      return observer;
-    });
-    return () =>
-      observers.forEach((o) => {
-        o.disconnect();
-      });
   }, []);
 
   useEffect(() => {
@@ -641,220 +207,8 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-dvh">
-      {/* ── Background trail (removed — replaced by section path) ── */}
-      <div
-        className="fixed inset-0 -z-10 pointer-events-none overflow-hidden hidden"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 1440 900"
-          preserveAspectRatio="xMidYMid slice"
-          className="w-full h-full"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          {/* Trail 1 — upper sweep */}
-          <path
-            d="M-20,190 Q120,110 270,170 Q420,230 560,145 Q700,60 840,125 Q980,190 1120,115 Q1260,40 1460,85"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="2.5"
-            strokeDasharray="10 7"
-            opacity="0.55"
-          />
-          {/* Trail 2 — mid sweep */}
-          <path
-            d="M-20,460 Q110,385 250,440 Q400,495 530,410 Q660,325 800,385 Q940,445 1090,375 Q1230,305 1460,350"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="2.0"
-            strokeDasharray="10 7"
-            opacity="0.40"
-          />
-          {/* Trail 3 — lower sweep, teal */}
-          <path
-            d="M-20,710 Q160,640 310,690 Q460,740 600,665 Q740,590 880,645 Q1020,700 1160,630 Q1300,560 1460,605"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-            strokeDasharray="8 6"
-            opacity="0.32"
-          />
-
-          {/* ── Trail 1 waypoint icons ── */}
-          {/* camera at 270,170 */}
-          <g
-            transform="translate(261,161)"
-            opacity="0.60"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#FFBE59" stroke="none" />
-          </g>
-          {/* pin at 560,145 */}
-          <g
-            transform="translate(552,133)"
-            opacity="0.60"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-          {/* camera at 840,125 */}
-          <g
-            transform="translate(831,116)"
-            opacity="0.50"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#FFBE59" stroke="none" />
-          </g>
-          {/* pin at 1120,115 */}
-          <g
-            transform="translate(1112,103)"
-            opacity="0.45"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-          {/* camera at 1380,85 */}
-          <g
-            transform="translate(1371,76)"
-            opacity="0.40"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#FFBE59" stroke="none" />
-          </g>
-
-          {/* ── Trail 2 waypoint icons ── */}
-          {/* pin at 250,440 */}
-          <g
-            transform="translate(242,428)"
-            opacity="0.45"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-          {/* camera at 530,410 */}
-          <g
-            transform="translate(521,401)"
-            opacity="0.40"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#5ba4cf" stroke="none" />
-          </g>
-          {/* pin at 800,385 */}
-          <g
-            transform="translate(792,373)"
-            opacity="0.38"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-          {/* camera at 1090,375 */}
-          <g
-            transform="translate(1081,366)"
-            opacity="0.36"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#5ba4cf" stroke="none" />
-          </g>
-
-          {/* ── Trail 3 waypoint icons ── */}
-          {/* camera at 310,690 */}
-          <g
-            transform="translate(301,681)"
-            opacity="0.35"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#5ba4cf" stroke="none" />
-          </g>
-          {/* pin at 600,665 */}
-          <g
-            transform="translate(592,653)"
-            opacity="0.33"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-          {/* camera at 880,645 */}
-          <g
-            transform="translate(871,636)"
-            opacity="0.30"
-            fill="none"
-            stroke="#FFBE59"
-            strokeWidth="1.8"
-          >
-            <rect x="0" y="4" width="18" height="13" rx="2.5" />
-            <circle cx="9" cy="10.5" r="3.5" />
-            <circle cx="9" cy="10.5" r="1.5" />
-            <rect x="4" y="0" width="7" height="5" rx="1" />
-            <circle cx="15.5" cy="6" r="1" fill="#FFBE59" stroke="none" />
-          </g>
-          {/* pin at 1160,630 */}
-          <g
-            transform="translate(1152,618)"
-            opacity="0.28"
-            fill="none"
-            stroke="#5ba4cf"
-            strokeWidth="1.8"
-          >
-            <path d="M8,0 C8,0 16,8 16,12 C16,16.4 12.4,20 8,20 C3.6,20 0,16.4 0,12 C0,8 8,0 8,0Z" />
-            <circle cx="8" cy="12" r="2.5" />
-          </g>
-        </svg>
-      </div>
-
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section className="relative overflow-hidden flex items-center justify-center min-h-[calc(100dvh-4rem)] py-16 px-16 gap-20 border-b border-border/60">
+      <section className="relative overflow-hidden flex items-center justify-center min-h-[calc(100dvh-4rem)] py-16 px-8 border-b border-border/60">
         <div
           className="absolute inset-0 -z-10"
           style={{
@@ -862,69 +216,94 @@ export default function LandingPage() {
               "radial-gradient(ellipse at center, #FFD44A 0%, #FFC730 45%, #FFB018 80%, #F0A010 100%)",
           }}
         />
-        {/* Left phone mockup */}
-        <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <HeroPhoneLeft />
+
+        {/* Floating product chips — visible on wide screens only */}
+        <div className="hidden xl:block absolute top-[18%] left-[12%] -rotate-3 animate-fade-in-up animation-delay-300">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-400 flex items-center justify-center shrink-0">
+              <div className="w-4 h-4 rounded-full bg-orange-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 leading-none">
+                Color · Today
+              </p>
+              <p className="text-xs font-semibold text-gray-900 leading-tight mt-0.5">
+                Goldenrod #CA8A04
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="shrink-0 flex flex-col items-center text-center gap-6 animate-fade-in-up animation-delay-100">
-          <div className="space-y-5">
-            <h1 className="font-display text-[5.75rem] font-extrabold leading-[1.15] tracking-tight">
+        <div className="hidden xl:block absolute top-[22%] right-[12%] rotate-2 animate-fade-in-up animation-delay-400">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg">
+            <p className="text-[11px] text-gray-400 font-medium">
+              📍 Nearby mascot
+            </p>
+            <p className="text-sm font-bold text-emerald-600 mt-0.5">
+              18m away — in range!
+            </p>
+          </div>
+        </div>
+
+        <div className="hidden xl:block absolute bottom-[28%] left-[12%] rotate-2 animate-fade-in-up animation-delay-300">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg flex items-center gap-3">
+            <p className="text-4xl font-black text-primary leading-none">87</p>
+            <div>
+              <p className="text-[11px] text-gray-400 leading-none">
+                out of 100
+              </p>
+              <p className="text-xs font-bold text-emerald-600 mt-0.5">
+                ✓ Great shot!
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden xl:block absolute bottom-[30%] right-[12%] -rotate-2 animate-fade-in-up animation-delay-400">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-3.5 py-2.5 shadow-lg flex gap-1.5">
+            <span className="text-sm bg-gray-100 rounded-full px-2.5 py-0.5">
+              🔥 4
+            </span>
+            <span className="text-sm bg-gray-100 rounded-full px-2.5 py-0.5">
+              ❤️ 2
+            </span>
+            <span className="text-sm bg-gray-100 rounded-full px-2.5 py-0.5">
+              😮 1
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center text-center gap-8 animate-fade-in-up animation-delay-100 max-w-3xl">
+          <div className="space-y-4">
+            <h1 className="font-display text-[7rem] font-extrabold leading-[1.1] tracking-tight">
               <span className="block">Get a topic.</span>
               <span className="block">Take a walk.</span>
-              <span className="block">
-                <span className="relative inline-block pb-3">
-                  Explore.
-                  <svg
-                    className="absolute bottom-0 left-0 w-full overflow-visible"
-                    height="10"
-                    viewBox="0 0 200 10"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M0,5 C4.5,0 8,0 12.5,5 C17,10 20.5,10 25,5 C29.5,0 33,0 37.5,5 C42,10 45.5,10 50,5 C54.5,0 58,0 62.5,5 C67,10 70.5,10 75,5 C79.5,0 83,0 87.5,5 C92,10 95.5,10 100,5 C104.5,0 108,0 112.5,5 C117,10 120.5,10 125,5 C129.5,0 133,0 137.5,5 C142,10 145.5,10 150,5 C154.5,0 158,0 162.5,5 C167,10 170.5,10 175,5 C179.5,0 183,0 187.5,5 C192,10 195.5,10 200,5"
-                      fill="none"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      className="stroke-secondary"
-                    />
-                  </svg>
-                </span>
-              </span>
+              <span className="block">Explore.</span>
             </h1>
-            <p className="text-xl leading-relaxed text-foreground/80">
+            <p className="text-xl leading-relaxed text-foreground/75 max-w-2xl mx-auto">
               Go outside, capture what you find, and share it with your friends.
               <br />
               Your neighborhood has more to offer than you think.
             </p>
           </div>
-          <div className="flex flex-row gap-6 animate-fade-in-up animation-delay-200">
+          <div className="flex flex-row gap-4 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
-              className="h-16 w-60 text-xl font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!border-secondary hover:!text-secondary hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
-              onClick={() =>
-                formRef.current?.scrollIntoView({ behavior: "smooth" })
-              }
+              className="h-14 px-10 text-lg font-semibold !bg-gray-950 !text-white !border-2 !border-gray-950 hover:!bg-gray-800 hover:!border-gray-800 hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl shadow-md"
+              onClick={() => router.push("/auth?tab=signup")}
             >
               Get Started
             </Button>
             <Button
               size="lg"
-              className="h-16 w-60 text-xl font-medium !bg-transparent !border-2 !border-gray-950 !text-foreground hover:!border-secondary hover:!text-secondary hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
-              onClick={() => {
-                saveGuestIdentity();
-                router.push("/walk");
-              }}
+              className="h-14 px-10 text-lg font-semibold !bg-transparent !border-2 !border-gray-950 !text-gray-950 hover:!border-secondary hover:!text-secondary hover:-translate-y-px active:translate-y-0 transition-all duration-200 !rounded-2xl"
+              onClick={() =>
+                whyMarkerRef.current?.scrollIntoView({ behavior: "smooth" })
+              }
             >
-              Try Free Walk →
+              Explore More →
             </Button>
           </div>
-        </div>
-
-        {/* Right phone mockup */}
-        <div className="relative shrink-0 animate-fade-in-up animation-delay-300">
-          <HeroPhoneRight />
         </div>
 
         {/* Scroll hint */}
@@ -939,74 +318,18 @@ export default function LandingPage() {
       {/* ── Sections ─────────────────────────────────────── */}
       <div className="relative max-w-5xl mx-auto w-full isolate">
         {/* ── Why ──────────────────────────────────────────── */}
-        <section className="py-20 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
-          <AnimateOnScroll className="mb-12">
-            <div className="flex items-center gap-3">
-              <div
-                ref={whyMarkerRef}
-                className={cn(
-                  "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
-                  visitedSections.has(0)
-                    ? "w-10 h-10 border-primary/50 shadow-sm"
-                    : "w-7 h-7 border-border bg-muted",
-                )}
-              >
-                {visitedSections.has(0) ? (
-                  <Image
-                    src="/mascot-new.png"
-                    alt="TopicWalk mascot"
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-contain"
-                    unoptimized
-                  />
-                ) : (
-                  <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </div>
-              <h2 className="font-bold text-xl whitespace-nowrap">
-                How it works
-              </h2>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-          </AnimateOnScroll>
+        <section className="pt-10 pb-20 w-[min(100vw,76rem)] relative left-1/2 -translate-x-1/2 px-16">
+          <div ref={whyMarkerRef} />
 
           {/* ── Modes callout ────────────────────────────────── */}
           <AnimateOnScroll className="px-5 pt-4 pb-10 w-full">
-            <div className="flex items-center gap-3 mb-8">
-              <div
-                ref={modesMarkerRef}
-                className={cn(
-                  "shrink-0 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-500 bg-background",
-                  visitedSections.has(1)
-                    ? "w-10 h-10 border-primary/50 shadow-sm"
-                    : "w-7 h-7 border-border bg-muted",
-                )}
-              >
-                {visitedSections.has(1) ? (
-                  <Image
-                    src="/mascot-new.png"
-                    alt="TopicWalk mascot"
-                    width={40}
-                    height={40}
-                    className="w-full h-full object-contain"
-                    unoptimized
-                  />
-                ) : (
-                  <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </div>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-            <div className="text-center space-y-3">
-              <div className="inline-flex items-center gap-2">
-                <span className="h-px w-6 bg-primary/40" />
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  Two Modes
-                </p>
-                <span className="h-px w-6 bg-primary/40" />
-              </div>
-              <p className="font-display text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+            <div ref={modesMarkerRef} />
+            <div className="text-center space-y-5">
+              <span className="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary font-bold text-sm rounded-full px-4 py-1.5 uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+                Two Modes
+              </span>
+              <p className="font-display text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
                 Endless reasons to{" "}
                 <span className="text-secondary">go outside</span>
               </p>
@@ -1020,7 +343,62 @@ export default function LandingPage() {
                 title: "Pick a topic",
                 description:
                   "Four fresh challenges drop every morning — a color, shape, theme, and object. Pick whichever one calls to you and head out.",
-                screen: (
+                screen: topicLocked ? (
+                  <div className="flex flex-col">
+                    <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                      <p className="font-bold text-sm">Free Walk</p>
+                      <p className="text-xs text-primary font-medium">
+                        ✓ Topic locked in!
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 p-4 opacity-30 pointer-events-none">
+                      <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 flex flex-col items-center gap-2">
+                        <div className="w-11 h-11 rounded-xl bg-amber-400/80 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-full bg-orange-500" />
+                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">
+                          Color
+                        </p>
+                      </div>
+                      {(
+                        [
+                          {
+                            label: "Shape",
+                            bg: "bg-sky-400/80",
+                            color: "text-sky-600",
+                          },
+                          {
+                            label: "Theme",
+                            bg: "bg-violet-400/80",
+                            color: "text-violet-600",
+                          },
+                          {
+                            label: "Object",
+                            bg: "bg-emerald-400/80",
+                            color: "text-emerald-600",
+                          },
+                        ] as const
+                      ).map(({ label, bg, color }) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-border p-4 flex flex-col items-center gap-2"
+                        >
+                          <div
+                            className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center`}
+                          />
+                          <p
+                            className={`text-[9px] font-bold uppercase tracking-widest ${color}`}
+                          >
+                            {label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mx-4 mb-4 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center">
+                      Lock in topic
+                    </div>
+                  </div>
+                ) : (
                   <div className="flex flex-col">
                     <div className="px-4 pt-4 pb-3 border-b border-border/40">
                       <p className="font-bold text-sm">Free Walk</p>
@@ -1064,9 +442,20 @@ export default function LandingPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="mx-4 mb-4 rounded-xl bg-muted/50 p-3 text-center">
-                      <p className="text-xs text-muted-foreground">
-                        Tap a category to see today's challenge
+                    <div className="mx-4 mb-4 rounded-xl bg-card border-2 border-primary shadow-sm p-3 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+                        <div className="w-4 h-4 rounded-full bg-orange-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-bold text-orange-600 uppercase tracking-widest">
+                          Color · Today
+                        </p>
+                        <p className="font-bold text-sm leading-tight">
+                          Goldenrod #CA8A04
+                        </p>
+                      </div>
+                      <p className="text-emerald-600 text-xs font-bold shrink-0">
+                        ✓
                       </p>
                     </div>
                   </div>
@@ -1161,9 +550,12 @@ export default function LandingPage() {
                         find!
                       </p>
                     </div>
-                    <div className="px-4 mt-3 mb-4">
+                    <div className="px-4 mt-3 flex flex-col gap-2 mb-4">
                       <div className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
                         Share to feed →
+                      </div>
+                      <div className="w-full h-9 rounded-lg border border-border text-xs font-medium text-muted-foreground flex items-center justify-center">
+                        Continue
                       </div>
                     </div>
                   </div>
@@ -1171,7 +563,7 @@ export default function LandingPage() {
               },
               {
                 num: "4.",
-                title: "Everyone sees your find",
+                title: "Your friends see your find",
                 description:
                   "Your photo lands in a shared feed. React to what friends found, compare perspectives, and see the same streets through different eyes.",
                 screen: (
@@ -1342,7 +734,7 @@ export default function LandingPage() {
                 screen: (
                   <div className="flex flex-col">
                     <div className="px-4 pt-4 pb-3 border-b border-border/40">
-                      <p className="font-bold text-sm">Sean's mascot</p>
+                      <p className="font-bold text-sm">Alex's mascot</p>
                       <p className="text-xs text-primary">📍 320m away</p>
                     </div>
                     <div className="px-4 pt-3">
@@ -1434,7 +826,7 @@ export default function LandingPage() {
                         </div>
                       </div>
                       <div className="p-3 bg-background">
-                        <p className="font-semibold text-xs">Sean's mascot</p>
+                        <p className="font-semibold text-xs">Alex's mascot</p>
                         <p className="text-[10px] text-muted-foreground mb-2">
                           2m 14s ago · 7/9 tiles revealed
                         </p>
@@ -1448,126 +840,17 @@ export default function LandingPage() {
               },
             ];
 
-            const renderInstance = (
-              steps: typeof FREE_WALK_STEPS,
-              step: number,
-              setStep: (i: number) => void,
-              mirrored: boolean,
-            ) => {
-              const active = steps[step];
+            const steps =
+              howItWorksMode === "free-walk" ? FREE_WALK_STEPS : HUNT_STEPS;
+            const active = steps[selectedStep];
+            const isLast = selectedStep === steps.length - 1;
 
-              const stepList = (
-                <AnimateOnScroll
-                  className="shrink-0 flex flex-col"
-                  variant="scale-in"
-                >
-                  {steps.map(({ num, title }, i) => {
-                    const isActive = i === step;
-                    return (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setStep(i)}
-                        className={cn(
-                          "py-6 text-left transition-all duration-200",
-                          mirrored
-                            ? cn(
-                                "pr-5 pl-10 border-r-2",
-                                isActive
-                                  ? "border-r-primary"
-                                  : "border-r-border hover:border-r-primary/40",
-                              )
-                            : cn(
-                                "pl-5 pr-10 border-l-2",
-                                isActive
-                                  ? "border-l-primary"
-                                  : "border-l-border hover:border-l-primary/40",
-                              ),
-                        )}
-                      >
-                        <p
-                          className={cn(
-                            "text-xs font-bold uppercase tracking-widest transition-colors duration-200",
-                            isActive ? "text-primary" : "text-muted-foreground",
-                          )}
-                        >
-                          {num.replace(".", "")}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-base font-semibold transition-all duration-200 mt-1",
-                            isActive
-                              ? "text-foreground"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {title}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </AnimateOnScroll>
-              );
-
-              const frame = (
-                <AnimateOnScroll
-                  className="shrink-0"
-                  variant="scale-in"
-                  delay={80}
-                >
-                  <div
-                    className="w-80 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col"
-                    style={{ minHeight: "32rem" }}
-                  >
-                    <div className="bg-foreground/5 flex justify-center py-2 shrink-0">
-                      <div className="w-12 h-1 bg-foreground/20 rounded-full" />
-                    </div>
-                    <div className="flex-1 relative">
-                      {active.screen}
-                      <PhoneCursor stepIndex={step} mode={howItWorksMode} />
-                    </div>
-                    <div className="bg-background flex justify-center py-2 shrink-0">
-                      <div className="w-16 h-1 bg-foreground/15 rounded-full" />
-                    </div>
-                  </div>
-                </AnimateOnScroll>
-              );
-
-              const text = (
-                <div className="flex-1 flex flex-col gap-6">
-                  <p className="font-display text-[7rem] font-extrabold text-primary leading-none">
-                    {active.num}
-                  </p>
-                  <p className="font-bold text-5xl leading-snug">
-                    {active.title}
-                  </p>
-                  <p className="text-xl text-muted-foreground leading-relaxed">
-                    {active.description}
-                  </p>
-                </div>
-              );
-
-              return (
-                <div className="flex items-center gap-12">
-                  {mirrored ? (
-                    <>
-                      {text}
-                      {frame}
-                      {stepList}
-                    </>
-                  ) : (
-                    <>
-                      {stepList}
-                      {frame}
-                      {text}
-                    </>
-                  )}
-                </div>
-              );
-            };
+            const showCursor = !(
+              howItWorksMode === "free-walk" && selectedStep === 3
+            );
 
             return (
-              <div className="flex flex-col gap-10">
+              <div className="flex flex-col gap-8 items-center">
                 {/* Mode toggle */}
                 <div className="flex gap-2">
                   {(
@@ -1584,10 +867,10 @@ export default function LandingPage() {
                         setSelectedStep(0);
                       }}
                       className={cn(
-                        "rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200",
+                        "rounded-xl px-8 py-3 text-base font-bold transition-all duration-200",
                         howItWorksMode === key
                           ? "bg-foreground text-background hover:scale-[1.04] hover:shadow-lg"
-                          : "border border-border/50 text-foreground/40 hover:border-foreground/40 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm",
+                          : "border-2 border-foreground/25 text-foreground/50 hover:border-foreground/50 hover:text-foreground/70 hover:-translate-y-0.5 hover:shadow-sm",
                       )}
                     >
                       {label}
@@ -1595,12 +878,112 @@ export default function LandingPage() {
                   ))}
                 </div>
 
-                {renderInstance(
-                  howItWorksMode === "free-walk" ? FREE_WALK_STEPS : HUNT_STEPS,
-                  selectedStep,
-                  setSelectedStep,
-                  false,
-                )}
+                {/* Side-by-side: phone left, info right */}
+                <div className="flex items-center gap-20">
+                  {/* Phone + dots stacked */}
+                  <div className="shrink-0 flex flex-col items-center gap-3">
+                    <AnimateOnScroll variant="scale-in">
+                      <button
+                        type="button"
+                        className={cn(
+                          "w-72 rounded-[2rem] border-[3px] border-foreground/15 bg-background shadow-2xl overflow-hidden flex flex-col select-none text-left",
+                          "cursor-pointer active:scale-[0.985] transition-transform duration-100",
+                        )}
+                        style={{ minHeight: "32rem" }}
+                        onClick={() => {
+                          if (
+                            howItWorksMode === "free-walk" &&
+                            selectedStep === 0 &&
+                            !topicLocked
+                          ) {
+                            setTopicLocked(true);
+                          } else if (isLast) {
+                            formRef.current?.scrollIntoView({
+                              behavior: "smooth",
+                            });
+                          } else {
+                            setSelectedStep((s) => s + 1);
+                          }
+                        }}
+                      >
+                        <div className="bg-foreground/5 flex justify-center py-2 shrink-0">
+                          <div className="w-12 h-1 bg-foreground/20 rounded-full" />
+                        </div>
+                        <div className="flex-1 relative">
+                          {active.screen}
+                          {showCursor && (
+                            <PhoneCursor
+                              stepIndex={
+                                howItWorksMode === "free-walk" &&
+                                selectedStep === 0 &&
+                                topicLocked
+                                  ? 0
+                                  : selectedStep
+                              }
+                              mode={
+                                howItWorksMode === "free-walk" &&
+                                selectedStep === 0 &&
+                                topicLocked
+                                  ? "free-walk-locked"
+                                  : howItWorksMode
+                              }
+                            />
+                          )}
+                        </div>
+                        <div className="bg-background flex justify-center py-2 shrink-0">
+                          <div className="w-16 h-1 bg-foreground/15 rounded-full" />
+                        </div>
+                      </button>
+                    </AnimateOnScroll>
+
+                    {/* Progress dots below phone */}
+                    <div className="flex gap-2">
+                      {steps.map(({ num }, i) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setSelectedStep(i)}
+                          aria-label={`Step ${i + 1}`}
+                          className={cn(
+                            "rounded-full transition-all duration-300",
+                            selectedStep === i
+                              ? "w-6 h-2 bg-foreground"
+                              : "w-2 h-2 bg-foreground/25 hover:bg-foreground/50",
+                          )}
+                        />
+                      ))}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      {isLast ? "tap to get started" : "tap to continue"}
+                    </p>
+                  </div>
+
+                  {/* Step info */}
+                  <div className="flex flex-col gap-4 w-80">
+                    <div>
+                      <p className="font-bold text-3xl leading-snug">
+                        {active.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed mt-3">
+                        {active.description}
+                      </p>
+                    </div>
+                    {isLast && (
+                      <Button
+                        size="lg"
+                        className="h-12 px-8 text-base font-semibold transition-all duration-200 !rounded-2xl self-start"
+                        onClick={() =>
+                          formRef.current?.scrollIntoView({
+                            behavior: "smooth",
+                          })
+                        }
+                      >
+                        Try it Free →
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -1615,18 +998,13 @@ export default function LandingPage() {
                 style={{ transform: `translateX(-${featureSlide * 100}%)` }}
               >
                 {/* Slide 0 — Easily shareable */}
-                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
-                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
-                        01
-                      </span>
-                      <span className="h-px w-6 bg-border" />
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                        Share
-                      </span>
-                    </div>
-                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
+                <div className="w-full shrink-0 flex flex-row items-center justify-center gap-16 py-16 px-16 overflow-hidden">
+                  <div className="flex flex-col gap-3 max-w-sm flex-shrink-0">
+                    <span className="inline-flex items-center gap-1.5 bg-primary/15 text-primary font-bold text-xs rounded-full px-3 py-1 uppercase tracking-widest w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      Group Play
+                    </span>
+                    <h2 className="font-display font-extrabold text-5xl leading-tight tracking-tight">
                       Easily shareable with friends
                     </h2>
                     <p className="text-base text-muted-foreground leading-relaxed">
@@ -1659,10 +1037,11 @@ export default function LandingPage() {
                             user: "Alex",
                             topic: "Goldenrod #CA8A04",
                             cat: "Color",
-                            photoBg:
-                              "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800",
-                            iconBg: "bg-orange-100 dark:bg-orange-900/40",
                             catColor: "text-orange-500 dark:text-orange-400",
+                            score: "87",
+                            gradient:
+                              "linear-gradient(135deg, #92400e 0%, #b45309 50%, #d97706 100%)",
+                            avatarBg: "bg-orange-500",
                             reactions: [
                               ["❤️", "3"],
                               ["🔥", "1"],
@@ -1672,10 +1051,11 @@ export default function LandingPage() {
                             user: "Jordan",
                             topic: "Perfect Circle",
                             cat: "Shape",
-                            photoBg:
-                              "bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800",
-                            iconBg: "bg-sky-100 dark:bg-sky-900/40",
                             catColor: "text-sky-500 dark:text-sky-400",
+                            score: "74",
+                            gradient:
+                              "linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #38bdf8 100%)",
+                            avatarBg: "bg-sky-500",
                             reactions: [
                               ["😮", "2"],
                               ["❤️", "1"],
@@ -1685,10 +1065,11 @@ export default function LandingPage() {
                             user: "Sam",
                             topic: "Morning Light",
                             cat: "Theme",
-                            photoBg:
-                              "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800",
-                            iconBg: "bg-violet-100 dark:bg-violet-900/40",
                             catColor: "text-violet-500 dark:text-violet-400",
+                            score: "91",
+                            gradient:
+                              "linear-gradient(135deg, #2e1065 0%, #6d28d9 50%, #a78bfa 100%)",
+                            avatarBg: "bg-violet-500",
                             reactions: [
                               ["👍", "1"],
                               ["❤️", "2"],
@@ -1699,41 +1080,53 @@ export default function LandingPage() {
                             user,
                             topic,
                             cat,
-                            photoBg,
-                            iconBg,
                             catColor,
+                            score,
+                            gradient,
+                            avatarBg,
                             reactions,
                           }) => (
                             <div
                               key={user}
-                              className={`rounded-xl border overflow-hidden ${photoBg}`}
+                              className="rounded-xl border border-border overflow-hidden"
                             >
                               <div
-                                className={`h-20 flex items-center justify-center ${iconBg}`}
+                                className="h-24 relative"
+                                style={{ background: gradient }}
                               >
-                                <Camera
-                                  className={`h-8 w-8 opacity-40 ${catColor}`}
-                                />
+                                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span>{score}</span>
+                                  <span className="text-emerald-400">✓</span>
+                                </div>
                               </div>
-                              <div className="px-3 py-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs font-semibold">
-                                    {user}
-                                  </p>
+                              <div className="px-3 py-2 bg-background">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <div
+                                      className={`w-4 h-4 rounded-full ${avatarBg} flex items-center justify-center`}
+                                    >
+                                      <span className="text-[8px] font-bold text-white">
+                                        {user[0]}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs font-semibold">
+                                      {user}
+                                    </p>
+                                  </div>
                                   <span
                                     className={`text-[9px] font-bold uppercase tracking-widest ${catColor}`}
                                   >
                                     {cat}
                                   </span>
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <p className="text-xs text-muted-foreground">
                                   {topic}
                                 </p>
                                 <div className="flex gap-1.5 mt-1.5">
                                   {reactions.map(([r, n]) => (
                                     <span
                                       key={`${user}-${r}`}
-                                      className="text-[11px] bg-background/80 rounded-full px-2 py-0.5 border border-border/50"
+                                      className="text-[11px] bg-muted rounded-full px-2 py-0.5"
                                     >
                                       {r} {n}
                                     </span>
@@ -1752,18 +1145,13 @@ export default function LandingPage() {
                 </div>
 
                 {/* Slide 1 — Never gets repetitive */}
-                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
-                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
-                        02
-                      </span>
-                      <span className="h-px w-6 bg-border" />
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                        Fresh Daily
-                      </span>
-                    </div>
-                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
+                <div className="w-full shrink-0 flex flex-row-reverse items-center justify-center gap-16 py-16 px-16 overflow-hidden">
+                  <div className="flex flex-col gap-3 max-w-sm flex-shrink-0">
+                    <span className="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary font-bold text-xs rounded-full px-3 py-1 uppercase tracking-widest w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+                      Fresh Daily
+                    </span>
+                    <h2 className="font-display font-extrabold text-5xl leading-tight tracking-tight">
                       Never gets repetitive
                     </h2>
                     <p className="text-base text-muted-foreground leading-relaxed">
@@ -1898,19 +1286,14 @@ export default function LandingPage() {
                 </div>
 
                 {/* Slide 2 — Explore places */}
-                <div className="w-full shrink-0 flex flex-col items-center gap-8 py-12 px-8 overflow-hidden">
-                  <div className="flex flex-col items-center gap-3 text-center max-w-lg">
-                    <div className="flex items-center gap-3">
-                      <span className="font-display text-4xl font-extrabold text-primary leading-none">
-                        03
-                      </span>
-                      <span className="h-px w-6 bg-border" />
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                        Discover
-                      </span>
-                    </div>
-                    <h2 className="font-bold text-5xl leading-tight tracking-tight">
-                      Explore places you've never gone to
+                <div className="w-full shrink-0 flex flex-row items-center justify-center gap-16 py-16 px-16 overflow-hidden">
+                  <div className="flex flex-col gap-3 max-w-sm flex-shrink-0">
+                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-full px-3 py-1 uppercase tracking-widest w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Your Archive
+                    </span>
+                    <h2 className="font-display font-extrabold text-5xl leading-tight tracking-tight">
+                      Discover streets you'd walk right past
                     </h2>
                     <p className="text-base text-muted-foreground leading-relaxed">
                       Every walk gets logged in your archive. Watch your streak
@@ -2102,31 +1485,34 @@ export default function LandingPage() {
             className="w-0 h-0 opacity-0 pointer-events-none"
           />
           <AnimateOnScroll>
-            <div className="rounded-3xl bg-primary/10 border-2 border-primary/60 px-12 py-16 flex flex-col items-center text-center gap-10">
-              <h2 className="font-bold text-5xl leading-tight">
-                Ready to start walking?
-              </h2>
+            <div className="rounded-3xl bg-primary px-12 py-16 flex flex-col items-center text-center gap-8">
+              <div className="flex flex-col items-center gap-3">
+                <h2 className="font-display font-extrabold text-6xl leading-tight text-primary-foreground">
+                  Get outside today!
+                </h2>
+                <p className="text-primary-foreground/75 text-lg max-w-md leading-relaxed">
+                  Pick a topic, head out, take a photo. Free forever.
+                </p>
+              </div>
 
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex flex-wrap justify-center gap-3">
                 <Button
                   size="lg"
-                  className="h-14 px-8 text-lg font-semibold shadow-sm hover:shadow-md hover:-translate-y-px active:translate-y-0 transition-all"
+                  className="h-14 px-10 text-lg font-bold bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-lg hover:shadow-xl hover:-translate-y-px active:translate-y-0 transition-all"
                   onClick={() => router.push("/auth?tab=signup")}
                 >
-                  Sign Up
+                  Sign Up Free
                 </Button>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="h-14 px-8 text-lg hover:-translate-y-px active:translate-y-0 transition-all"
+                  className="h-14 px-8 text-lg font-semibold border-2 border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:-translate-y-px active:translate-y-0 transition-all"
                   onClick={() => router.push("/auth")}
                 >
                   Log In
                 </Button>
                 <Button
                   size="lg"
-                  variant="ghost"
-                  className="h-14 px-8 text-lg text-muted-foreground hover:text-foreground transition-all"
+                  className="h-14 px-8 text-lg text-primary-foreground/60 hover:text-primary-foreground bg-transparent hover:bg-primary-foreground/10 transition-all"
                   onClick={() => {
                     saveGuestIdentity();
                     router.push("/walk");
@@ -2135,10 +1521,6 @@ export default function LandingPage() {
                   Try Free Walk →
                 </Button>
               </div>
-
-              <p className="text-sm text-muted-foreground">
-                No account needed to try Free Walk
-              </p>
             </div>
           </AnimateOnScroll>
         </section>

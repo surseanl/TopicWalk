@@ -1,0 +1,722 @@
+import type { Session } from "@supabase/supabase-js";
+import { useRouter } from "expo-router";
+import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
+import { colors } from "../lib/theme";
+import { WALK_COLORS } from "../lib/topics";
+
+type Submission = {
+  id: string;
+  topic_category: string;
+  topic_label: string;
+  photo_path: string;
+  submitted_at: string;
+};
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Color: "#f97316",
+  Shape: "#0ea5e9",
+  Theme: "#8b5cf6",
+  Object: "#10b981",
+};
+
+const CATEGORY_WASH: Record<string, string> = {
+  Color: "#fff7ed",
+  Shape: "#f0f9ff",
+  Theme: "#faf5ff",
+  Object: "#f0fdf4",
+};
+
+function colorHex(name: string): string {
+  return WALK_COLORS.find((c) => c.name === name)?.hex ?? "#f97316";
+}
+
+function cellAccent(category: string, label: string): string {
+  if (category === "Color") return colorHex(label);
+  return CATEGORY_COLORS[category] ?? "#6366f1";
+}
+
+const H_PAD = 16;
+const CELL_GAP = 3;
+const SCREEN_W = Dimensions.get("window").width;
+const SCREEN_H = Dimensions.get("window").height;
+const CELL_SIZE = Math.floor((SCREEN_W - H_PAD * 2 - CELL_GAP * 6) / 7);
+const PHOTO_W = SCREEN_W - H_PAD * 2 - 2; // card width minus border
+
+export default function ArchiveScreen() {
+  const router = useRouter();
+  const now = new Date();
+  const [session, setSession] = useState<Session | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [selected, setSelected] = useState<string | null>(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightboxPhotos, setLightboxPhotos] = useState<
+    { url: string; color: string }[]
+  >([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxPage, setLightboxPage] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const lightboxRef = useRef<FlatList<{ url: string; color: string }> | null>(
+    null,
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset index when selected day changes
+  useEffect(() => {
+    setPhotoIndex(0);
+  }, [selected]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) void fetchAll(session.user.id);
+      else setLoading(false);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSession(session);
+      if (session?.user) void fetchAll(session.user.id);
+      else {
+        setSubmissions([]);
+        setLoading(false);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function fetchAll(userId: string) {
+    setLoading(true);
+    const { data } = await supabase
+      .from("tw_submissions")
+      .select("id, topic_category, topic_label, photo_path, submitted_at")
+      .eq("user_id", userId)
+      .order("submitted_at", { ascending: true });
+    if (data) setSubmissions(data as Submission[]);
+    setLoading(false);
+  }
+
+  const byDate = new Map<string, Submission[]>();
+  for (const s of submissions) {
+    const d = new Date(s.submitted_at).toLocaleDateString("en-CA");
+    const arr = byDate.get(d);
+    if (arr) arr.push(s);
+    else byDate.set(d, [s]);
+  }
+
+  const nowDate = new Date();
+  const nowYear = nowDate.getFullYear();
+  const nowMonth = nowDate.getMonth();
+  const todayStr = nowDate.toLocaleDateString("en-CA");
+  const atLimit = year > nowYear || (year === nowYear && month >= nowMonth);
+
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  function prevMonth() {
+    setSelected(null);
+    if (month === 0) {
+      setMonth(11);
+      setYear((y) => y - 1);
+    } else {
+      setMonth((m) => m - 1);
+    }
+  }
+
+  function nextMonth() {
+    if (atLimit) return;
+    setSelected(null);
+    if (month === 11) {
+      setMonth(0);
+      setYear((y) => y + 1);
+    } else {
+      setMonth((m) => m + 1);
+    }
+  }
+
+  const selectedSubs = selected ? (byDate.get(selected) ?? []) : [];
+  const detailSub0 = selectedSubs[0];
+  const detailAccent = detailSub0
+    ? cellAccent(detailSub0.topic_category, detailSub0.topic_label)
+    : colors.primary;
+  const detailWash =
+    detailSub0?.topic_category === "Color"
+      ? `${colorHex(detailSub0.topic_label)}1A`
+      : (CATEGORY_WASH[detailSub0?.topic_category ?? ""] ?? colors.muted);
+
+  return (
+    <SafeAreaView edges={["top", "bottom"]} style={s.safe}>
+      {/* Fullscreen photo lightbox — horizontal swipe between photos */}
+      <Modal
+        visible={lightboxOpen}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setLightboxOpen(false)}
+      >
+        <View style={s.lightbox}>
+          <FlatList
+            ref={lightboxRef}
+            data={lightboxPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={lightboxIndex}
+            getItemLayout={(_, i) => ({
+              length: SCREEN_W,
+              offset: SCREEN_W * i,
+              index: i,
+            })}
+            keyExtractor={(_, i) => String(i)}
+            style={{ flex: 1 }}
+            onMomentumScrollEnd={(e) => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+              setLightboxPage(page);
+            }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{
+                  width: SCREEN_W,
+                  height: SCREEN_H,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                activeOpacity={1}
+                onPress={() => setLightboxOpen(false)}
+              >
+                <Image
+                  source={{ uri: item.url }}
+                  style={s.lightboxImg}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+        {/* Close button + dots — SafeAreaView so it clears the notch */}
+        <SafeAreaView style={s.lightboxOverlay} pointerEvents="box-none">
+          <TouchableOpacity
+            onPress={() => setLightboxOpen(false)}
+            style={s.lightboxClose}
+          >
+            <X size={20} color="#fff" />
+          </TouchableOpacity>
+        </SafeAreaView>
+        {lightboxPhotos.length > 1 && (
+          <SafeAreaView style={s.lightboxBottom} pointerEvents="none">
+            <View style={s.lightboxDots}>
+              {lightboxPhotos.map((_, i) => (
+                <View
+                  // biome-ignore lint/suspicious/noArrayIndexKey: stable pagination dots
+                  key={i}
+                  style={[
+                    s.lightboxDot,
+                    i === lightboxPage && s.lightboxDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={s.lightboxSwipeHint}>swipe to see more</Text>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* Header with back button */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <ChevronLeft size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>My Archive</Text>
+        <View style={{ width: 38 }} />
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content}>
+        {/* Sign-in banner for guests */}
+        {!session?.user && !loading && (
+          <View style={s.signInBanner}>
+            <Text style={s.signInText}>
+              Sign in to see your walk history — go to Profile →
+            </Text>
+          </View>
+        )}
+
+        {/* Month navigator */}
+        <View style={s.monthNav}>
+          <TouchableOpacity onPress={prevMonth} style={s.navBtn}>
+            <ChevronLeft size={20} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text style={s.monthLabel}>
+            {MONTHS[month]} {year}
+          </Text>
+          <TouchableOpacity
+            onPress={nextMonth}
+            disabled={atLimit}
+            style={[s.navBtn, atLimit && { opacity: 0.3 }]}
+          >
+            <ChevronRight size={20} color={colors.foreground} />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator
+            color={colors.primary}
+            style={{ marginVertical: 40 }}
+          />
+        ) : (
+          <>
+            {/* Day-of-week headers */}
+            <View style={s.dayRow}>
+              {DAY_LABELS.map((d, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static day labels
+                <Text key={i} style={s.dayHeader}>
+                  {d}
+                </Text>
+              ))}
+            </View>
+
+            {/* Calendar grid */}
+            <View style={s.grid}>
+              {Array.from({ length: firstDow }, (_, i) => i).map((dow) => (
+                <View
+                  key={`sp-${dow}`}
+                  style={{ width: CELL_SIZE, height: CELL_SIZE }}
+                />
+              ))}
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1;
+                const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const subs = byDate.get(dateStr) ?? [];
+                const hasEntry = subs.length > 0;
+                const isSelected = selected === dateStr;
+                const isToday = dateStr === todayStr;
+                const firstSub = subs[0];
+                const accent =
+                  hasEntry && firstSub
+                    ? cellAccent(firstSub.topic_category, firstSub.topic_label)
+                    : null;
+                const dotColor = accent;
+
+                return (
+                  <TouchableOpacity
+                    key={dateStr}
+                    activeOpacity={hasEntry ? 0.85 : 1}
+                    onPress={() => {
+                      if (!hasEntry) return;
+                      setSelected(isSelected ? null : dateStr);
+                    }}
+                    style={[
+                      s.cell,
+                      { width: CELL_SIZE, height: CELL_SIZE },
+                      isToday && !hasEntry && s.cellToday,
+                      accent && {
+                        borderWidth: isSelected ? 3 : 2.5,
+                        borderColor: accent,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        s.cellNum,
+                        isToday && {
+                          color: colors.foreground,
+                          fontWeight: "700",
+                        },
+                        hasEntry && {
+                          color: colors.foreground,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    {dotColor && (
+                      <View
+                        style={[s.cellDot, { backgroundColor: dotColor }]}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Selected day detail */}
+            {selected && selectedSubs.length > 0 && (
+              <View style={s.detailCard}>
+                <View
+                  style={[s.detailStrip, { backgroundColor: detailAccent }]}
+                />
+                <View style={[s.detailHeader, { backgroundColor: detailWash }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.detailDate}>
+                      {new Date(`${selected}T12:00:00`).toLocaleDateString(
+                        "en-US",
+                        {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        },
+                      )}
+                    </Text>
+                    {detailSub0 && (
+                      <Text style={s.detailTopic} numberOfLines={1}>
+                        <Text style={{ color: colors.mutedForeground }}>
+                          {detailSub0.topic_category}:{" "}
+                        </Text>
+                        {detailSub0.topic_label}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setSelected(null)}
+                    style={s.closeBtn}
+                  >
+                    <X size={15} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
+                {(() => {
+                  const sub = selectedSubs[photoIndex];
+                  if (!sub) return null;
+                  const url = supabase.storage
+                    .from("game-photos")
+                    .getPublicUrl(sub.photo_path).data.publicUrl;
+                  const allPhotos = selectedSubs.map((s) => ({
+                    url: supabase.storage
+                      .from("game-photos")
+                      .getPublicUrl(s.photo_path).data.publicUrl,
+                    color: cellAccent(s.topic_category, s.topic_label),
+                  }));
+                  return (
+                    <>
+                      <TouchableOpacity
+                        activeOpacity={0.9}
+                        onPress={() => {
+                          setLightboxPhotos(allPhotos);
+                          setLightboxIndex(photoIndex);
+                          setLightboxPage(photoIndex);
+                          setLightboxOpen(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: url }}
+                          style={s.detailPhoto}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                      {selectedSubs.length > 1 && (
+                        <View style={s.photoNav}>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setPhotoIndex((i) => Math.max(0, i - 1))
+                            }
+                            disabled={photoIndex === 0}
+                            style={[
+                              s.photoNavBtn,
+                              photoIndex === 0 && { opacity: 0.3 },
+                            ]}
+                          >
+                            <ChevronLeft size={20} color={detailAccent} />
+                          </TouchableOpacity>
+                          <Text
+                            style={[s.photoCounter, { color: detailAccent }]}
+                          >
+                            {photoIndex + 1} / {selectedSubs.length}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setPhotoIndex((i) =>
+                                Math.min(selectedSubs.length - 1, i + 1),
+                              )
+                            }
+                            disabled={photoIndex === selectedSubs.length - 1}
+                            style={[
+                              s.photoNavBtn,
+                              photoIndex === selectedSubs.length - 1 && {
+                                opacity: 0.3,
+                              },
+                            ]}
+                          >
+                            <ChevronRight size={20} color={detailAccent} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+              </View>
+            )}
+
+            {/* Empty state */}
+            {submissions.length === 0 && session?.user && (
+              <View style={s.emptyState}>
+                <Text style={[s.muted, { textAlign: "center" }]}>
+                  No entries yet — go on a Free Walk to start your archive!
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: -0.3,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 20,
+    paddingBottom: 48,
+    gap: 18,
+  },
+  muted: { fontSize: 14, color: colors.mutedForeground },
+  signInBanner: {
+    backgroundColor: colors.muted,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  signInText: {
+    fontSize: 13,
+    color: colors.mutedForeground,
+    textAlign: "center",
+  },
+  monthNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.muted,
+  },
+  monthLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.foreground,
+    letterSpacing: -0.3,
+  },
+  dayRow: {
+    flexDirection: "row",
+    gap: CELL_GAP,
+    marginBottom: -8,
+  },
+  dayHeader: {
+    width: CELL_SIZE,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.mutedForeground,
+    paddingVertical: 4,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: CELL_GAP,
+  },
+  cell: {
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cellToday: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  cellNum: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: `${colors.mutedForeground}99`,
+  },
+  cellDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  detailCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  detailStrip: {
+    height: 4,
+  },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  detailDate: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginBottom: 3,
+  },
+  detailTopic: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.foreground,
+  },
+  closeBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  detailPhoto: {
+    width: PHOTO_W,
+    height: PHOTO_W,
+  },
+  photoNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  photoNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoCounter: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  emptyState: {
+    backgroundColor: colors.muted,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: "center",
+  },
+
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  lightbox: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  lightboxImg: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").width,
+  },
+  lightboxOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    left: 0,
+    alignItems: "flex-end",
+    paddingRight: 16,
+  },
+  lightboxClose: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 12,
+  },
+  lightboxDots: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  lightboxDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  lightboxDotActive: {
+    backgroundColor: "#fff",
+    width: 18,
+  },
+  lightboxSwipeHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.5)",
+    letterSpacing: 0.5,
+  },
+});

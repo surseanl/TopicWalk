@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Expo Mobile",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd mobile && npx expo start --port 8081 --tunnel"],
+      "port": 8081,
+      "url": "http://localhost:8081"
+    },
+    {
       "name": "Next.js Dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],

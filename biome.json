@@ -6,7 +6,9 @@
       "!.next",
       "!.agents",
       "!.claude/worktrees",
-      "!.claude/skills"
+      "!.claude/skills",
+      "!mobile/node_modules",
+      "!mobile/.expo"
     ]
   },
   "assist": {
@@ -53,6 +55,16 @@
         "rules": {
           "suspicious": {
             "noArrayIndexKey": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["mobile/global.css"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUnknownAtRules": "off"
           }
         }
       }
