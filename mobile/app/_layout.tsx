@@ -40,6 +40,7 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="admin" />
         <Stack.Screen name="archive" />
         <Stack.Screen name="feed" />
         <Stack.Screen name="album/[id]" />

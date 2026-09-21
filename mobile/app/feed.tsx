@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { todayUTC } from "@/lib/date";
 import { SnappyAvatar } from "../components/SnappyAvatar";
 import { supabase } from "../lib/supabase";
 import { colors } from "../lib/theme";
@@ -44,9 +45,7 @@ function isLight(name: string): boolean {
   return ["White", "Tan", "Silver", "Yellow", "Gold"].includes(name);
 }
 
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const todayStr = todayUTC;
 
 function dateLabel(): string {
   return new Date().toLocaleDateString("en-US", {
@@ -64,6 +63,9 @@ export default function FeedScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [entries, setEntries] = useState<WalkEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [photoIndices, setPhotoIndices] = useState<Map<string, number>>(
+    new Map(),
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once
   useEffect(() => {
@@ -207,7 +209,15 @@ export default function FeedScreen() {
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
         renderItem={({ item: entry }) => (
-          <ReelSlide entry={entry} userId={userId} insets={insets} />
+          <ReelSlide
+            entry={entry}
+            userId={userId}
+            insets={insets}
+            photoIndex={photoIndices.get(entry.userId) ?? 0}
+            onPhotoIndex={(i) =>
+              setPhotoIndices((m) => new Map(m).set(entry.userId, i))
+            }
+          />
         )}
       />
     </View>
@@ -220,17 +230,20 @@ function ReelSlide({
   entry,
   userId,
   insets,
+  photoIndex,
+  onPhotoIndex,
 }: {
   entry: WalkEntry;
   userId: string | null;
   insets: { top: number; bottom: number };
+  photoIndex: number;
+  onPhotoIndex: (i: number) => void;
 }) {
   const hex = colorHex(entry.colorName);
   const light = isLight(entry.colorName);
   const fg = light ? "rgba(0,0,0,0.85)" : "#fff";
   const fgMuted = light ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.55)";
   const displayName = entry.userId === userId ? "You" : entry.username;
-  const [photoIndex, setPhotoIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"swipe" | "grid">("swipe");
 
   return (
@@ -266,7 +279,7 @@ function ReelSlide({
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(e) => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / PHOTO_W);
-              setPhotoIndex(idx);
+              onPhotoIndex(idx);
             }}
             style={{ borderRadius: 28 }}
           >

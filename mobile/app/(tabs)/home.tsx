@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { todayLocal, yesterdayLocal } from "@/lib/date";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
@@ -16,16 +17,8 @@ type DayPick = {
   photoCount: number;
 };
 
-function today() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function yesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const today = todayLocal;
+const yesterday = yesterdayLocal;
 
 function greeting() {
   const h = new Date().getHours();

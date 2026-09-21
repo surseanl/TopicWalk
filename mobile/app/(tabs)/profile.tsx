@@ -28,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { todayLocal, yesterdayLocal } from "@/lib/date";
 import { ColorPicker } from "../../components/ColorPicker";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { SNAPPY_BACKGROUNDS } from "../../components/SnappyBgs";
@@ -37,16 +38,8 @@ import { validateUsername } from "../../lib/username-filter";
 
 WebBrowser.maybeCompleteAuthSession();
 
-function todayStr() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function yesterdayStr() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const todayStr = todayLocal;
+const yesterdayStr = yesterdayLocal;
 
 function computeStreak(dates: string[]): number {
   if (dates.length === 0) return 0;
@@ -124,7 +117,7 @@ export default function ProfileScreen() {
   async function loadProfile(uid: string) {
     const { data } = await supabase
       .from("tw_users")
-      .select("*")
+      .select("username, bio, avatar_color, mascot_color")
       .eq("id", uid)
       .maybeSingle();
     if (data?.username) {

@@ -30,6 +30,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line } from "react-native-svg";
+import { todayLocal } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
@@ -225,13 +226,7 @@ export default function WalkScreen() {
     );
   }
 
-  function today() {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
+  const today = todayLocal;
 
   function landingDeg(activeIdx: number) {
     return 7 * 360 + (360 - activeIdx * sliceDeg);
@@ -1108,7 +1103,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  btnFlex: { flex: 1 },
   btnMuted: { opacity: 0.5 },
   btnText: {
     fontSize: 17,
@@ -1116,18 +1110,6 @@ const s = StyleSheet.create({
     color: "#fff",
     letterSpacing: -0.2,
   },
-  outBtn: {
-    flex: 1,
-    height: 62,
-    borderRadius: 31,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  outBtnText: { fontSize: 15, fontWeight: "600", color: colors.foreground },
-  photoRow: { flex: 1, flexDirection: "row", gap: 8 },
 
   // Photo count
   photoCountRow: {

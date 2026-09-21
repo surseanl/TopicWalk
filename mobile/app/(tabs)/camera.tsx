@@ -72,6 +72,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView from "react-native-webview";
+import { todayUTC } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { LEAFLET_HTML } from "../../lib/leaflet-html";
 import { supabase } from "../../lib/supabase";
@@ -79,11 +80,9 @@ import { colors } from "../../lib/theme";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const _CAPTURE_RADIUS = 100;
 const TILE_WALK_METERS = 300;
 const AUTO_TILE_MS = 5 * 60 * 1000;
 const TOTAL_TILES = 9;
-const _MIN_TILES_CAPTURE = 3;
 const MILES_TO_METERS = 1609.34;
 const TILE_SIZE = (Dimensions.get("window").width - 32) / 3;
 const MAP_H = 320;
@@ -225,32 +224,6 @@ function haversineDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function _bearing(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const y = Math.sin(dLng) * Math.cos((lat2 * Math.PI) / 180);
-  const x =
-    Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
-    Math.sin((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.cos(dLng);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-
-function _bearingArrow(deg: number): string {
-  const dirs = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
-  return dirs[Math.round(deg / 45) % 8] ?? "↑";
-}
-
-function _formatDist(m: number): string {
-  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
-  return `${Math.round(m)} m`;
-}
-
 function _elapsed(iso: string): string {
   const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   const h = Math.floor(sec / 3600);
@@ -269,9 +242,7 @@ function survivalStr(ms: number): string {
   return `${sec}s`;
 }
 
-function todaySoloStr(): string {
-  return new Date().toISOString().split("T")[0] ?? "";
-}
+const todaySoloStr = todayUTC;
 
 function dailySoloObjIndices(): [number, number] {
   const d = new Date();
