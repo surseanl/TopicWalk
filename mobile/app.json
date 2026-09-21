@@ -45,7 +45,14 @@
         {
           "locationWhenInUsePermission": "TopicWalk uses your location to record the path of your walk."
         }
-      ]
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "We use this to show you relevant ads and support the free app."
+        }
+      ],
+      "expo-tracking-transparency"
     ],
     "experiments": {
       "typedRoutes": true

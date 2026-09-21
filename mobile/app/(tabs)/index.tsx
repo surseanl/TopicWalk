@@ -456,7 +456,7 @@ export default function WalkScreen() {
         topic_category: "Color",
         topic_label: color.name,
         photo_path: path,
-        group_id: null,
+        group_id: share ? uid : null,
       });
       if (de) {
         Alert.alert("Save failed", de.message);

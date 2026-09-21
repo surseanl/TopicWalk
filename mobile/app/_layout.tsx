@@ -1,11 +1,16 @@
 import * as Linking from "expo-linking";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { requestTrackingPermissionsAsync } from "expo-tracking-transparency";
 import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
 
 export default function RootLayout() {
   const url = Linking.useURL();
+
+  useEffect(() => {
+    void requestTrackingPermissionsAsync();
+  }, []);
 
   // Handle deep links for OAuth redirect and email confirmation
   useEffect(() => {
@@ -35,7 +40,6 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(auth)" />
         <Stack.Screen name="archive" />
         <Stack.Screen name="feed" />
         <Stack.Screen name="album/[id]" />

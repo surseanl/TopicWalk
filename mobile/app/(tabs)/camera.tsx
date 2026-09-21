@@ -861,11 +861,14 @@ export default function HuntScreen() {
   const huntGroupRef = useRef<HuntGroup | null>(null);
   const soloCenterRef = useRef<Pos | null>(null);
   const soloRadiusRef = useRef<2 | 4 | 6 | 8 | 10 | null>(null);
+  const gpsSubRef = useRef<(() => void) | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
     void loadUser();
-    void startGps();
+    void startGps().then((cleanup) => {
+      if (cleanup) gpsSubRef.current = cleanup;
+    });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -876,7 +879,10 @@ export default function HuntScreen() {
         setLoading(false);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      gpsSubRef.current?.();
+    };
   }, []);
 
   useEffect(() => {
