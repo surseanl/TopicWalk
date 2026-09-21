@@ -275,15 +275,25 @@ export default function ProfileScreen() {
       return;
     }
     const friendCode = data.user.id.replace(/-/g, "").slice(0, 6).toUpperCase();
-    await supabase.from("tw_users").insert({
-      id: data.user.id,
-      username: name,
-      email: emailVal,
-      friend_code: friendCode,
-    });
-    setUsername(name);
-    setNeedsUsername(false);
-    if (!data.session) setConfirmEmail(emailVal);
+    if (data.session) {
+      // Session exists (no email confirmation) — create user row now
+      const { error: insertError } = await supabase.from("tw_users").insert({
+        id: data.user.id,
+        username: name,
+        email: emailVal,
+        friend_code: friendCode,
+      });
+      if (insertError) {
+        setError("Account created but profile setup failed. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+      setUsername(name);
+      setNeedsUsername(false);
+    } else {
+      // Email confirmation required — row will be created after confirmation via username picker
+      setConfirmEmail(emailVal);
+    }
     setSubmitting(false);
   }
 

@@ -144,7 +144,7 @@ export default function WalkScreen() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
     async function loadAndRestore() {
-      let active = WALK_COLORS;
+      let active = WALK_COLORS.filter((c) => DEFAULT_ACTIVE.has(c.name));
       try {
         const stored = await AsyncStorage.getItem(WHEEL_COLORS_KEY);
         if (stored) {
@@ -517,7 +517,7 @@ export default function WalkScreen() {
         visible={!!pendingAsset}
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => pendingAsset && uploadPhoto(pendingAsset, false)}
+        onRequestClose={() => setPendingAsset(null)}
       >
         <View style={s.modal}>
           {pendingAsset && (

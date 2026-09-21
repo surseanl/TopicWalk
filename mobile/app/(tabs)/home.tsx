@@ -153,6 +153,7 @@ export default function HomeScreen() {
       .from("tw_hunt_members")
       .select("group_id")
       .eq("user_id", uid)
+      .order("joined_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     const gid = data?.group_id ?? null;

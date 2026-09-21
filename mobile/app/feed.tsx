@@ -44,7 +44,7 @@ function isLight(name: string): boolean {
 }
 
 function todayStr(): string {
-  return new Date().toLocaleDateString("en-CA");
+  return new Date().toISOString().slice(0, 10);
 }
 
 function dateLabel(): string {
@@ -97,8 +97,8 @@ export default function FeedScreen() {
       .from("tw_submissions")
       .select("user_id, topic_label, photo_path, submitted_at")
       .eq("topic_category", "Color")
-      .gte("submitted_at", `${today}T00:00:00`)
-      .lte("submitted_at", `${today}T23:59:59`)
+      .gte("submitted_at", `${today}T00:00:00Z`)
+      .lte("submitted_at", `${today}T23:59:59Z`)
       .in("user_id", allIds)
       .order("submitted_at", { ascending: true });
 
