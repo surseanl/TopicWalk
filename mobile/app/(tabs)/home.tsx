@@ -3,8 +3,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { todayLocal, yesterdayLocal } from "@/lib/date";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
-import { fetchTipProducts, purchaseTip } from "../../lib/iap";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
 import { WALK_COLORS } from "../../lib/topics";
@@ -110,10 +107,6 @@ export default function HomeScreen() {
     undefined,
   );
   const [huntMemberCount, setHuntMemberCount] = useState(0);
-  const [tipProducts, setTipProducts] = useState<
-    Awaited<ReturnType<typeof fetchTipProducts>>
-  >([]);
-  const [tipping, setTipping] = useState(false);
   const [longestHidden, setLongestHidden] = useState<{
     id: string;
     hider_name: string;
@@ -130,28 +123,6 @@ export default function HomeScreen() {
       }
     }, [uid]),
   );
-
-  useEffect(() => {
-    fetchTipProducts()
-      .then(setTipProducts)
-      .catch(() => {});
-  }, []);
-
-  async function handleTip(pkg: (typeof tipProducts)[number]) {
-    if (tipping) return;
-    setTipping(true);
-    try {
-      await purchaseTip(pkg);
-      Alert.alert("Thank you! ☕", "Your support means the world.");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (!msg.includes("cancelled")) {
-        Alert.alert("Purchase failed", msg || "Something went wrong.");
-      }
-    } finally {
-      setTipping(false);
-    }
-  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
@@ -532,42 +503,6 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         )}
-
-        {/* Tip jar — always visible; prices come from RevenueCat when available */}
-        <View style={s.tipCard}>
-          <View style={s.tipHeader}>
-            <Text style={s.tipTitle}>☕ Support TopicWalk</Text>
-            <Text style={s.tipSub}>Keep the app free & ad-free</Text>
-          </View>
-          <View style={s.tipRow}>
-            {tipProducts.length > 0
-              ? tipProducts.map((pkg) => (
-                  <TouchableOpacity
-                    key={pkg.identifier}
-                    style={s.tipBtn}
-                    onPress={() => handleTip(pkg)}
-                    disabled={tipping}
-                    activeOpacity={0.75}
-                  >
-                    {tipping ? (
-                      <ActivityIndicator size="small" color="#92400e" />
-                    ) : (
-                      <Text style={s.tipPrice}>{pkg.product.priceString}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              : (["$0.99", "$1.99", "$4.99"] as const).map((price) => (
-                  <TouchableOpacity
-                    key={price}
-                    style={s.tipBtn}
-                    activeOpacity={0.75}
-                    disabled
-                  >
-                    <Text style={s.tipPrice}>{price}</Text>
-                  </TouchableOpacity>
-                ))}
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -704,43 +639,4 @@ const s = StyleSheet.create({
     minWidth: 90,
   },
   heroBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
-
-  // Tip jar
-  tipCard: {
-    borderRadius: 20,
-    backgroundColor: "#fffbeb",
-    borderWidth: 1,
-    borderColor: "#fde68a",
-    padding: 14,
-    gap: 12,
-  },
-  tipHeader: { gap: 2 },
-  tipTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#92400e",
-  },
-  tipSub: {
-    fontSize: 12,
-    color: "#b45309",
-  },
-  tipRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  tipBtn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#fef3c7",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#fde68a",
-  },
-  tipPrice: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#92400e",
-  },
 });
