@@ -2,10 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { todayLocal, yesterdayLocal } from "@/lib/date";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
+import { fetchTipProducts, purchaseTip } from "../../lib/iap";
 import { supabase } from "../../lib/supabase";
 import { colors, primaryTint } from "../../lib/theme";
 import { WALK_COLORS } from "../../lib/topics";
@@ -101,6 +110,10 @@ export default function HomeScreen() {
     undefined,
   );
   const [huntMemberCount, setHuntMemberCount] = useState(0);
+  const [tipProducts, setTipProducts] = useState<
+    Awaited<ReturnType<typeof fetchTipProducts>>
+  >([]);
+  const [tipping, setTipping] = useState(false);
   const [longestHidden, setLongestHidden] = useState<{
     id: string;
     hider_name: string;
@@ -117,6 +130,28 @@ export default function HomeScreen() {
       }
     }, [uid]),
   );
+
+  useEffect(() => {
+    fetchTipProducts()
+      .then(setTipProducts)
+      .catch(() => {});
+  }, []);
+
+  async function handleTip(pkg: (typeof tipProducts)[number]) {
+    if (tipping) return;
+    setTipping(true);
+    try {
+      await purchaseTip(pkg);
+      Alert.alert("Thank you! ☕", "Your support means the world.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (!msg.includes("cancelled")) {
+        Alert.alert("Purchase failed", msg || "Something went wrong.");
+      }
+    } finally {
+      setTipping(false);
+    }
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount only
   useEffect(() => {
@@ -235,7 +270,11 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={[]} style={s.safe}>
-      <View style={s.content}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={s.header}>
           <View style={s.headerLeft}>
@@ -493,7 +532,34 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         )}
-      </View>
+
+        {/* Tip jar */}
+        {tipProducts.length > 0 && (
+          <View style={s.tipCard}>
+            <View style={s.tipHeader}>
+              <Text style={s.tipTitle}>☕ Support TopicWalk</Text>
+              <Text style={s.tipSub}>Keep the app free & ad-free</Text>
+            </View>
+            <View style={s.tipRow}>
+              {tipProducts.map((pkg) => (
+                <TouchableOpacity
+                  key={pkg.identifier}
+                  style={s.tipBtn}
+                  onPress={() => handleTip(pkg)}
+                  disabled={tipping}
+                  activeOpacity={0.75}
+                >
+                  {tipping ? (
+                    <ActivityIndicator size="small" color="#92400e" />
+                  ) : (
+                    <Text style={s.tipPrice}>{pkg.product.priceString}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -501,11 +567,10 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 16,
-    gap: 14,
+    paddingBottom: 24,
+    gap: 12,
   },
 
   // Header
@@ -598,7 +663,7 @@ const s = StyleSheet.create({
     elevation: 3,
   },
   heroAccent: { width: 5 },
-  heroInner: { flex: 1, padding: 16, gap: 10 },
+  heroInner: { flex: 1, padding: 13, gap: 8 },
   heroLabel: { gap: 2 },
   heroEyebrow: {
     fontSize: 11,
@@ -608,7 +673,7 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
   },
   heroColorName: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: "900",
     letterSpacing: -1,
     marginTop: 1,
@@ -630,4 +695,43 @@ const s = StyleSheet.create({
     minWidth: 90,
   },
   heroBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+
+  // Tip jar
+  tipCard: {
+    borderRadius: 20,
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    padding: 14,
+    gap: 12,
+  },
+  tipHeader: { gap: 2 },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#92400e",
+  },
+  tipSub: {
+    fontSize: 12,
+    color: "#b45309",
+  },
+  tipRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tipBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fef3c7",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  tipPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#92400e",
+  },
 });
