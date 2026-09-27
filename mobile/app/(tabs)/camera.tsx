@@ -2353,40 +2353,41 @@ export default function HuntScreen() {
                   </Text>
                 </View>
               )}
-            </View>
-          )}
-
-          {/* Capture / done */}
-          {soloPhotoDone[0] && soloPhotoDone[1] ? (
-            <View style={s.soloDoneBanner}>
-              <Text style={s.soloDoneBannerText}>
-                Both found! Great hunt today. 🎉
-              </Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[
-                s.soloCaptureBtn,
-                {
-                  opacity:
-                    !soloObjRevealed || soloPhotoUploading !== null ? 0.45 : 1,
-                },
-              ]}
-              disabled={!soloObjRevealed || soloPhotoUploading !== null}
-              onPress={() => {
-                const which: 0 | 1 = !soloPhotoDone[0] ? 0 : 1;
-                void takeSoloPhoto(which);
-              }}
-            >
-              {soloPhotoUploading !== null ? (
-                <ActivityIndicator color="#fff" size="small" />
+              {/* Capture / done — floats over the map */}
+              {soloPhotoDone[0] && soloPhotoDone[1] ? (
+                <View style={s.soloDoneBanner}>
+                  <Text style={s.soloDoneBannerText}>
+                    Both found! Great hunt today. 🎉
+                  </Text>
+                </View>
               ) : (
-                <>
-                  <Camera color="#fff" size={20} />
-                  <Text style={s.soloCaptureBtnText}>Capture it!</Text>
-                </>
+                <TouchableOpacity
+                  style={[
+                    s.soloCaptureBtn,
+                    {
+                      opacity:
+                        !soloObjRevealed || soloPhotoUploading !== null
+                          ? 0.45
+                          : 1,
+                    },
+                  ]}
+                  disabled={!soloObjRevealed || soloPhotoUploading !== null}
+                  onPress={() => {
+                    const which: 0 | 1 = !soloPhotoDone[0] ? 0 : 1;
+                    void takeSoloPhoto(which);
+                  }}
+                >
+                  {soloPhotoUploading !== null ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Camera color="#fff" size={20} />
+                      <Text style={s.soloCaptureBtnText}>Capture it!</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
@@ -3055,7 +3056,7 @@ const s = StyleSheet.create({
   soloAreaChipText: { fontSize: 12, fontWeight: "700", color: "#fff" },
   soloOutsideBanner: {
     position: "absolute",
-    bottom: 10,
+    bottom: 86,
     left: 10,
     right: 10,
     backgroundColor: "rgba(220,38,38,0.9)",
@@ -3065,11 +3066,13 @@ const s = StyleSheet.create({
   },
   soloOutsideBannerText: { fontSize: 13, fontWeight: "700", color: "#fff" },
   soloCaptureBtn: {
-    marginHorizontal: 12,
-    marginBottom: 8,
+    position: "absolute",
+    bottom: 16,
+    left: 12,
+    right: 12,
     height: 54,
     borderRadius: 18,
-    backgroundColor: "#16a34a",
+    backgroundColor: "rgba(22, 163, 74, 0.78)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -3082,11 +3085,13 @@ const s = StyleSheet.create({
     letterSpacing: -0.3,
   },
   soloDoneBanner: {
-    marginHorizontal: 12,
-    marginBottom: 8,
+    position: "absolute",
+    bottom: 16,
+    left: 12,
+    right: 12,
     height: 54,
     borderRadius: 18,
-    backgroundColor: "#dcfce7",
+    backgroundColor: "rgba(220,252,231,0.88)",
     borderWidth: 1,
     borderColor: "#86efac",
     alignItems: "center",
