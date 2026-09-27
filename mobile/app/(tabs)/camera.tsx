@@ -1513,7 +1513,7 @@ export default function HuntScreen() {
   }
 
   const active = mascots.filter((m) => !m.found_at);
-  const myHides = mascots.filter((m) => m.hider_user_id === userId);
+  const _myHides = mascots.filter((m) => m.hider_user_id === userId);
 
   const nearbyMascot =
     myPos != null
@@ -2063,20 +2063,15 @@ export default function HuntScreen() {
 
       {/* ── HUNT ─────────────────────────────────────────────────────────── */}
       {tab === "hunt" && (
-        <ScrollView contentContainerStyle={s.tabContent}>
+        <View style={{ flex: 1 }}>
+          {/* Pending invite banners */}
           {pendingInvites.map((invite) => (
-            <View key={invite.id} style={s.inviteCard}>
+            <View key={invite.id} style={s.inviteBanner}>
               <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "700",
-                    color: colors.foreground,
-                  }}
-                >
-                  {invite.from_display_name} invited you
+                <Text style={s.inviteBannerText}>
+                  {invite.from_display_name} invited you to{" "}
+                  <Text style={{ fontWeight: "800" }}>{invite.group_name}</Text>
                 </Text>
-                <Text style={s.muted}>{invite.group_name}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => acceptInvite(invite)}
@@ -2093,250 +2088,200 @@ export default function HuntScreen() {
           ))}
 
           {!huntGroup ? (
-            <TouchableOpacity
-              ref={createGroupBtnRef}
-              onPress={() => {
-                setGroupModalMode("create");
-                setShowGroupModal(true);
-              }}
-              style={s.createGroupBtn}
-              activeOpacity={0.8}
+            /* No group — create CTA */
+            <View style={s.huntEmptyWrap}>
+              <TouchableOpacity
+                ref={createGroupBtnRef}
+                onPress={() => {
+                  setGroupModalMode("create");
+                  setShowGroupModal(true);
+                }}
+                style={s.createGroupBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={s.createGroupBtnTitle}>Start a Group Hunt</Text>
+                <Text style={s.createGroupBtnSub}>
+                  Create a group and invite friends to hide & find mascots
+                  together
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : showGroupPicker ? (
+            /* Area picker */
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16 }}
             >
-              <Text style={s.createGroupBtnTitle}>Start a Group Hunt</Text>
-              <Text style={s.createGroupBtnSub}>
-                Create a group and invite friends to hide & find mascots
-                together
-              </Text>
-            </TouchableOpacity>
+              <AreaPickerMap
+                initialPos={myPos}
+                initialRadiusMiles={
+                  (huntGroup.radius_miles as 2 | 4 | 6 | 8 | 10) ?? 2
+                }
+                onConfirm={async (center, radius) => {
+                  await updateGroupPlayArea(radius, center);
+                }}
+                onCancel={() => setShowGroupPicker(false)}
+              />
+            </ScrollView>
           ) : (
-            <>
-              {showGroupPicker ? (
-                <AreaPickerMap
-                  initialPos={myPos}
-                  initialRadiusMiles={
-                    (huntGroup.radius_miles as 2 | 4 | 6 | 8 | 10) ?? 2
-                  }
-                  onConfirm={async (center, radius) => {
-                    await updateGroupPlayArea(radius, center);
-                  }}
-                  onCancel={() => setShowGroupPicker(false)}
-                />
-              ) : (
-                <>
-                  {/* ── Group info + map card ── */}
-                  <View style={s.huntMapCard}>
-                    <View style={s.huntMapHeader}>
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        {/* Group name + code badge side by side */}
-                        <TouchableOpacity
-                          onPress={() => setShowMembersSheet(true)}
-                          activeOpacity={0.7}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 6,
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                        >
-                          <Text
-                            style={s.huntGroupName}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {huntGroup.name}
-                          </Text>
-                          <View style={s.huntCodeBadge}>
-                            <Text style={s.huntCodeBadgeText}>
-                              {huntGroup.invite_code}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                        {/* Play area on the right */}
-                        {userId === huntGroup.created_by ? (
-                          <TouchableOpacity
-                            onPress={() => setShowGroupPicker(true)}
-                            style={s.playAreaBtn}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={s.playAreaBtnText}>
-                              📍 {huntGroup.radius_miles ?? 2}mi · Change
-                            </Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <View style={s.playAreaBadge}>
-                            <Text style={s.playAreaBadgeText}>
-                              📍 {huntGroup.radius_miles ?? 2}mi
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-
-                    <View style={{ position: "relative" }}>
-                      {myPos && (
-                        <PlayMap
-                          myPos={myPos}
-                          center={
-                            huntGroup.center_lat != null &&
-                            huntGroup.center_lng != null
-                              ? {
-                                  lat: huntGroup.center_lat,
-                                  lng: huntGroup.center_lng,
-                                }
-                              : myPos
-                          }
-                          radiusMiles={huntGroup.radius_miles ?? 2}
-                          markersJson={JSON.stringify(
-                            active
-                              .filter((m) => m.hider_user_id === userId)
-                              .map((m) => ({
-                                lat: m.lat,
-                                lng: m.lng,
-                                c: snappyColor,
-                              })),
-                          )}
-                          style={{ height: 320, borderRadius: 0 }}
-                        />
-                      )}
-                      {/* Member overlay — semi-transparent, floats over map */}
-                      {nearbyMascot && (
-                        <TouchableOpacity
-                          style={s.captureOverlayBtn}
-                          activeOpacity={0.85}
-                          onPress={() => setSelectedMascot(nearbyMascot)}
-                        >
-                          <Text style={s.captureOverlayBtnText}>
-                            🎯 Capture nearby mascot!
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      {myPos && (
-                        <View style={s.huntMemberOverlay}>
-                          <View style={{ flexDirection: "row" }}>
-                            {huntMembers.slice(0, 5).map((m, i) => {
-                              const memberId = m.id || m.user_id;
-                              const hasHidden = active.some(
-                                (mc) => mc.hider_user_id === m.user_id,
-                              );
-                              return (
-                                <TouchableOpacity
-                                  key={memberId}
-                                  activeOpacity={0.75}
-                                  onPress={() =>
-                                    setExpandedMemberId(
-                                      expandedMemberId === memberId
-                                        ? null
-                                        : memberId,
-                                    )
-                                  }
-                                  style={[
-                                    s.huntMemberAvatar,
-                                    {
-                                      marginLeft: i > 0 ? -5 : 0,
-                                      zIndex: 5 - i,
-                                    },
-                                  ]}
-                                >
-                                  <Text style={s.huntMemberInitial}>
-                                    {m.display_name[0]?.toUpperCase() ?? "?"}
-                                  </Text>
-                                  <View
-                                    style={[
-                                      s.huntMascotDot,
-                                      hasHidden && s.huntMascotDotActive,
-                                    ]}
-                                  />
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
-                          <Text style={s.huntMemberNames} numberOfLines={1}>
-                            {expandedMemberId
-                              ? (huntMembers.find(
-                                  (m) =>
-                                    (m.id || m.user_id) === expandedMemberId,
-                                )?.display_name ?? "")
-                              : ""}
-                          </Text>
-                          <TouchableOpacity
-                            style={s.inlineInviteBtn}
-                            onPress={() => {
-                              setGroupModalMode("invite");
-                              setShowGroupModal(true);
-                            }}
-                          >
-                            <Text style={s.inlineInviteBtnText}>+ Invite</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {isOutsideGroupArea && (
-                    <View style={s.outsideWarning}>
-                      <Text style={s.outsideWarningText}>
-                        ⚠ Outside play area — move back inside to hide.
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* ── Hide Here button ── */}
-                  <TouchableOpacity
-                    onPress={() => void startHideMascot()}
-                    disabled={uploading || !myPos || isOutsideGroupArea}
-                    style={[
-                      s.hideHereBtn,
-                      {
-                        opacity:
-                          uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
-                      },
-                    ]}
+            <View style={{ flex: 1 }}>
+              {/* Group info row */}
+              <View style={s.groupInfoRow}>
+                <TouchableOpacity
+                  onPress={() => setShowMembersSheet(true)}
+                  activeOpacity={0.7}
+                  style={s.groupNameRow}
+                >
+                  <Text
+                    style={s.huntGroupName}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
-                    <Camera color="#fff" size={20} />
-                    <Text style={s.hideHereBtnText}>
-                      {uploading ? "Saving…" : "Hide Here"}
+                    {huntGroup.name}
+                  </Text>
+                  <View style={s.huntCodeBadge}>
+                    <Text style={s.huntCodeBadgeText}>
+                      {huntGroup.invite_code}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {userId === huntGroup.created_by ? (
+                  <TouchableOpacity
+                    onPress={() => setShowGroupPicker(true)}
+                    style={s.groupChangeBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={s.groupChangeBtnText}>Change</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={s.playAreaBadge}>
+                    <Text style={s.playAreaBadgeText}>
+                      📍 {huntGroup.radius_miles ?? 2}mi
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Member avatars row */}
+              <View style={s.groupMemberRow}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  {huntMembers.slice(0, 6).map((m, i) => {
+                    const memberId = m.id || m.user_id;
+                    const hasHidden = active.some(
+                      (mc) => mc.hider_user_id === m.user_id,
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={memberId}
+                        activeOpacity={0.75}
+                        onPress={() =>
+                          setExpandedMemberId(
+                            expandedMemberId === memberId ? null : memberId,
+                          )
+                        }
+                        style={[
+                          s.huntMemberAvatar,
+                          { marginLeft: i > 0 ? -5 : 0, zIndex: 6 - i },
+                        ]}
+                      >
+                        <Text style={s.huntMemberInitial}>
+                          {m.display_name[0]?.toUpperCase() ?? "?"}
+                        </Text>
+                        <View
+                          style={[
+                            s.huntMascotDot,
+                            hasHidden && s.huntMascotDotActive,
+                          ]}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {expandedMemberId ? (
+                    <Text style={[s.muted, { marginLeft: 10, fontSize: 13 }]}>
+                      {huntMembers.find(
+                        (m) => (m.id || m.user_id) === expandedMemberId,
+                      )?.display_name ?? ""}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  style={s.groupInviteBtn}
+                  onPress={() => {
+                    setGroupModalMode("invite");
+                    setShowGroupModal(true);
+                  }}
+                >
+                  <Text style={s.groupInviteBtnText}>+ Invite</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Map fills center */}
+              <View style={{ flex: 1, position: "relative" }}>
+                {myPos && (
+                  <PlayMap
+                    myPos={myPos}
+                    center={
+                      huntGroup.center_lat != null &&
+                      huntGroup.center_lng != null
+                        ? {
+                            lat: huntGroup.center_lat,
+                            lng: huntGroup.center_lng,
+                          }
+                        : myPos
+                    }
+                    radiusMiles={huntGroup.radius_miles ?? 2}
+                    markersJson={JSON.stringify(
+                      active
+                        .filter((m) => m.hider_user_id === userId)
+                        .map((m) => ({
+                          lat: m.lat,
+                          lng: m.lng,
+                          c: snappyColor,
+                        })),
+                    )}
+                    style={{ flex: 1, height: undefined }}
+                  />
+                )}
+                {nearbyMascot && (
+                  <TouchableOpacity
+                    style={s.captureOverlayBtn}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedMascot(nearbyMascot)}
+                  >
+                    <Text style={s.captureOverlayBtnText}>
+                      🎯 Capture nearby mascot!
                     </Text>
                   </TouchableOpacity>
+                )}
+                {isOutsideGroupArea && (
+                  <View style={s.groupOutsideBanner}>
+                    <Text style={s.soloOutsideBannerText}>
+                      ⚠ Outside play area — move back inside to hide.
+                    </Text>
+                  </View>
+                )}
+              </View>
 
-                  {/* ── My Hides ── */}
-                  {myHides.length > 0 && (
-                    <>
-                      <Text style={s.myHidesLabel}>My Hides</Text>
-                      {myHides.map((m) => {
-                        const photoUrl = supabase.storage
-                          .from("game-photos")
-                          .getPublicUrl(m.photo_path).data.publicUrl;
-                        const found = !!m.found_at;
-                        return (
-                          <View key={m.id} style={s.myHideRow}>
-                            <Image
-                              source={{ uri: photoUrl }}
-                              style={s.myHideThumb}
-                              resizeMode="cover"
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.myHideStatus}>
-                                {found ? "✓ Captured" : "🕵️ Still hiding"}
-                              </Text>
-                              <Text style={s.myHideMeta}>
-                                {found
-                                  ? `Found by ${m.finder_name} · ${_elapsed(m.hidden_at)} after hiding`
-                                  : `Hidden ${_elapsed(m.hidden_at)} ago`}
-                              </Text>
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </>
-                  )}
-                </>
-              )}
-            </>
+              {/* Hide Here button */}
+              <TouchableOpacity
+                onPress={() => void startHideMascot()}
+                disabled={uploading || !myPos || isOutsideGroupArea}
+                style={[
+                  s.soloCaptureBtn,
+                  {
+                    opacity:
+                      uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
+                  },
+                ]}
+              >
+                <Camera color="#fff" size={20} />
+                <Text style={s.soloCaptureBtnText}>
+                  {uploading ? "Saving…" : "Hide Here"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </ScrollView>
+        </View>
       )}
 
       {/* ── SOLO ─────────────────────────────────────────────────────────── */}
@@ -2748,6 +2693,76 @@ const s = StyleSheet.create({
     fontWeight: "600",
     color: colors.foreground,
     flex: 1,
+  },
+  inviteBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: `${colors.primary}1A`,
+    borderBottomWidth: 1,
+    borderBottomColor: `${colors.primary}33`,
+  },
+  inviteBannerText: { fontSize: 13, color: colors.foreground, flex: 1 },
+  huntEmptyWrap: {
+    flex: 1,
+    padding: 24,
+    justifyContent: "center",
+  },
+  groupInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  groupNameRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    minWidth: 0,
+  },
+  groupChangeBtn: {
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: colors.muted,
+  },
+  groupChangeBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  groupMemberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  groupInviteBtn: {
+    marginLeft: "auto",
+    borderRadius: 99,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  groupInviteBtnText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  groupOutsideBanner: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(220,38,38,0.9)",
+    borderRadius: 12,
+    padding: 10,
+    alignItems: "center",
   },
   inviteCard: {
     backgroundColor: colors.card,
