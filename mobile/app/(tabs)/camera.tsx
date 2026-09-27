@@ -150,8 +150,6 @@ const SOLO_OBJECTS: SoloObj[] = [
   { icon: Mountain, label: "Climbing structure", emoji: "🧗" },
 ];
 
-const SOLO_DRUM = Array.from({ length: 6 }, () => SOLO_OBJECTS).flat();
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Pos = { lat: number; lng: number };
@@ -2344,148 +2342,66 @@ export default function HuntScreen() {
       {/* ── SOLO ─────────────────────────────────────────────────────────── */}
       {tab === "solo" && (
         <View style={s.soloLayout}>
-          {/* Daily object slot machine */}
-          <View ref={slotCardRef} style={s.slotCard}>
-            <Text style={s.sectionLabel}>Today's Hunt</Text>
-
-            {/* Two side-by-side drums */}
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              {([soloSlotY0, soloSlotY1] as const).map((anim, col) => {
-                const idx = soloObjIndices?.[col as 0 | 1] ?? null;
-                const done = soloPhotoDone[col as 0 | 1];
-                return (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: two fixed drum columns never reorder
-                  <View key={col} style={{ flex: 1, gap: 10 }}>
-                    <View style={s.slotWindow}>
-                      <View
-                        pointerEvents="none"
-                        style={[
-                          StyleSheet.absoluteFill,
-                          s.slotFadeTop,
-                          { zIndex: 2 },
-                        ]}
-                      />
-                      <View
-                        pointerEvents="none"
-                        style={[
-                          StyleSheet.absoluteFill,
-                          s.slotFadeBottom,
-                          { zIndex: 2 },
-                        ]}
-                      />
-                      <Animated.View
-                        style={{
-                          transform: [{ translateY: anim }],
-                          width: "100%",
-                        }}
-                      >
-                        {SOLO_DRUM.map((obj, i) => (
-                          <View
-                            // biome-ignore lint/suspicious/noArrayIndexKey: stable drum
-                            key={i}
-                            style={s.slotItem}
-                          >
-                            <obj.icon size={26} color={colors.foreground} />
-                            <Text style={s.slotLabel} numberOfLines={1}>
-                              {obj.label}
-                            </Text>
-                          </View>
-                        ))}
-                      </Animated.View>
-                    </View>
-
-                    {soloObjRevealed && idx !== null && !done && (
-                      <TouchableOpacity
-                        onPress={() => void takeSoloPhoto(col as 0 | 1)}
-                        disabled={soloPhotoUploading !== null}
-                        style={[
-                          s.primaryBtn,
-                          { opacity: soloPhotoUploading === col ? 0.5 : 1 },
-                        ]}
-                      >
-                        {soloPhotoUploading === col ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <>
-                            <Camera color="#fff" size={15} />
-                            <Text style={[s.primaryBtnText, { fontSize: 13 }]}>
-                              Found it!
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-
-                    {done && (
-                      <View style={s.slotDoneChip}>
-                        <Text style={s.slotDoneText}>✓ Found</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            {!soloObjRevealed && (
-              <TouchableOpacity
-                ref={spinSoloBtnRef}
-                onPress={spinSoloObject}
-                disabled={soloObjSpinning}
-                style={[s.primaryBtn, { opacity: soloObjSpinning ? 0.5 : 1 }]}
-              >
-                {soloObjSpinning ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={s.primaryBtnText}>Spin</Text>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {soloPhotoDone[0] && soloPhotoDone[1] && (
-              <View style={s.slotAllDone}>
-                <Text style={s.slotAllDoneText}>
-                  Both found! Great hunt today.
-                </Text>
-              </View>
-            )}
+          {/* Two object cards */}
+          <View ref={slotCardRef} style={s.soloTopRow}>
+            {([0, 1] as const).map((col) => {
+              const idx = soloObjIndices?.[col] ?? null;
+              const done = soloPhotoDone[col];
+              return (
+                <TouchableOpacity
+                  key={col}
+                  ref={col === 0 ? spinSoloBtnRef : undefined}
+                  activeOpacity={soloObjRevealed ? 1 : 0.75}
+                  onPress={
+                    !soloObjRevealed && !soloObjSpinning
+                      ? spinSoloObject
+                      : undefined
+                  }
+                  style={[s.soloObjCard, done && s.soloObjCardDone]}
+                >
+                  {done ? (
+                    <Text style={s.soloObjDoneText}>✓ Found</Text>
+                  ) : soloObjRevealed && idx !== null ? (
+                    <>
+                      <Text style={s.soloObjEmoji}>
+                        {SOLO_OBJECTS[idx]?.emoji ?? "?"}
+                      </Text>
+                      <Text style={s.soloObjLabel} numberOfLines={1}>
+                        {SOLO_OBJECTS[idx]?.label ?? ""}
+                      </Text>
+                    </>
+                  ) : soloObjSpinning ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <Text style={s.soloSpinLabel}>Spin!</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Play area picker or map */}
-          {showSoloPicker || !soloRadius ? (
-            <AreaPickerMap
-              initialPos={myPos}
-              initialRadiusMiles={
-                (soloRadius as 2 | 4 | 6 | 8 | 10 | null) ?? 2
-              }
-              onConfirm={async (center, radius) => {
-                await setSoloPlayArea(radius, center);
-                setShowSoloPicker(false);
-              }}
-              onCancel={soloRadius ? () => setShowSoloPicker(false) : undefined}
-            />
+          {/* Map area */}
+          {!soloRadius || showSoloPicker ? (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={s.soloPickerContent}
+            >
+              <AreaPickerMap
+                initialPos={myPos}
+                initialRadiusMiles={
+                  (soloRadius as 2 | 4 | 6 | 8 | 10 | null) ?? 2
+                }
+                onConfirm={async (center, radius) => {
+                  await setSoloPlayArea(radius, center);
+                  setShowSoloPicker(false);
+                }}
+                onCancel={
+                  soloRadius ? () => setShowSoloPicker(false) : undefined
+                }
+              />
+            </ScrollView>
           ) : (
-            <>
-              <View style={s.soloAreaHeader}>
-                <Text style={s.sectionLabel}>{soloRadius}-mile play area</Text>
-                <TouchableOpacity onPress={() => setShowSoloPicker(true)}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: colors.primary,
-                      fontWeight: "600",
-                    }}
-                  >
-                    Change
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {isOutsideSoloArea && (
-                <View style={s.outsideWarning}>
-                  <Text style={s.outsideWarningText}>
-                    You're outside your play area!
-                  </Text>
-                </View>
-              )}
+            <View style={{ flex: 1 }}>
               <PlayMap
                 myPos={myPos}
                 center={soloCenter}
@@ -2503,7 +2419,55 @@ export default function HuntScreen() {
                 )}
                 style={{ flex: 1, height: undefined }}
               />
-            </>
+              <TouchableOpacity
+                style={s.soloAreaChip}
+                onPress={() => setShowSoloPicker(true)}
+              >
+                <Text style={s.soloAreaChipText}>
+                  📍 {soloRadius}mi · Change
+                </Text>
+              </TouchableOpacity>
+              {isOutsideSoloArea && (
+                <View style={s.soloOutsideBanner}>
+                  <Text style={s.soloOutsideBannerText}>
+                    ⚠ Outside play area!
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Capture / done */}
+          {soloPhotoDone[0] && soloPhotoDone[1] ? (
+            <View style={s.soloDoneBanner}>
+              <Text style={s.soloDoneBannerText}>
+                Both found! Great hunt today. 🎉
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[
+                s.soloCaptureBtn,
+                {
+                  opacity:
+                    !soloObjRevealed || soloPhotoUploading !== null ? 0.45 : 1,
+                },
+              ]}
+              disabled={!soloObjRevealed || soloPhotoUploading !== null}
+              onPress={() => {
+                const which: 0 | 1 = !soloPhotoDone[0] ? 0 : 1;
+                void takeSoloPhoto(which);
+              }}
+            >
+              {soloPhotoUploading !== null ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Camera color="#fff" size={20} />
+                  <Text style={s.soloCaptureBtnText}>Capture it!</Text>
+                </>
+              )}
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -2541,13 +2505,7 @@ const s = StyleSheet.create({
     paddingBottom: 20,
     gap: 14,
   },
-  soloLayout: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 14,
-    gap: 14,
-  },
+  soloLayout: { flex: 1, paddingTop: 4 },
   pageTitle: {
     fontSize: 24,
     fontWeight: "900",
@@ -3062,6 +3020,89 @@ const s = StyleSheet.create({
   radiusChipTextActive: {
     color: colors.primary,
   },
+  soloTopRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  soloObjCard: {
+    flex: 1,
+    height: 90,
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  soloObjCardDone: { backgroundColor: "#dcfce7", borderColor: "#86efac" },
+  soloObjEmoji: { fontSize: 32 },
+  soloObjLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.foreground,
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+  soloObjDoneText: { fontSize: 14, fontWeight: "800", color: "#16a34a" },
+  soloSpinLabel: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: -0.3,
+  },
+  soloPickerContent: { paddingHorizontal: 16, paddingBottom: 16 },
+  soloAreaChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  soloAreaChipText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  soloOutsideBanner: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(220,38,38,0.9)",
+    borderRadius: 12,
+    padding: 10,
+    alignItems: "center",
+  },
+  soloOutsideBannerText: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  soloCaptureBtn: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: "#16a34a",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  soloCaptureBtnText: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.3,
+  },
+  soloDoneBanner: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: "#dcfce7",
+    borderWidth: 1,
+    borderColor: "#86efac",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  soloDoneBannerText: { fontSize: 15, fontWeight: "700", color: "#16a34a" },
   slotCard: {
     backgroundColor: colors.card,
     borderRadius: 18,
