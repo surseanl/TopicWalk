@@ -121,7 +121,6 @@ export default function WalkScreen() {
 
   const uidRef = useRef<string | null>(null);
   const currentDateRef = useRef<string>("");
-
   function checkMidnightReset() {
     const d = today();
     if (currentDateRef.current && currentDateRef.current !== d) {

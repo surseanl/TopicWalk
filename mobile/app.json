@@ -51,8 +51,7 @@
         {
           "userTrackingPermission": "We use this to show you relevant ads and support the free app."
         }
-      ],
-      "expo-tracking-transparency"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
