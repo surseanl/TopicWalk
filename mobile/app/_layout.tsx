@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { requestTrackingPermissionsAsync } from "expo-tracking-transparency";
 import { useEffect } from "react";
+import { initPurchases } from "../lib/iap";
 import { supabase } from "../lib/supabase";
 
 export default function RootLayout() {
@@ -10,6 +11,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     void requestTrackingPermissionsAsync();
+    initPurchases();
   }, []);
 
   // Handle deep links for OAuth redirect and email confirmation

@@ -51,6 +51,12 @@
         {
           "userTrackingPermission": "We use this to show you relevant ads and support the free app."
         }
+      ],
+      [
+        "react-native-purchases",
+        {
+          "enableAndroidInstallWarning": false
+        }
       ]
     ],
     "experiments": {

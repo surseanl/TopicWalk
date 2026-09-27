@@ -32,6 +32,7 @@ import { todayLocal, yesterdayLocal } from "@/lib/date";
 import { ColorPicker } from "../../components/ColorPicker";
 import { SnappyAvatar } from "../../components/SnappyAvatar";
 import { SNAPPY_BACKGROUNDS } from "../../components/SnappyBgs";
+import { fetchTipProducts, purchaseTip } from "../../lib/iap";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
 import { validateUsername } from "../../lib/username-filter";
@@ -87,6 +88,11 @@ export default function ProfileScreen() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupSubmitting, setSetupSubmitting] = useState(false);
 
+  const [tipProducts, setTipProducts] = useState<
+    Awaited<ReturnType<typeof fetchTipProducts>>
+  >([]);
+  const [tipping, setTipping] = useState(false);
+
   const [showEdit, setShowEdit] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editSnappyBg, setEditSnappyBg] = useState(SNAPPY_BACKGROUNDS[0].id);
@@ -96,6 +102,12 @@ export default function ProfileScreen() {
   const [statDistanceM, setStatDistanceM] = useState(0);
   const [statPhotos, setStatPhotos] = useState(0);
   const [statStreak, setStatStreak] = useState(0);
+
+  useEffect(() => {
+    fetchTipProducts()
+      .then(setTipProducts)
+      .catch(() => {});
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
@@ -113,6 +125,22 @@ export default function ProfileScreen() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  async function handleTip(pkg: (typeof tipProducts)[number]) {
+    if (tipping) return;
+    setTipping(true);
+    try {
+      await purchaseTip(pkg);
+      Alert.alert("Thank you! ☕", "Your support means the world.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (!msg.includes("cancelled")) {
+        Alert.alert("Purchase failed", msg || "Something went wrong.");
+      }
+    } finally {
+      setTipping(false);
+    }
+  }
 
   async function loadProfile(uid: string) {
     const { data } = await supabase
@@ -636,6 +664,28 @@ export default function ProfileScreen() {
               <ChevronRight size={16} color={colors.mutedForeground} />
             </TouchableOpacity>
             <View style={s.menuDivider} />
+
+            {/* Tip jar */}
+            {tipProducts.length > 0 && (
+              <View style={s.tipSection}>
+                <Text style={s.tipLabel}>☕ Support TopicWalk</Text>
+                <View style={s.tipRow}>
+                  {tipProducts.map((pkg) => (
+                    <TouchableOpacity
+                      key={pkg.identifier}
+                      style={s.tipBtn}
+                      onPress={() => handleTip(pkg)}
+                      disabled={tipping}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={s.tipPrice}>{pkg.product.priceString}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={s.menuDivider} />
             <TouchableOpacity
               onPress={() =>
                 Alert.alert("Sign out", "Are you sure?", [
@@ -1053,6 +1103,35 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   menuLabel: { fontSize: 15, fontWeight: "600", color: colors.foreground },
+  tipSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  tipLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.mutedForeground,
+  },
+  tipRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tipBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#fef3c7",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  tipPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#92400e",
+  },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
