@@ -2336,7 +2336,12 @@ export default function HuntScreen() {
                         : undefined,
                   })),
                 )}
-                style={{ flex: 1, height: undefined }}
+                style={{
+                  flex: 1,
+                  height: undefined,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                }}
               />
               <TouchableOpacity
                 style={s.soloAreaChip}
@@ -3072,7 +3077,7 @@ const s = StyleSheet.create({
     right: 12,
     height: 54,
     borderRadius: 18,
-    backgroundColor: "rgba(22, 163, 74, 0.78)",
+    backgroundColor: "rgba(22, 163, 74, 0.93)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
