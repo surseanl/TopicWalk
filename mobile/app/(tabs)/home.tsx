@@ -533,32 +533,41 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Tip jar */}
-        {tipProducts.length > 0 && (
-          <View style={s.tipCard}>
-            <View style={s.tipHeader}>
-              <Text style={s.tipTitle}>☕ Support TopicWalk</Text>
-              <Text style={s.tipSub}>Keep the app free & ad-free</Text>
-            </View>
-            <View style={s.tipRow}>
-              {tipProducts.map((pkg) => (
-                <TouchableOpacity
-                  key={pkg.identifier}
-                  style={s.tipBtn}
-                  onPress={() => handleTip(pkg)}
-                  disabled={tipping}
-                  activeOpacity={0.75}
-                >
-                  {tipping ? (
-                    <ActivityIndicator size="small" color="#92400e" />
-                  ) : (
-                    <Text style={s.tipPrice}>{pkg.product.priceString}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+        {/* Tip jar — always visible; prices come from RevenueCat when available */}
+        <View style={s.tipCard}>
+          <View style={s.tipHeader}>
+            <Text style={s.tipTitle}>☕ Support TopicWalk</Text>
+            <Text style={s.tipSub}>Keep the app free & ad-free</Text>
           </View>
-        )}
+          <View style={s.tipRow}>
+            {tipProducts.length > 0
+              ? tipProducts.map((pkg) => (
+                  <TouchableOpacity
+                    key={pkg.identifier}
+                    style={s.tipBtn}
+                    onPress={() => handleTip(pkg)}
+                    disabled={tipping}
+                    activeOpacity={0.75}
+                  >
+                    {tipping ? (
+                      <ActivityIndicator size="small" color="#92400e" />
+                    ) : (
+                      <Text style={s.tipPrice}>{pkg.product.priceString}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              : (["$0.99", "$1.99", "$4.99"] as const).map((price) => (
+                  <TouchableOpacity
+                    key={price}
+                    style={s.tipBtn}
+                    activeOpacity={0.75}
+                    disabled
+                  >
+                    <Text style={s.tipPrice}>{price}</Text>
+                  </TouchableOpacity>
+                ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
