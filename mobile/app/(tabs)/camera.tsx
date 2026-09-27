@@ -764,7 +764,7 @@ export default function HuntScreen() {
   const [tab, setTab] = useState<"hunt" | "solo">("solo");
   const [mascots, setMascots] = useState<Mascot[]>([]);
   const [myPos, setMyPos] = useState<Pos | null>(null);
-  const [posError, setPosError] = useState<string | null>(null);
+  const [_posError, setPosError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [_captureTarget, setCaptureTarget] = useState<string | null>(null);
@@ -2013,51 +2013,25 @@ export default function HuntScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <View style={s.pageHeader}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View>
-            <Text style={s.pageTitle}>Mascot Hunt</Text>
-            {myPos ? (
-              <Text style={{ fontSize: 12, color: colors.primary }}>
-                📍 GPS active
-              </Text>
-            ) : posError ? (
-              <Text style={{ fontSize: 12, color: colors.destructive }}>
-                {posError}
-              </Text>
-            ) : (
-              <Text style={s.muted}>Getting location…</Text>
-            )}
-          </View>
-
-          <View style={s.tabSegment}>
-            {(["solo", "hunt"] as const).map((t, i) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTab(t)}
-                style={[
-                  s.tabSegmentBtn,
-                  tab === t && s.tabSegmentBtnActive,
-                  i === 0 && s.tabSegmentBtnLeft,
-                ]}
+      <View style={s.pillBar}>
+        <View style={s.tabSegment}>
+          {(["solo", "hunt"] as const).map((t, i) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setTab(t)}
+              style={[
+                s.tabSegmentBtn,
+                tab === t && s.tabSegmentBtnActive,
+                i === 0 && s.tabSegmentBtnLeft,
+              ]}
+            >
+              <Text
+                style={[s.tabSegmentText, tab === t && s.tabSegmentTextActive]}
               >
-                <Text
-                  style={[
-                    s.tabSegmentText,
-                    tab === t && s.tabSegmentTextActive,
-                  ]}
-                >
-                  {t === "hunt" ? "Group" : "Solo"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                {t === "hunt" ? "Group" : "Solo"}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -2439,10 +2413,11 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  pageHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
+  pillBar: {
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   tabContent: {
     paddingHorizontal: 16,
