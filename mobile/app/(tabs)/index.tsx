@@ -921,9 +921,9 @@ const s = StyleSheet.create({
     gap: 10,
   },
   title: {
-    fontSize: 36,
+    fontSize: 44,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -1.5,
     color: colors.foreground,
   },
   subtitle: {
@@ -1036,7 +1036,7 @@ const s = StyleSheet.create({
   },
 
   // Wheel group — full flex area, centers everything vertically
-  wheelGroup: { flex: 1, gap: 16, justifyContent: "center", paddingTop: 8 },
+  wheelGroup: { flex: 1, gap: 22, justifyContent: "center", paddingTop: 44 },
   wheelSection: { alignItems: "center" },
 
   // Nav row above wheel
