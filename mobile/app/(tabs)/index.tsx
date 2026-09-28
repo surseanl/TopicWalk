@@ -84,6 +84,7 @@ export default function WalkScreen() {
   const WHEEL = Math.min(sw - 16, 380);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
+  const ABOVE_H = 52;
 
   const [uid, setUid] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -675,15 +676,61 @@ export default function WalkScreen() {
               <View style={s.pointer} />
             </View>
 
-            {/* Wheel + fan button overlay in a fixed-size positioned container */}
-            <View style={{ width: WHEEL, height: WHEEL }}>
-              {/* Spinning wheel */}
+            {/* Wheel container — extra height above for nav button wedges */}
+            <View style={{ width: WHEEL, height: WHEEL + ABOVE_H }}>
+              {/* Archive + Feed wedge buttons — static, rendered behind wheel */}
+              <Svg
+                width={WHEEL}
+                height={WHEEL + ABOVE_H}
+                style={{ position: "absolute", top: 0, left: 0 }}
+                pointerEvents="box-none"
+              >
+                <G onPress={() => router.push("/archive")}>
+                  <Path
+                    d={`M 0 0 L ${WC - 10} 0 L ${WC} ${ABOVE_H} A ${WR} ${WR} 0 0 0 0 ${ABOVE_H + WR} Z`}
+                    fill="rgba(245,245,245,0.92)"
+                    stroke={colors.border}
+                    strokeWidth={1}
+                  />
+                  <SvgText
+                    x={WC * 0.49}
+                    y={ABOVE_H * 0.52}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fontWeight="700"
+                    fill={colors.foreground}
+                  >
+                    Archives
+                  </SvgText>
+                </G>
+                <G onPress={() => router.push("/feed")}>
+                  <Path
+                    d={`M ${WHEEL} 0 L ${WC + 10} 0 L ${WC} ${ABOVE_H} A ${WR} ${WR} 0 0 1 ${WHEEL} ${ABOVE_H + WR} Z`}
+                    fill="rgba(245,245,245,0.92)"
+                    stroke={colors.border}
+                    strokeWidth={1}
+                  />
+                  <SvgText
+                    x={WC + (WHEEL - WC) * 0.52}
+                    y={ABOVE_H * 0.52}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fontWeight="700"
+                    fill={colors.foreground}
+                  >
+                    Feed
+                  </SvgText>
+                </G>
+              </Svg>
+
+              {/* Spinning wheel — on top, touches pass through so wedge buttons work */}
               <Animated.View
+                pointerEvents="none"
                 style={[
                   s.wheelWrap,
                   {
                     position: "absolute",
-                    top: 0,
+                    top: ABOVE_H,
                     left: 0,
                     width: WHEEL,
                     height: WHEEL,
@@ -761,53 +808,6 @@ export default function WalkScreen() {
                   <Circle cx={WC} cy={WC} r={WR * 0.065} fill="#C8C8C8" />
                 </Svg>
               </Animated.View>
-
-              {/* Fan buttons — static overlay (does not spin) */}
-              <Svg
-                width={WHEEL}
-                height={WHEEL}
-                style={{ position: "absolute", top: 0, left: 0 }}
-                pointerEvents="box-none"
-              >
-                {/* Archive sector: center → bottom → arc CCW → left → center */}
-                <G onPress={() => router.push("/archive")}>
-                  <Path
-                    d={`M ${WC} ${WC} L ${WC} ${WC + WR} A ${WR} ${WR} 0 0 0 ${WC - WR} ${WC} Z`}
-                    fill="rgba(245,245,245,0.88)"
-                    stroke={colors.border}
-                    strokeWidth={1}
-                  />
-                  <SvgText
-                    x={WC - WR * 0.44}
-                    y={WC + WR * 0.52}
-                    textAnchor="middle"
-                    fontSize="13"
-                    fontWeight="700"
-                    fill={colors.foreground}
-                  >
-                    Archives
-                  </SvgText>
-                </G>
-                {/* Feed sector: center → right → arc CW → bottom → center */}
-                <G onPress={() => router.push("/feed")}>
-                  <Path
-                    d={`M ${WC} ${WC} L ${WC + WR} ${WC} A ${WR} ${WR} 0 0 1 ${WC} ${WC + WR} Z`}
-                    fill="rgba(245,245,245,0.88)"
-                    stroke={colors.border}
-                    strokeWidth={1}
-                  />
-                  <SvgText
-                    x={WC + WR * 0.44}
-                    y={WC + WR * 0.52}
-                    textAnchor="middle"
-                    fontSize="13"
-                    fontWeight="700"
-                    fill={colors.foreground}
-                  >
-                    Feed
-                  </SvgText>
-                </G>
-              </Svg>
             </View>
           </View>
 
