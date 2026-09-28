@@ -81,7 +81,7 @@ export default function WalkScreen() {
   const router = useRouter();
   const { width: sw } = useWindowDimensions();
 
-  const WHEEL = Math.min(sw - 16, 380);
+  const WHEEL = Math.min(sw - 32, 300);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
 
@@ -914,9 +914,9 @@ const s = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
-    gap: 10,
+    paddingTop: 6,
+    paddingBottom: 10,
+    gap: 8,
   },
 
   // Header
@@ -925,18 +925,18 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -0.8,
     color: colors.foreground,
   },
   subtitle: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.mutedForeground,
-    lineHeight: 18,
-    paddingHorizontal: 10,
+    lineHeight: 17,
+    paddingHorizontal: 8,
   },
   menuBtn: { padding: 4 },
 
@@ -946,10 +946,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   customizeBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.mutedForeground,
   },
@@ -1043,24 +1043,24 @@ const s = StyleSheet.create({
   },
 
   // Wheel
-  wheelGroup: { flex: 1, gap: 4 },
-  wheelSection: { flex: 1, alignItems: "center", justifyContent: "center" },
+  wheelGroup: { flex: 1, gap: 6, justifyContent: "center" },
+  wheelSection: { alignItems: "center" },
 
   // Nav row above wheel
   navRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 10,
+    gap: 8,
   },
   navPointerArea: {
     width: 28,
     alignItems: "center",
     justifyContent: "flex-end",
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   navBtnLeft: {
     flex: 1,
-    height: 66,
+    height: 54,
     backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 8,
@@ -1078,7 +1078,7 @@ const s = StyleSheet.create({
   },
   navBtnRight: {
     flex: 1,
-    height: 66,
+    height: 54,
     backgroundColor: colors.card,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 20,
@@ -1119,7 +1119,7 @@ const s = StyleSheet.create({
 
   // Bottom card
   bottomCard: {
-    gap: 14,
+    gap: 8,
   },
 
   // Reveal
@@ -1127,15 +1127,15 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    minHeight: 28,
+    gap: 8,
+    minHeight: 24,
   },
-  revealDot: { width: 22, height: 22, borderRadius: 11 },
+  revealDot: { width: 18, height: 18, borderRadius: 9 },
   revealDotBorder: { borderWidth: 1.5, borderColor: "#C8C8C8" },
   revealName: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "800",
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
     color: colors.foreground,
   },
 
@@ -1144,18 +1144,18 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
   },
-  mascot: { width: 52, height: 52, flexShrink: 0 },
+  mascot: { width: 44, height: 44, flexShrink: 0 },
   btn: {
     flex: 1,
-    height: 62,
-    borderRadius: 31,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
   btnLeft: {
     flexDirection: "row",
@@ -1165,7 +1165,7 @@ const s = StyleSheet.create({
   btnCentered: { justifyContent: "center", gap: 8 },
   btnMuted: { opacity: 0.5 },
   btnText: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: "#fff",
     letterSpacing: -0.2,
