@@ -7,9 +7,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Heart,
   RotateCcw,
   Settings2,
-  Users2,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -659,22 +659,6 @@ export default function WalkScreen() {
             <Text style={s.title}>Color Walk</Text>
             <Text style={s.subtitle}>Spin the wheel, snap a color photo.</Text>
           </View>
-          <View style={{ gap: 6 }}>
-            <TouchableOpacity
-              onPress={() => router.push("/feed")}
-              style={s.headerPill}
-            >
-              <Users2 size={14} color={colors.foreground} />
-              <Text style={s.headerPillText}>Feed</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/archive")}
-              style={s.headerPill}
-            >
-              <CalendarDays size={14} color={colors.foreground} />
-              <Text style={s.headerPillText}>Past Walks</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Wheel + customize — fills remaining space */}
@@ -761,6 +745,24 @@ export default function WalkScreen() {
             </Animated.View>
           </View>
 
+          {/* Archives / Feed row */}
+          <View style={s.wheelNavRow}>
+            <TouchableOpacity
+              style={s.wheelNavBtn}
+              onPress={() => router.push("/archive")}
+            >
+              <CalendarDays size={14} color={colors.foreground} />
+              <Text style={s.wheelNavBtnText}>Archives</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.wheelNavBtn}
+              onPress={() => router.push("/feed")}
+            >
+              <Heart size={14} color={colors.foreground} />
+              <Text style={s.wheelNavBtnText}>Feed</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Customize colors */}
           <TouchableOpacity
             style={[s.customizeBtn, revealed && { opacity: 0.35 }]}
@@ -824,7 +826,7 @@ export default function WalkScreen() {
               <TouchableOpacity
                 ref={spinBtnRef}
                 onPress={spin}
-                style={s.btn}
+                style={[s.btn, s.btnCentered]}
                 activeOpacity={0.85}
               >
                 <Text style={s.btnText}>Spin</Text>
@@ -919,16 +921,22 @@ const s = StyleSheet.create({
     color: colors.mutedForeground,
     lineHeight: 20,
   },
-  headerPill: {
+  // Wheel nav row (below wheel)
+  wheelNavRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+  },
+  wheelNavBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: colors.muted,
     borderRadius: 20,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  headerPillText: {
+  wheelNavBtnText: {
     fontSize: 13,
     fontWeight: "600",
     color: colors.foreground,
@@ -1072,6 +1080,7 @@ const s = StyleSheet.create({
   revealRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     minHeight: 28,
   },
@@ -1085,7 +1094,12 @@ const s = StyleSheet.create({
   },
 
   // Actions
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
   mascot: { width: 52, height: 52, flexShrink: 0 },
   btn: {
     flex: 1,
@@ -1102,6 +1116,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  btnCentered: { justifyContent: "center", gap: 8 },
   btnMuted: { opacity: 0.5 },
   btnText: {
     fontSize: 17,
