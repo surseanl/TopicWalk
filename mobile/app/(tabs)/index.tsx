@@ -2,14 +2,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import {
-  CalendarDays,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
-  Heart,
   Menu,
   RotateCcw,
+  Settings2,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -29,7 +28,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
 import { todayLocal } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { supabase } from "../../lib/supabase";
@@ -656,6 +655,9 @@ export default function WalkScreen() {
         {/* Header */}
         <View style={s.header}>
           <Text style={s.title}>Color Walk</Text>
+          <Text style={s.subtitle}>
+            {"Spin the wheel,\nsnap a color photo."}
+          </Text>
           <TouchableOpacity
             onPress={() => setShowCustomize(true)}
             style={s.menuBtn}
@@ -667,108 +669,162 @@ export default function WalkScreen() {
 
         {/* Wheel — fills remaining space */}
         <View style={s.wheelGroup}>
-          {/* Archives + Feed flanking row */}
-          <View style={s.wheelNavRow}>
-            <TouchableOpacity
-              style={s.wheelNavBtn}
-              onPress={() => router.push("/archive")}
-            >
-              <CalendarDays size={14} color={colors.foreground} />
-              <Text style={s.wheelNavBtnText}>Archives</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.wheelNavBtn}
-              onPress={() => router.push("/feed")}
-            >
-              <Heart size={14} color={colors.foreground} />
-              <Text style={s.wheelNavBtnText}>Feed</Text>
-            </TouchableOpacity>
-          </View>
-
           <View ref={wheelRef} style={s.wheelSection}>
             {/* Pointer centered above wheel */}
             <View style={s.pointerRow}>
               <View style={s.pointer} />
             </View>
 
-            {/* Spinning wheel */}
-            <Animated.View
-              style={[s.wheelWrap, { transform: [{ rotate: wheelDeg }] }]}
-            >
+            {/* Wheel + fan button overlay in a fixed-size positioned container */}
+            <View style={{ width: WHEEL, height: WHEEL }}>
+              {/* Spinning wheel */}
+              <Animated.View
+                style={[
+                  s.wheelWrap,
+                  {
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: WHEEL,
+                    height: WHEEL,
+                    transform: [{ rotate: wheelDeg }],
+                  },
+                ]}
+              >
+                <Svg
+                  width={WHEEL}
+                  height={WHEEL}
+                  viewBox={`0 0 ${WHEEL} ${WHEEL}`}
+                >
+                  {/* Background */}
+                  <Circle cx={WC} cy={WC} r={WR} fill="#F7F7F7" />
+
+                  {/* Dividers between color dots (drawn first, dots go on top) */}
+                  {activeColors.map((_, i) => {
+                    const mid = i * sliceDeg + sliceDeg / 2;
+                    const p1 = dotPos(WC, WC, WR * 0.28, mid);
+                    const p2 = dotPos(WC, WC, WR * 0.97, mid);
+                    return (
+                      <Line
+                        key={`div-${mid}`}
+                        x1={p1.x.toFixed(1)}
+                        y1={p1.y.toFixed(1)}
+                        x2={p2.x.toFixed(1)}
+                        y2={p2.y.toFixed(1)}
+                        stroke="#D0D0D0"
+                        strokeWidth={1.5}
+                      />
+                    );
+                  })}
+
+                  {/* Colored dots */}
+                  {activeColors.map((c, i) => {
+                    const p = dotPos(WC, WC, WR * 0.65, i * sliceDeg);
+                    return (
+                      <Circle
+                        key={c.name}
+                        cx={p.x.toFixed(1)}
+                        cy={p.y.toFixed(1)}
+                        r={WR * 0.165}
+                        fill={c.hex}
+                        stroke={
+                          c.name === "White" ||
+                          c.name === "Tan" ||
+                          c.name === "Silver"
+                            ? "#C8C8C8"
+                            : "#FFFFFF"
+                        }
+                        strokeWidth={3}
+                      />
+                    );
+                  })}
+
+                  {/* Outer border */}
+                  <Circle
+                    cx={WC}
+                    cy={WC}
+                    r={WR}
+                    fill="none"
+                    stroke="#C8C8C8"
+                    strokeWidth={2}
+                  />
+
+                  {/* Center hub */}
+                  <Circle
+                    cx={WC}
+                    cy={WC}
+                    r={WR * 0.2}
+                    fill="#FFFFFF"
+                    stroke="#D0D0D0"
+                    strokeWidth={1.5}
+                  />
+                  <Circle cx={WC} cy={WC} r={WR * 0.065} fill="#C8C8C8" />
+                </Svg>
+              </Animated.View>
+
+              {/* Fan buttons — static overlay (does not spin) */}
               <Svg
                 width={WHEEL}
                 height={WHEEL}
-                viewBox={`0 0 ${WHEEL} ${WHEEL}`}
+                style={{ position: "absolute", top: 0, left: 0 }}
+                pointerEvents="box-none"
               >
-                {/* Background */}
-                <Circle cx={WC} cy={WC} r={WR} fill="#F7F7F7" />
-
-                {/* Dividers between color dots (drawn first, dots go on top) */}
-                {activeColors.map((_, i) => {
-                  const mid = i * sliceDeg + sliceDeg / 2;
-                  const p1 = dotPos(WC, WC, WR * 0.28, mid);
-                  const p2 = dotPos(WC, WC, WR * 0.97, mid);
-                  return (
-                    <Line
-                      key={`div-${mid}`}
-                      x1={p1.x.toFixed(1)}
-                      y1={p1.y.toFixed(1)}
-                      x2={p2.x.toFixed(1)}
-                      y2={p2.y.toFixed(1)}
-                      stroke="#D0D0D0"
-                      strokeWidth={1.5}
-                    />
-                  );
-                })}
-
-                {/* Colored dots */}
-                {activeColors.map((c, i) => {
-                  const p = dotPos(WC, WC, WR * 0.65, i * sliceDeg);
-                  return (
-                    <Circle
-                      key={c.name}
-                      cx={p.x.toFixed(1)}
-                      cy={p.y.toFixed(1)}
-                      r={WR * 0.165}
-                      fill={c.hex}
-                      stroke={
-                        c.name === "White" ||
-                        c.name === "Tan" ||
-                        c.name === "Silver"
-                          ? "#C8C8C8"
-                          : "#FFFFFF"
-                      }
-                      strokeWidth={3}
-                    />
-                  );
-                })}
-
-                {/* Outer border */}
-                <Circle
-                  cx={WC}
-                  cy={WC}
-                  r={WR}
-                  fill="none"
-                  stroke="#C8C8C8"
-                  strokeWidth={2}
-                />
-
-                {/* Center hub */}
-                <Circle
-                  cx={WC}
-                  cy={WC}
-                  r={WR * 0.2}
-                  fill="#FFFFFF"
-                  stroke="#D0D0D0"
-                  strokeWidth={1.5}
-                />
-                <Circle cx={WC} cy={WC} r={WR * 0.065} fill="#C8C8C8" />
+                {/* Archive sector: center → bottom → arc CCW → left → center */}
+                <G onPress={() => router.push("/archive")}>
+                  <Path
+                    d={`M ${WC} ${WC} L ${WC} ${WC + WR} A ${WR} ${WR} 0 0 0 ${WC - WR} ${WC} Z`}
+                    fill="rgba(245,245,245,0.88)"
+                    stroke={colors.border}
+                    strokeWidth={1}
+                  />
+                  <SvgText
+                    x={WC - WR * 0.44}
+                    y={WC + WR * 0.52}
+                    textAnchor="middle"
+                    fontSize="13"
+                    fontWeight="700"
+                    fill={colors.foreground}
+                  >
+                    Archives
+                  </SvgText>
+                </G>
+                {/* Feed sector: center → right → arc CW → bottom → center */}
+                <G onPress={() => router.push("/feed")}>
+                  <Path
+                    d={`M ${WC} ${WC} L ${WC + WR} ${WC} A ${WR} ${WR} 0 0 1 ${WC} ${WC + WR} Z`}
+                    fill="rgba(245,245,245,0.88)"
+                    stroke={colors.border}
+                    strokeWidth={1}
+                  />
+                  <SvgText
+                    x={WC + WR * 0.44}
+                    y={WC + WR * 0.52}
+                    textAnchor="middle"
+                    fontSize="13"
+                    fontWeight="700"
+                    fill={colors.foreground}
+                  >
+                    Feed
+                  </SvgText>
+                </G>
               </Svg>
-            </Animated.View>
+            </View>
           </View>
+
+          {/* Customize colors */}
+          <TouchableOpacity
+            style={[s.customizeBtn, revealed && { opacity: 0.35 }]}
+            onPress={() => setShowCustomize(true)}
+            activeOpacity={0.7}
+          >
+            <Settings2 size={14} color={colors.mutedForeground} />
+            <Text style={s.customizeBtnText}>
+              {revealed ? "Customize wheel" : "Customize your colors"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Bottom card — reveal + action + count */}
+        {/* Bottom section */}
         <View style={s.bottomCard}>
           {/* Revealed color */}
           <Animated.View
@@ -899,7 +955,6 @@ const s = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
   },
   title: {
     fontSize: 36,
@@ -907,28 +962,28 @@ const s = StyleSheet.create({
     letterSpacing: -1,
     color: colors.foreground,
   },
+  subtitle: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+    lineHeight: 18,
+    paddingHorizontal: 10,
+  },
   menuBtn: { padding: 4 },
 
-  // Wheel nav row (Archives + Feed flanking)
-  wheelNavRow: {
+  // Customize button (inline below wheel)
+  customizeBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 2,
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 6,
   },
-  wheelNavBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.muted,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  wheelNavBtnText: {
+  customizeBtnText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: colors.foreground,
+    fontWeight: "500",
+    color: colors.mutedForeground,
   },
 
   // Customize modal
@@ -1043,11 +1098,6 @@ const s = StyleSheet.create({
 
   // Bottom card
   bottomCard: {
-    backgroundColor: colors.muted,
-    borderRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 18,
     gap: 14,
   },
 
