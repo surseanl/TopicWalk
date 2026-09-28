@@ -913,10 +913,12 @@ const s = StyleSheet.create({
     paddingBottom: 10,
   },
 
-  // Header
+  // Header — title + description centered as a unit
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
   title: {
     fontSize: 30,
@@ -925,12 +927,10 @@ const s = StyleSheet.create({
     color: colors.foreground,
   },
   subtitle: {
-    flex: 1,
     fontSize: 12,
     fontWeight: "500",
     color: colors.mutedForeground,
     lineHeight: 17,
-    paddingLeft: 10,
   },
 
   // Customize button (inline below wheel)
@@ -1065,6 +1065,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    paddingHorizontal: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
@@ -1085,6 +1086,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    paddingHorizontal: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
