@@ -82,7 +82,7 @@ export default function WalkScreen() {
   const router = useRouter();
   const { width: sw } = useWindowDimensions();
 
-  const WHEEL = Math.min(sw - 32, 310);
+  const WHEEL = Math.min(sw - 32, 330);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
 
@@ -921,9 +921,9 @@ const s = StyleSheet.create({
     gap: 10,
   },
   title: {
-    fontSize: 30,
+    fontSize: 36,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -1,
     color: colors.foreground,
   },
   subtitle: {
@@ -1145,11 +1145,11 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  mascot: { width: 44, height: 44, flexShrink: 0 },
+  mascot: { width: 60, height: 60, flexShrink: 0 },
   btn: {
     flex: 1,
-    height: 56,
-    borderRadius: 28,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
