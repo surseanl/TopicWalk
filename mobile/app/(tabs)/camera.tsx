@@ -1558,7 +1558,7 @@ export default function HuntScreen() {
   ];
 
   return (
-    <SafeAreaView edges={["bottom"]} style={s.safe}>
+    <SafeAreaView edges={[]} style={s.safe}>
       {showSoloTour && (
         <CoachMark
           steps={soloTourSteps}
