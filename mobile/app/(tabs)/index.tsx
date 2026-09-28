@@ -2,10 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import {
+  CalendarDays,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
+  Heart,
   RotateCcw,
   Settings2,
 } from "lucide-react-native";
@@ -653,11 +655,11 @@ export default function WalkScreen() {
       <View style={s.content}>
         {/* Wheel group — centered, contains header + nav + wheel + customize */}
         <View style={s.wheelGroup}>
-          {/* Header — centered above nav */}
+          {/* Header */}
           <View style={s.header}>
             <Text style={s.title}>Color Walk</Text>
             <Text style={s.subtitle}>
-              {"Spin the wheel, snap a color photo."}
+              {"Spin the wheel,\nsnap a color photo."}
             </Text>
           </View>
           {/* Nav: Archives | ▼ | Feed */}
@@ -667,6 +669,7 @@ export default function WalkScreen() {
               onPress={() => router.push("/archive")}
               activeOpacity={0.8}
             >
+              <CalendarDays size={15} color={colors.foreground} />
               <Text style={s.navBtnText}>Archives</Text>
             </TouchableOpacity>
             <View style={s.navPointerArea}>
@@ -678,6 +681,7 @@ export default function WalkScreen() {
               activeOpacity={0.8}
             >
               <Text style={s.navBtnText}>Feed</Text>
+              <Heart size={15} color={colors.foreground} />
             </TouchableOpacity>
           </View>
 
@@ -909,23 +913,24 @@ const s = StyleSheet.create({
     paddingBottom: 10,
   },
 
-  // Header — centered column above wheel
+  // Header
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
   },
   title: {
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -0.8,
     color: colors.foreground,
-    textAlign: "center",
   },
   subtitle: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.mutedForeground,
-    textAlign: "center",
+    lineHeight: 17,
+    paddingLeft: 10,
   },
 
   // Customize button (inline below wheel)
@@ -1056,8 +1061,10 @@ const s = StyleSheet.create({
     borderBottomRightRadius: 50,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
@@ -1074,8 +1081,10 @@ const s = StyleSheet.create({
     borderBottomRightRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
