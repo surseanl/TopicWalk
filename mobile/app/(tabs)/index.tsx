@@ -6,7 +6,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Menu,
   RotateCcw,
   Settings2,
 } from "lucide-react-native";
@@ -81,7 +80,7 @@ export default function WalkScreen() {
   const router = useRouter();
   const { width: sw } = useWindowDimensions();
 
-  const WHEEL = Math.min(sw - 32, 300);
+  const WHEEL = Math.min(sw - 32, 310);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
 
@@ -652,23 +651,15 @@ export default function WalkScreen() {
       </Modal>
 
       <View style={s.content}>
-        {/* Header */}
-        <View style={s.header}>
-          <Text style={s.title}>Color Walk</Text>
-          <Text style={s.subtitle}>
-            {"Spin the wheel,\nsnap a color photo."}
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowCustomize(true)}
-            style={s.menuBtn}
-            activeOpacity={0.7}
-          >
-            <Menu size={22} color={colors.foreground} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Wheel — fills remaining space */}
+        {/* Wheel group — centered, contains header + nav + wheel + customize */}
         <View style={s.wheelGroup}>
+          {/* Header — centered above nav */}
+          <View style={s.header}>
+            <Text style={s.title}>Color Walk</Text>
+            <Text style={s.subtitle}>
+              {"Spin the wheel, snap a color photo."}
+            </Text>
+          </View>
           {/* Nav: Archives | ▼ | Feed */}
           <View style={s.navRow}>
             <TouchableOpacity
@@ -914,31 +905,28 @@ const s = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 0,
     paddingBottom: 10,
-    gap: 8,
   },
 
-  // Header
+  // Header — centered column above wheel
   header: {
-    flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -1,
     color: colors.foreground,
+    textAlign: "center",
   },
   subtitle: {
-    flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
     color: colors.mutedForeground,
-    lineHeight: 17,
-    paddingHorizontal: 8,
+    textAlign: "center",
   },
-  menuBtn: { padding: 4 },
 
   // Customize button (inline below wheel)
   customizeBtn: {
@@ -1042,8 +1030,8 @@ const s = StyleSheet.create({
     color: "#fff",
   },
 
-  // Wheel
-  wheelGroup: { flex: 1, gap: 6, justifyContent: "center" },
+  // Wheel group — full flex area, centers everything vertically
+  wheelGroup: { flex: 1, gap: 16, justifyContent: "center", paddingTop: 8 },
   wheelSection: { alignItems: "center" },
 
   // Nav row above wheel
