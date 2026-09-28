@@ -2261,44 +2261,6 @@ export default function HuntScreen() {
       {/* ── SOLO ─────────────────────────────────────────────────────────── */}
       {tab === "solo" && (
         <View style={s.soloLayout}>
-          {/* Two object cards */}
-          <View ref={slotCardRef} style={s.soloTopRow}>
-            {([0, 1] as const).map((col) => {
-              const idx = soloObjIndices?.[col] ?? null;
-              const done = soloPhotoDone[col];
-              return (
-                <TouchableOpacity
-                  key={col}
-                  ref={col === 0 ? spinSoloBtnRef : undefined}
-                  activeOpacity={soloObjRevealed ? 1 : 0.75}
-                  onPress={
-                    !soloObjRevealed && !soloObjSpinning
-                      ? spinSoloObject
-                      : undefined
-                  }
-                  style={[s.soloObjCard, done && s.soloObjCardDone]}
-                >
-                  {done ? (
-                    <Text style={s.soloObjDoneText}>✓ Found</Text>
-                  ) : soloObjRevealed && idx !== null ? (
-                    <>
-                      <Text style={s.soloObjEmoji}>
-                        {SOLO_OBJECTS[idx]?.emoji ?? "?"}
-                      </Text>
-                      <Text style={s.soloObjLabel} numberOfLines={1}>
-                        {SOLO_OBJECTS[idx]?.label ?? ""}
-                      </Text>
-                    </>
-                  ) : soloObjSpinning ? (
-                    <ActivityIndicator color={colors.primary} />
-                  ) : (
-                    <Text style={s.soloSpinLabel}>Spin!</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
           {/* Map area */}
           {!soloRadius || showSoloPicker ? (
             <ScrollView
@@ -2343,6 +2305,43 @@ export default function HuntScreen() {
                   borderBottomRightRadius: 0,
                 }}
               />
+              {/* Object cards float at top over map */}
+              <View ref={slotCardRef} style={s.soloTopRowFloat}>
+                {([0, 1] as const).map((col) => {
+                  const idx = soloObjIndices?.[col] ?? null;
+                  const done = soloPhotoDone[col];
+                  return (
+                    <TouchableOpacity
+                      key={col}
+                      ref={col === 0 ? spinSoloBtnRef : undefined}
+                      activeOpacity={soloObjRevealed ? 1 : 0.75}
+                      onPress={
+                        !soloObjRevealed && !soloObjSpinning
+                          ? spinSoloObject
+                          : undefined
+                      }
+                      style={[s.soloObjCard, done && s.soloObjCardDone]}
+                    >
+                      {done ? (
+                        <Text style={s.soloObjDoneText}>✓ Found</Text>
+                      ) : soloObjRevealed && idx !== null ? (
+                        <>
+                          <Text style={s.soloObjEmoji}>
+                            {SOLO_OBJECTS[idx]?.emoji ?? "?"}
+                          </Text>
+                          <Text style={s.soloObjLabel} numberOfLines={1}>
+                            {SOLO_OBJECTS[idx]?.label ?? ""}
+                          </Text>
+                        </>
+                      ) : soloObjSpinning ? (
+                        <ActivityIndicator color={colors.primary} />
+                      ) : (
+                        <Text style={s.soloSpinLabel}>Spin!</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
               <TouchableOpacity
                 style={s.soloAreaChip}
                 onPress={() => setShowSoloPicker(true)}
@@ -2431,7 +2430,7 @@ const s = StyleSheet.create({
     paddingBottom: 20,
     gap: 14,
   },
-  soloLayout: { flex: 1, paddingTop: 4 },
+  soloLayout: { flex: 1 },
   pageTitle: {
     fontSize: 24,
     fontWeight: "900",
@@ -3021,19 +3020,30 @@ const s = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 12,
   },
+  soloTopRowFloat: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    gap: 10,
+  },
   soloObjCard: {
     flex: 1,
-    height: 90,
-    backgroundColor: colors.card,
-    borderRadius: 18,
+    height: 60,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 3,
   },
-  soloObjCardDone: { backgroundColor: "#dcfce7", borderColor: "#86efac" },
-  soloObjEmoji: { fontSize: 32 },
+  soloObjCardDone: {
+    backgroundColor: "rgba(220,252,231,0.9)",
+    borderColor: "#86efac",
+  },
+  soloObjEmoji: { fontSize: 22 },
   soloObjLabel: {
     fontSize: 12,
     fontWeight: "700",
