@@ -28,7 +28,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line } from "react-native-svg";
 import { todayLocal } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
 import { supabase } from "../../lib/supabase";
@@ -84,8 +84,6 @@ export default function WalkScreen() {
   const WHEEL = Math.min(sw - 16, 380);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
-  const ABOVE_H = 80;
-  const BTN_CR = 18; // outer corner radius on nav buttons
 
   const [uid, setUid] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -671,69 +669,36 @@ export default function WalkScreen() {
 
         {/* Wheel — fills remaining space */}
         <View style={s.wheelGroup}>
-          <View ref={wheelRef} style={s.wheelSection}>
-            {/* Pointer centered above wheel */}
-            <View style={s.pointerRow}>
+          {/* Nav: Archives | ▼ | Feed */}
+          <View style={s.navRow}>
+            <TouchableOpacity
+              style={s.navBtnLeft}
+              onPress={() => router.push("/archive")}
+              activeOpacity={0.8}
+            >
+              <Text style={s.navBtnText}>Archives</Text>
+            </TouchableOpacity>
+            <View style={s.navPointerArea}>
               <View style={s.pointer} />
             </View>
+            <TouchableOpacity
+              style={s.navBtnRight}
+              onPress={() => router.push("/feed")}
+              activeOpacity={0.8}
+            >
+              <Text style={s.navBtnText}>Feed</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Wheel container — extra height above for nav button wedges */}
-            <View style={{ width: WHEEL, height: WHEEL + ABOVE_H }}>
-              {/* Archive + Feed wedge buttons — static, rendered behind wheel */}
-              <Svg
-                width={WHEEL}
-                height={WHEEL + ABOVE_H}
-                style={{ position: "absolute", top: 0, left: 0 }}
-                pointerEvents="box-none"
-              >
-                {/* Archives — rounded top-left, diagonal inner edge, arc along wheel */}
-                <G onPress={() => router.push("/archive")}>
-                  <Path
-                    d={`M 0 ${BTN_CR} A ${BTN_CR} ${BTN_CR} 0 0 1 ${BTN_CR} 0 L ${WC - 12} 0 L ${WC} ${ABOVE_H} A ${WR} ${WR} 0 0 0 0 ${ABOVE_H + WR} Z`}
-                    fill="rgba(245,245,245,0.95)"
-                    stroke={colors.border}
-                    strokeWidth={1}
-                  />
-                  <SvgText
-                    x={WC * 0.42}
-                    y={ABOVE_H * 0.46}
-                    textAnchor="middle"
-                    fontSize="13"
-                    fontWeight="700"
-                    fill={colors.foreground}
-                  >
-                    Archives
-                  </SvgText>
-                </G>
-                {/* Feed — rounded top-right, diagonal inner edge, arc along wheel */}
-                <G onPress={() => router.push("/feed")}>
-                  <Path
-                    d={`M ${WC + 12} 0 L ${WHEEL - BTN_CR} 0 A ${BTN_CR} ${BTN_CR} 0 0 1 ${WHEEL} ${BTN_CR} L ${WHEEL} ${ABOVE_H + WR} A ${WR} ${WR} 0 0 1 ${WC} ${ABOVE_H} Z`}
-                    fill="rgba(245,245,245,0.95)"
-                    stroke={colors.border}
-                    strokeWidth={1}
-                  />
-                  <SvgText
-                    x={WC + (WHEEL - WC) * 0.58}
-                    y={ABOVE_H * 0.46}
-                    textAnchor="middle"
-                    fontSize="13"
-                    fontWeight="700"
-                    fill={colors.foreground}
-                  >
-                    Feed
-                  </SvgText>
-                </G>
-              </Svg>
-
-              {/* Spinning wheel — on top, touches pass through so wedge buttons work */}
+          <View ref={wheelRef} style={s.wheelSection}>
+            {/* Spinning wheel */}
+            <View style={{ width: WHEEL, height: WHEEL }}>
               <Animated.View
-                pointerEvents="none"
                 style={[
                   s.wheelWrap,
                   {
                     position: "absolute",
-                    top: ABOVE_H,
+                    top: 0,
                     left: 0,
                     width: WHEEL,
                     height: WHEEL,
@@ -1078,9 +1043,62 @@ const s = StyleSheet.create({
   },
 
   // Wheel
-  wheelGroup: { flex: 1, gap: 6 },
+  wheelGroup: { flex: 1, gap: 4 },
   wheelSection: { flex: 1, alignItems: "center", justifyContent: "center" },
-  pointerRow: { alignItems: "center", marginBottom: 4 },
+
+  // Nav row above wheel
+  navRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  navPointerArea: {
+    width: 28,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 8,
+  },
+  navBtnLeft: {
+    flex: 1,
+    height: 66,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 50,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  navBtnRight: {
+    flex: 1,
+    height: 66,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 50,
+    borderBottomRightRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  navBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
   pointer: {
     width: 0,
     height: 0,
