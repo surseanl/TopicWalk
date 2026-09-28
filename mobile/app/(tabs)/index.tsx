@@ -82,7 +82,7 @@ export default function WalkScreen() {
   const router = useRouter();
   const { width: sw } = useWindowDimensions();
 
-  const WHEEL = Math.min(sw - 32, 300);
+  const WHEEL = Math.min(sw - 16, 380);
   const WR = Math.floor(WHEEL / 2) - 5;
   const WC = Math.floor(WHEEL / 2);
 
@@ -667,7 +667,7 @@ export default function WalkScreen() {
 
         {/* Wheel — fills remaining space */}
         <View style={s.wheelGroup}>
-          {/* Archives [▼] Feed row above wheel */}
+          {/* Archives + Feed flanking row */}
           <View style={s.wheelNavRow}>
             <TouchableOpacity
               style={s.wheelNavBtn}
@@ -676,7 +676,6 @@ export default function WalkScreen() {
               <CalendarDays size={14} color={colors.foreground} />
               <Text style={s.wheelNavBtnText}>Archives</Text>
             </TouchableOpacity>
-            <View style={s.pointer} />
             <TouchableOpacity
               style={s.wheelNavBtn}
               onPress={() => router.push("/feed")}
@@ -687,6 +686,11 @@ export default function WalkScreen() {
           </View>
 
           <View ref={wheelRef} style={s.wheelSection}>
+            {/* Pointer centered above wheel */}
+            <View style={s.pointerRow}>
+              <View style={s.pointer} />
+            </View>
+
             {/* Spinning wheel */}
             <Animated.View
               style={[s.wheelWrap, { transform: [{ rotate: wheelDeg }] }]}
@@ -885,10 +889,10 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 10,
   },
 
   // Header
@@ -905,11 +909,12 @@ const s = StyleSheet.create({
   },
   menuBtn: { padding: 4 },
 
-  // Wheel nav row (above wheel, Archives [▼] Feed)
+  // Wheel nav row (Archives + Feed flanking)
   wheelNavRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 2,
   },
   wheelNavBtn: {
     flexDirection: "row",
@@ -1015,8 +1020,9 @@ const s = StyleSheet.create({
   },
 
   // Wheel
-  wheelGroup: { flex: 1, gap: 12 },
+  wheelGroup: { flex: 1, gap: 6 },
   wheelSection: { flex: 1, alignItems: "center", justifyContent: "center" },
+  pointerRow: { alignItems: "center", marginBottom: 4 },
   pointer: {
     width: 0,
     height: 0,
