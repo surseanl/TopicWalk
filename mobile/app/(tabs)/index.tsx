@@ -8,8 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  Menu,
   RotateCcw,
-  Settings2,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -655,20 +655,38 @@ export default function WalkScreen() {
       <View style={s.content}>
         {/* Header */}
         <View style={s.header}>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={s.title}>Color Walk</Text>
-            <Text style={s.subtitle}>Spin the wheel, snap a color photo.</Text>
-          </View>
+          <Text style={s.title}>Color Walk</Text>
+          <TouchableOpacity
+            onPress={() => setShowCustomize(true)}
+            style={s.menuBtn}
+            activeOpacity={0.7}
+          >
+            <Menu size={22} color={colors.foreground} />
+          </TouchableOpacity>
         </View>
 
-        {/* Wheel + customize — fills remaining space */}
+        {/* Wheel — fills remaining space */}
         <View style={s.wheelGroup}>
-          <View ref={wheelRef} style={s.wheelSection}>
-            {/* Pointer */}
-            <View style={s.pointerRow}>
-              <View style={s.pointer} />
-            </View>
+          {/* Archives [▼] Feed row above wheel */}
+          <View style={s.wheelNavRow}>
+            <TouchableOpacity
+              style={s.wheelNavBtn}
+              onPress={() => router.push("/archive")}
+            >
+              <CalendarDays size={14} color={colors.foreground} />
+              <Text style={s.wheelNavBtnText}>Archives</Text>
+            </TouchableOpacity>
+            <View style={s.pointer} />
+            <TouchableOpacity
+              style={s.wheelNavBtn}
+              onPress={() => router.push("/feed")}
+            >
+              <Heart size={14} color={colors.foreground} />
+              <Text style={s.wheelNavBtnText}>Feed</Text>
+            </TouchableOpacity>
+          </View>
 
+          <View ref={wheelRef} style={s.wheelSection}>
             {/* Spinning wheel */}
             <Animated.View
               style={[s.wheelWrap, { transform: [{ rotate: wheelDeg }] }]}
@@ -744,36 +762,6 @@ export default function WalkScreen() {
               </Svg>
             </Animated.View>
           </View>
-
-          {/* Archives / Feed row */}
-          <View style={s.wheelNavRow}>
-            <TouchableOpacity
-              style={s.wheelNavBtn}
-              onPress={() => router.push("/archive")}
-            >
-              <CalendarDays size={14} color={colors.foreground} />
-              <Text style={s.wheelNavBtnText}>Archives</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.wheelNavBtn}
-              onPress={() => router.push("/feed")}
-            >
-              <Heart size={14} color={colors.foreground} />
-              <Text style={s.wheelNavBtnText}>Feed</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Customize colors */}
-          <TouchableOpacity
-            style={[s.customizeBtn, revealed && { opacity: 0.35 }]}
-            onPress={() => setShowCustomize(true)}
-            activeOpacity={0.7}
-          >
-            <Settings2 size={14} color={colors.mutedForeground} />
-            <Text style={s.customizeBtnText}>
-              {revealed ? "Customize wheel" : "Customize your colors"}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Bottom card — reveal + action + count */}
@@ -906,7 +894,7 @@ const s = StyleSheet.create({
   // Header
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
   },
   title: {
@@ -915,17 +903,13 @@ const s = StyleSheet.create({
     letterSpacing: -1,
     color: colors.foreground,
   },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.mutedForeground,
-    lineHeight: 20,
-  },
-  // Wheel nav row (below wheel)
+  menuBtn: { padding: 4 },
+
+  // Wheel nav row (above wheel, Archives [▼] Feed)
   wheelNavRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 4,
   },
   wheelNavBtn: {
     flexDirection: "row",
@@ -940,20 +924,6 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.foreground,
-  },
-
-  // Customize button (below wheel)
-  customizeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 6,
-  },
-  customizeBtnText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: colors.mutedForeground,
   },
 
   // Customize modal
@@ -1045,9 +1015,8 @@ const s = StyleSheet.create({
   },
 
   // Wheel
-  wheelGroup: { flex: 1, gap: 0 },
+  wheelGroup: { flex: 1, gap: 12 },
   wheelSection: { flex: 1, alignItems: "center", justifyContent: "center" },
-  pointerRow: { alignItems: "center", marginBottom: 2, zIndex: 2 },
   pointer: {
     width: 0,
     height: 0,
