@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import {
   CalendarDays,
@@ -32,9 +33,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line } from "react-native-svg";
 import { todayLocal } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
+import WalkSummary from "../../components/WalkSummary";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
 import { WALK_COLORS, type WalkColor } from "../../lib/topics";
+
+type Pos = { lat: number; lng: number };
+
+function haversineMeters(a: Pos, b: Pos): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function pathDistance(pts: Pos[]): number {
+  let d = 0;
+  for (let i = 1; i < pts.length; i++) d += haversineMeters(pts[i - 1], pts[i]);
+  return d;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -98,6 +120,19 @@ export default function WalkScreen() {
   const [pendingAsset, setPendingAsset] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const [_walkPath, setWalkPath] = useState<Pos[]>([]);
+  const [walkStartMs, setWalkStartMs] = useState<number | null>(null);
+  const [walkPhotoPaths, setWalkPhotoPaths] = useState<string[]>([]);
+  const [showWalkSummary, setShowWalkSummary] = useState(false);
+  const [walkSummaryData, setWalkSummaryData] = useState<{
+    distanceMeters: number;
+    durationSeconds: number;
+    path: Pos[];
+    photoPaths: string[];
+  } | null>(null);
+  const walkPathRef = useRef<Pos[]>([]);
+  const gpsSubRef = useRef<Location.LocationSubscription | null>(null);
 
   const [showWalkTour, setShowWalkTour] = useState(false);
   const [activeColorNames, setActiveColorNames] = useState<Set<string>>(
@@ -361,7 +396,61 @@ export default function WalkScreen() {
     setIsLocked(true);
     setAlbumCreated(false);
     setPhotoCount(0);
+    setWalkPath([]);
+    setWalkPhotoPaths([]);
+    walkPathRef.current = [];
+    setWalkStartMs(Date.now());
     await savePick(colorIdx, aId, 0);
+    // Start GPS
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === "granted") {
+      gpsSubRef.current = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, distanceInterval: 5 },
+        (loc) => {
+          const pos = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+          walkPathRef.current = [...walkPathRef.current, pos];
+          setWalkPath([...walkPathRef.current]);
+        },
+      );
+    }
+  }
+
+  async function endWalk() {
+    gpsSubRef.current?.remove();
+    gpsSubRef.current = null;
+    if (!albumId || colorIdx === null) {
+      setIsLocked(false);
+      return;
+    }
+    const color = WALK_COLORS[colorIdx];
+    const now = Date.now();
+    const durationSeconds = walkStartMs
+      ? Math.round((now - walkStartMs) / 1000)
+      : 0;
+    const dist = Math.round(pathDistance(walkPathRef.current));
+    // Persist path + stats to tw_albums
+    if (albumCreated) {
+      await supabase
+        .from("tw_albums")
+        .update({
+          path: walkPathRef.current,
+          distance_meters: dist,
+          duration_seconds: durationSeconds,
+        })
+        .eq("id", albumId);
+    }
+    setWalkSummaryData({
+      distanceMeters: dist,
+      durationSeconds,
+      path: walkPathRef.current,
+      photoPaths: walkPhotoPaths,
+    });
+    setShowWalkSummary(true);
+    setIsLocked(false);
+    setWalkStartMs(null);
+    if (color) {
+      void savePick(colorIdx, albumId, photoCount);
+    }
   }
 
   async function handleColorTap(name: string) {
@@ -459,6 +548,7 @@ export default function WalkScreen() {
 
       const n = photoCount + 1;
       setPhotoCount(n);
+      setWalkPhotoPaths((prev) => [...prev, path]);
       await savePick(colorIdx, albumId, n);
     } finally {
       setUploading(false);
@@ -866,24 +956,33 @@ export default function WalkScreen() {
             )}
 
             {isLocked && (
-              <TouchableOpacity
-                onPress={takePhoto}
-                disabled={uploading}
-                style={[
-                  s.btn,
-                  color ? { backgroundColor: color.hex } : {},
-                  { opacity: uploading ? 0.55 : 1 },
-                ]}
-                activeOpacity={0.85}
-              >
-                <View style={s.btnLeft}>
-                  <Camera size={20} color="#fff" />
-                  <Text style={s.btnText}>
-                    {uploading ? "Uploading…" : "Take Photo"}
-                  </Text>
-                </View>
-                <ChevronRight size={20} color="#fff" />
-              </TouchableOpacity>
+              <View style={s.walkBtnGroup}>
+                <TouchableOpacity
+                  onPress={takePhoto}
+                  disabled={uploading}
+                  style={[
+                    s.btn,
+                    { flex: 1 },
+                    color ? { backgroundColor: color.hex } : {},
+                    { opacity: uploading ? 0.55 : 1 },
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  <View style={s.btnLeft}>
+                    <Camera size={20} color="#fff" />
+                    <Text style={s.btnText}>
+                      {uploading ? "Uploading…" : "Take Photo"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => void endWalk()}
+                  style={s.endWalkBtn}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.endWalkBtnText}>End Walk</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
@@ -898,6 +997,23 @@ export default function WalkScreen() {
           )}
         </View>
       </View>
+
+      {/* Walk summary modal */}
+      {showWalkSummary && walkSummaryData && colorIdx !== null && (
+        <WalkSummary
+          visible={showWalkSummary}
+          onClose={() => setShowWalkSummary(false)}
+          topic={{
+            type: "color",
+            colorName: WALK_COLORS[colorIdx]?.name ?? "",
+            colorHex: WALK_COLORS[colorIdx]?.hex ?? "#000",
+          }}
+          photoPaths={walkSummaryData.photoPaths}
+          path={walkSummaryData.path}
+          distanceMeters={walkSummaryData.distanceMeters}
+          durationSeconds={walkSummaryData.durationSeconds}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -940,6 +1056,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     paddingVertical: 3,
+    marginTop: -26,
   },
   customizeBtnText: {
     fontSize: 12,
@@ -1044,6 +1161,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
+    marginBottom: -12,
   },
   navPointerArea: {
     width: 28,
@@ -1119,6 +1237,7 @@ const s = StyleSheet.create({
   // Bottom card
   bottomCard: {
     gap: 8,
+    paddingTop: 40,
   },
 
   // Reveal
@@ -1168,6 +1287,27 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
     letterSpacing: -0.2,
+  },
+
+  walkBtnGroup: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "stretch",
+  },
+  endWalkBtn: {
+    height: 52,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: colors.muted,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  endWalkBtnText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.foreground,
   },
 
   // Photo count

@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Expo Web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd mobile && npx expo start --web --port 8082"],
+      "port": 8082,
+      "url": "http://localhost:8082"
+    },
+    {
       "name": "Expo Mobile",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd mobile && npx expo start --port 8081 --tunnel"],

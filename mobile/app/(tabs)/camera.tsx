@@ -2,60 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import {
-  Anchor,
-  Armchair,
-  Bike,
-  Bird,
-  Birdhouse,
-  BrickWall,
-  Bug,
-  Building2,
   Camera,
-  Castle,
+  ChevronDown,
   ChevronLeft,
-  Church,
-  Cloud,
-  CloudFog,
-  Clover,
-  Dog,
-  DoorOpen,
-  Droplet,
-  Droplets,
-  Dumbbell,
-  Feather,
-  Fish,
-  Flower,
-  Flower2,
-  Footprints,
-  Grid3x3,
-  Landmark,
-  Leaf,
-  LeafyGreen,
-  Moon,
-  Mountain,
-  Network,
-  Rainbow,
+  ChevronUp,
   Route,
-  Shell,
-  SignpostBig,
-  Snail,
-  Squirrel,
-  Sunrise,
-  TreeDeciduous,
-  TreePalm,
-  TreePine,
-  Trophy,
-  Turtle,
-  WavesArrowDown,
-  WavesArrowUp,
-  WavesHorizontal,
-  Wheat,
 } from "lucide-react-native";
-import { type ComponentType, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
+  type AppStateStatus,
   Dimensions,
   Easing,
   Image,
@@ -72,8 +31,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView from "react-native-webview";
-import { todayUTC } from "@/lib/date";
+import { todayLocal } from "@/lib/date";
 import { CoachMark, type CoachStep } from "../../components/CoachMark";
+import WalkScreen from "../../components/WalkScreen";
+import WalkSummary from "../../components/WalkSummary";
 import { LEAFLET_HTML } from "../../lib/leaflet-html";
 import { supabase } from "../../lib/supabase";
 import { colors } from "../../lib/theme";
@@ -86,69 +47,174 @@ const TOTAL_TILES = 9;
 const MILES_TO_METERS = 1609.34;
 const TILE_SIZE = (Dimensions.get("window").width - 32) / 3;
 const MAP_H = 320;
-const SLOT_ITEM_H = 72;
+const SLOT_ITEM_H = 100;
 const SOLO_DAILY_KEY = "tw_solo_object_v1";
 
 type SoloObj = {
-  icon: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  img: number;
   label: string;
-  emoji: string;
 };
 
 const SOLO_OBJECTS: SoloObj[] = [
-  // Animals
-  { icon: Bug, label: "Insect", emoji: "🐛" },
-  { icon: Snail, label: "Amphibian", emoji: "🐌" },
-  { icon: Bird, label: "Bird", emoji: "🐦" },
-  { icon: Turtle, label: "Reptile", emoji: "🐢" },
-  { icon: Squirrel, label: "Small mammal", emoji: "🐿️" },
-  { icon: Dog, label: "Large mammal", emoji: "🐕" },
-  { icon: Fish, label: "Fish", emoji: "🐟" },
-  { icon: Grid3x3, label: "Spider web", emoji: "🕸️" },
-  { icon: Feather, label: "Feather", emoji: "🪶" },
-  { icon: Shell, label: "Shell", emoji: "🐚" },
-  { icon: Birdhouse, label: "Water bird", emoji: "🦆" },
-  { icon: Footprints, label: "Animal tracks", emoji: "🐾" },
-  { icon: Network, label: "Ant colony", emoji: "🐜" },
-  // Sky & Weather
-  { icon: Cloud, label: "Cloud", emoji: "☁️" },
-  { icon: Rainbow, label: "Rainbow", emoji: "🌈" },
-  { icon: Moon, label: "Moon", emoji: "🌙" },
-  { icon: CloudFog, label: "Fog", emoji: "🌫️" },
-  { icon: Sunrise, label: "Sunrise or sunset", emoji: "🌅" },
-  { icon: Droplets, label: "Rain puddle", emoji: "💧" },
-  // Plants
-  { icon: Flower, label: "Flower", emoji: "🌸" },
-  { icon: TreePalm, label: "Cactus", emoji: "🌵" },
-  { icon: Leaf, label: "Fallen leaves", emoji: "🍂" },
-  { icon: Wheat, label: "Tall grass", emoji: "🌾" },
-  { icon: TreeDeciduous, label: "Tree", emoji: "🌳" },
-  { icon: TreePine, label: "Acorn or pinecone", emoji: "🌲" },
-  { icon: LeafyGreen, label: "Vine", emoji: "🌿" },
-  { icon: Clover, label: "Moss", emoji: "🍀" },
-  { icon: Flower2, label: "Mushroom", emoji: "🍄" },
-  // Water
-  { icon: WavesHorizontal, label: "Reflection in water", emoji: "🌊" },
-  { icon: WavesArrowDown, label: "Waterfall", emoji: "💦" },
-  { icon: Droplet, label: "Rock in water", emoji: "🪨" },
-  // Structures
-  { icon: WavesArrowUp, label: "Fountain", emoji: "⛲" },
-  { icon: Armchair, label: "Bench", emoji: "🪑" },
-  { icon: Landmark, label: "Bridge", emoji: "🌉" },
-  { icon: Castle, label: "Statue", emoji: "🗿" },
-  { icon: Anchor, label: "Boat or anchor", emoji: "⚓" },
-  { icon: BrickWall, label: "Stone wall", emoji: "🧱" },
-  { icon: DoorOpen, label: "Colorful door", emoji: "🚪" },
-  { icon: Building2, label: "Old building", emoji: "🏛️" },
-  { icon: Church, label: "Stained glass", emoji: "⛪" },
-  { icon: Route, label: "Trail or path", emoji: "🛤️" },
-  { icon: SignpostBig, label: "Street sign", emoji: "🪧" },
-  // Sports & Activity
-  { icon: Trophy, label: "Sports field or court", emoji: "🏆" },
-  { icon: Dumbbell, label: "Gym equipment", emoji: "🏋️" },
-  { icon: Bike, label: "Bike rack or cyclist", emoji: "🚲" },
-  { icon: Mountain, label: "Climbing structure", emoji: "🧗" },
+  // 30 Things to Find
+  { img: require("../../assets/hunt-icons/01_animal.png"), label: "Animal" },
+  { img: require("../../assets/hunt-icons/02_insect.png"), label: "Insect" },
+  { img: require("../../assets/hunt-icons/03_bird.png"), label: "Bird" },
+  {
+    img: require("../../assets/hunt-icons/04_animal_evidence.png"),
+    label: "Animal Evidence",
+  },
+  { img: require("../../assets/hunt-icons/05_tree.png"), label: "Tree" },
+  { img: require("../../assets/hunt-icons/06_flower.png"), label: "Flower" },
+  { img: require("../../assets/hunt-icons/07_plant.png"), label: "Plant" },
+  {
+    img: require("../../assets/hunt-icons/08_mushroom.png"),
+    label: "Mushroom or Fungus",
+  },
+  {
+    img: require("../../assets/hunt-icons/09_fallen_nature.png"),
+    label: "Fallen Nature",
+  },
+  { img: require("../../assets/hunt-icons/10_rock.png"), label: "Rock" },
+  {
+    img: require("../../assets/hunt-icons/11_moss.png"),
+    label: "Moss or Lichen",
+  },
+  { img: require("../../assets/hunt-icons/12_cloud.png"), label: "Cloud" },
+  { img: require("../../assets/hunt-icons/13_sun.png"), label: "Sun" },
+  { img: require("../../assets/hunt-icons/14_moon.png"), label: "Moon" },
+  {
+    img: require("../../assets/hunt-icons/15_sunrise.png"),
+    label: "Sunrise or Sunset",
+  },
+  { img: require("../../assets/hunt-icons/16_rain.png"), label: "Rain" },
+  { img: require("../../assets/hunt-icons/17_rainbow.png"), label: "Rainbow" },
+  { img: require("../../assets/hunt-icons/18_water.png"), label: "Water" },
+  { img: require("../../assets/hunt-icons/19_bridge.png"), label: "Bridge" },
+  {
+    img: require("../../assets/hunt-icons/20_path.png"),
+    label: "Path or Trail",
+  },
+  {
+    img: require("../../assets/hunt-icons/21_building.png"),
+    label: "Interesting Building",
+  },
+  {
+    img: require("../../assets/hunt-icons/22_landmark.png"),
+    label: "Landmark",
+  },
+  {
+    img: require("../../assets/hunt-icons/23_street_sign.png"),
+    label: "Street Sign",
+  },
+  {
+    img: require("../../assets/hunt-icons/24_crosswalk.png"),
+    label: "Crosswalk",
+  },
+  { img: require("../../assets/hunt-icons/25_bench.png"), label: "Bench" },
+  {
+    img: require("../../assets/hunt-icons/26_sports.png"),
+    label: "Sports Area",
+  },
+  {
+    img: require("../../assets/hunt-icons/27_transportation.png"),
+    label: "Transportation",
+  },
+  {
+    img: require("../../assets/hunt-icons/28_outdoor.png"),
+    label: "Outdoor Activity",
+  },
+  {
+    img: require("../../assets/hunt-icons/29_fence.png"),
+    label: "Fence or Gate",
+  },
+  { img: require("../../assets/hunt-icons/30_stairs.png"), label: "Stairs" },
+  // 20 Creative Challenges
+  {
+    img: require("../../assets/hunt-icons/31_hidden_beauty.png"),
+    label: "Hidden Beauty",
+  },
+  {
+    img: require("../../assets/hunt-icons/32_accidental_art.png"),
+    label: "Accidental Art",
+  },
+  {
+    img: require("../../assets/hunt-icons/33_natures_artwork.png"),
+    label: "Nature's Artwork",
+  },
+  {
+    img: require("../../assets/hunt-icons/34_manmade_art.png"),
+    label: "Man-Made Artwork",
+  },
+  {
+    img: require("../../assets/hunt-icons/35_unexpected_combo.png"),
+    label: "Unexpected Combo",
+  },
+  {
+    img: require("../../assets/hunt-icons/36_natural_illusion.png"),
+    label: "Natural Illusion",
+  },
+  {
+    img: require("../../assets/hunt-icons/37_perfect_match.png"),
+    label: "Perfect Match",
+  },
+  {
+    img: require("../../assets/hunt-icons/38_leading_lines.png"),
+    label: "Leading Lines",
+  },
+  {
+    img: require("../../assets/hunt-icons/39_hidden_detail.png"),
+    label: "Hidden Detail",
+  },
+  {
+    img: require("../../assets/hunt-icons/40_natural_camouflage.png"),
+    label: "Natural Camouflage",
+  },
+  {
+    img: require("../../assets/hunt-icons/41_optical_illusion.png"),
+    label: "Optical Illusion",
+  },
+  {
+    img: require("../../assets/hunt-icons/42_unexpected_scale.png"),
+    label: "Unexpected Scale",
+  },
+  {
+    img: require("../../assets/hunt-icons/43_letter_hunt.png"),
+    label: "Letter Hunt",
+  },
+  {
+    img: require("../../assets/hunt-icons/44_number_hunt.png"),
+    label: "Number Hunt",
+  },
+  {
+    img: require("../../assets/hunt-icons/45_perfect_balance.png"),
+    label: "Perfect Balance",
+  },
+  {
+    img: require("../../assets/hunt-icons/46_sound_of_walk.png"),
+    label: "Sound of the Walk",
+  },
+  {
+    img: require("../../assets/hunt-icons/47_follow_trail.png"),
+    label: "Follow the Trail",
+  },
+  {
+    img: require("../../assets/hunt-icons/48_out_of_place.png"),
+    label: "Out of Place",
+  },
+  {
+    img: require("../../assets/hunt-icons/49_pattern_hunt.png"),
+    label: "Pattern Hunt",
+  },
+  {
+    img: require("../../assets/hunt-icons/50_shape_hunt.png"),
+    label: "Shape Hunt",
+  },
 ];
+
+const SLOT_STRIP = Array.from({ length: 4 }, (_, rep) =>
+  SOLO_OBJECTS.map((obj) => ({ ...obj, key: `${rep}-${obj.label}` })),
+).flat();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -240,7 +306,7 @@ function survivalStr(ms: number): string {
   return `${sec}s`;
 }
 
-const todaySoloStr = todayUTC;
+const todaySoloStr = todayLocal;
 
 function dailySoloObjIndices(): [number, number] {
   const d = new Date();
@@ -295,12 +361,14 @@ function PlayMap({
   radiusMiles,
   markersJson = "[]",
   style,
+  rezoomTrigger = 0,
 }: {
   myPos: Pos | null;
   center: Pos | null;
   radiusMiles: number;
   markersJson?: string;
   style?: ViewStyle;
+  rezoomTrigger?: number;
 }) {
   const webRef = useRef<WebView>(null);
   const readyRef = useRef(false);
@@ -316,6 +384,13 @@ function PlayMap({
     if (!readyRef.current) return;
     webRef.current?.injectJavaScript(`setMarkers(${markersJson});true;`);
   }, [markersJson]);
+
+  useEffect(() => {
+    if (!readyRef.current || rezoomTrigger === 0) return;
+    webRef.current?.injectJavaScript(
+      "if(ac){map.fitBounds(ac.getBounds(),{padding:[8,8]});}true;",
+    );
+  }, [rezoomTrigger]);
 
   function onReady() {
     readyRef.current = true;
@@ -817,12 +892,30 @@ export default function HuntScreen() {
 
   const [showSoloTour, setShowSoloTour] = useState(false);
   const [showGroupTour, setShowGroupTour] = useState(false);
+  const [soloRezoom, setSoloRezoom] = useState(0);
+  const [huntRezoom, setHuntRezoom] = useState(0);
+  const [huntHeaderCollapsed, setHuntHeaderCollapsed] = useState(false);
+  const [soloHeaderCollapsed, setSoloHeaderCollapsed] = useState(false);
+  const [soloWalkActive, setSoloWalkActive] = useState(false);
+  const [showSoloWalkScreen, setShowSoloWalkScreen] = useState(false);
+  const [_soloWalkStartMs, setSoloWalkStartMs] = useState<number | null>(null);
+  const [soloWalkPhotoPaths, setSoloWalkPhotoPaths] = useState<string[]>([]);
+  const [showSoloWalkSummary, setShowSoloWalkSummary] = useState(false);
+  const [soloWalkSummaryData, setSoloWalkSummaryData] = useState<{
+    distanceMeters: number;
+    durationSeconds: number;
+    path: Pos[];
+    photoPaths: string[];
+  } | null>(null);
+  const soloWalkPathRef = useRef<Pos[]>([]);
+  const soloWalkActiveRef = useRef(false);
   const slotCardRef = useRef<View>(null);
   const spinSoloBtnRef = useRef<View>(null);
   const createGroupBtnRef = useRef<View>(null);
 
   const soloSlotY0 = useRef(new Animated.Value(0)).current;
   const soloSlotY1 = useRef(new Animated.Value(0)).current;
+  const currentSoloDateRef = useRef<string>("");
   const prevPosRef = useRef<Pos | null>(null);
   const mascotsRef = useRef<Mascot[]>([]);
   const userIdRef = useRef<string | null>(null);
@@ -935,8 +1028,39 @@ export default function HuntScreen() {
         );
       } catch {}
     }
+    function checkSoloMidnightReset() {
+      const d = todaySoloStr();
+      if (currentSoloDateRef.current && currentSoloDateRef.current !== d) {
+        currentSoloDateRef.current = d;
+        setSoloObjIndices(null);
+        setSoloObjRevealed(false);
+        setSoloPhotoDone([false, false]);
+        setSoloFoundLocs([]);
+        soloSlotY0.setValue(0);
+        soloSlotY1.setValue(0);
+        void AsyncStorage.removeItem(SOLO_DAILY_KEY);
+      } else {
+        currentSoloDateRef.current = d;
+      }
+    }
+
     void loadSoloSettings();
-    void restoreSoloObject();
+    void restoreSoloObject().then(() => {
+      currentSoloDateRef.current = todaySoloStr();
+    });
+
+    const appStateSub = AppState.addEventListener(
+      "change",
+      (next: AppStateStatus) => {
+        if (next === "active") checkSoloMidnightReset();
+      },
+    );
+    const midnightInterval = setInterval(checkSoloMidnightReset, 60_000);
+
+    return () => {
+      appStateSub.remove();
+      clearInterval(midnightInterval);
+    };
   }, [soloSlotY0, soloSlotY1]);
 
   async function startGps() {
@@ -957,6 +1081,10 @@ export default function HuntScreen() {
   }
 
   function onNewPosition(pos: Pos) {
+    if (soloWalkActiveRef.current) {
+      soloWalkPathRef.current = [...soloWalkPathRef.current, pos];
+    }
+
     const prev = prevPosRef.current;
     if (prev) {
       const delta = haversineDistance(prev.lat, prev.lng, pos.lat, pos.lng);
@@ -1298,6 +1426,9 @@ export default function HuntScreen() {
         Alert.alert("Upload failed", error.message);
         return;
       }
+      if (soloWalkActiveRef.current) {
+        setSoloWalkPhotoPaths((prev) => [...prev, path]);
+      }
       const next: [boolean, boolean] = [soloPhotoDone[0], soloPhotoDone[1]];
       next[which] = true;
       setSoloPhotoDone(next);
@@ -1320,6 +1451,47 @@ export default function HuntScreen() {
     } finally {
       setSoloPhotoUploading(null);
     }
+  }
+
+  function startSoloWalk() {
+    soloWalkPathRef.current = [];
+    soloWalkActiveRef.current = true;
+    setSoloWalkActive(true);
+    setSoloWalkStartMs(Date.now());
+    setSoloWalkPhotoPaths([]);
+  }
+
+  async function endSoloWalk(
+    path: Pos[],
+    distanceMeters: number,
+    durationSeconds: number,
+  ) {
+    soloWalkActiveRef.current = false;
+    setSoloWalkActive(false);
+    setShowSoloWalkScreen(false);
+    const photosSnap = soloWalkPhotoPaths;
+    if (userId && soloObjIndices) {
+      const obj1 = SOLO_OBJECTS[soloObjIndices[0]];
+      const obj2 = SOLO_OBJECTS[soloObjIndices[1]];
+      await supabase.from("tw_solo_walks").insert({
+        user_id: userId,
+        ended_at: new Date().toISOString(),
+        object_1: obj1 ? { label: obj1.label } : {},
+        object_2: obj2 ? { label: obj2.label } : {},
+        path,
+        distance_meters: distanceMeters,
+        duration_seconds: durationSeconds,
+        photo_paths: photosSnap,
+      });
+    }
+    setSoloWalkSummaryData({
+      distanceMeters,
+      durationSeconds,
+      path,
+      photoPaths: photosSnap,
+    });
+    setSoloWalkStartMs(null);
+    setShowSoloWalkSummary(true);
   }
 
   async function fetchMascots(uid: string, group: HuntGroup | null) {
@@ -2013,28 +2185,6 @@ export default function HuntScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <View style={s.pillBar}>
-        <View style={s.tabSegment}>
-          {(["solo", "hunt"] as const).map((t, i) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setTab(t)}
-              style={[
-                s.tabSegmentBtn,
-                tab === t && s.tabSegmentBtnActive,
-                i === 0 && s.tabSegmentBtnLeft,
-              ]}
-            >
-              <Text
-                style={[s.tabSegmentText, tab === t && s.tabSegmentTextActive]}
-              >
-                {t === "hunt" ? "Group" : "Solo"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
       {/* ── HUNT ─────────────────────────────────────────────────────────── */}
       {tab === "hunt" && (
         <View style={{ flex: 1 }}>
@@ -2062,23 +2212,57 @@ export default function HuntScreen() {
           ))}
 
           {!huntGroup ? (
-            /* No group — create CTA */
-            <View style={s.huntEmptyWrap}>
-              <TouchableOpacity
-                ref={createGroupBtnRef}
-                onPress={() => {
-                  setGroupModalMode("create");
-                  setShowGroupModal(true);
-                }}
-                style={s.createGroupBtn}
-                activeOpacity={0.8}
-              >
-                <Text style={s.createGroupBtnTitle}>Start a Group Hunt</Text>
-                <Text style={s.createGroupBtnSub}>
-                  Create a group and invite friends to hide & find mascots
-                  together
-                </Text>
-              </TouchableOpacity>
+            /* No group — header + create CTA */
+            <View style={s.soloActiveLayout}>
+              <View style={s.soloHeaderRow}>
+                <View style={s.soloHeaderLeft}>
+                  <Text style={s.soloTitle}>Group Hunt</Text>
+                  <Text style={s.soloSubtitle}>
+                    Hide & find mascots together
+                  </Text>
+                </View>
+                <View style={s.soloHeaderRight}>
+                  <View style={s.tabSegment}>
+                    {(["solo", "hunt"] as const).map((t, i) => (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setTab(t)}
+                        style={[
+                          s.tabSegmentBtn,
+                          tab === t && s.tabSegmentBtnActive,
+                          i === 0 && s.tabSegmentBtnLeft,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            s.tabSegmentText,
+                            tab === t && s.tabSegmentTextActive,
+                          ]}
+                        >
+                          {t === "hunt" ? "Group" : "Solo"}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              <View style={s.huntEmptyWrap}>
+                <TouchableOpacity
+                  ref={createGroupBtnRef}
+                  onPress={() => {
+                    setGroupModalMode("create");
+                    setShowGroupModal(true);
+                  }}
+                  style={s.createGroupBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.createGroupBtnTitle}>Start a Group Hunt</Text>
+                  <Text style={s.createGroupBtnSub}>
+                    Create a group and invite friends to hide & find mascots
+                    together
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : showGroupPicker ? (
             /* Area picker */
@@ -2098,8 +2282,61 @@ export default function HuntScreen() {
               />
             </ScrollView>
           ) : (
-            <View style={{ flex: 1 }}>
-              {/* Group info row */}
+            /* Group exists */
+            <View style={s.soloActiveLayout}>
+              {/* Header: Group Hunt title + pill (collapsible) */}
+              {huntHeaderCollapsed ? (
+                <TouchableOpacity
+                  style={s.soloCollapsedHeader}
+                  onPress={() => setHuntHeaderCollapsed(false)}
+                >
+                  <ChevronDown color={colors.mutedForeground} size={14} />
+                </TouchableOpacity>
+              ) : (
+                <View style={s.soloHeaderRow}>
+                  <View style={s.soloHeaderLeft}>
+                    <Text style={s.soloTitle}>Group Hunt</Text>
+                    <Text style={s.soloSubtitle}>
+                      Hide & find mascots together
+                    </Text>
+                  </View>
+                  <View style={s.soloHeaderRight}>
+                    <View style={s.tabSegment}>
+                      {(["solo", "hunt"] as const).map((t, i) => (
+                        <TouchableOpacity
+                          key={t}
+                          onPress={() => setTab(t)}
+                          style={[
+                            s.tabSegmentBtn,
+                            tab === t && s.tabSegmentBtnActive,
+                            i === 0 && s.tabSegmentBtnLeft,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              s.tabSegmentText,
+                              tab === t && s.tabSegmentTextActive,
+                            ]}
+                          >
+                            {t === "hunt" ? "Group" : "Solo"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  {/* Collapse chevron — bottom center inside header */}
+                  <View style={s.soloCollapseBtnWrap}>
+                    <TouchableOpacity
+                      style={s.groupCollapseBtn}
+                      onPress={() => setHuntHeaderCollapsed(true)}
+                    >
+                      <ChevronUp color={colors.mutedForeground} size={14} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Group name bar */}
               <View style={s.groupInfoRow}>
                 <TouchableOpacity
                   onPress={() => setShowMembersSheet(true)}
@@ -2119,78 +2356,35 @@ export default function HuntScreen() {
                     </Text>
                   </View>
                 </TouchableOpacity>
-                {userId === huntGroup.created_by ? (
+                <View style={s.groupInfoActions}>
                   <TouchableOpacity
-                    onPress={() => setShowGroupPicker(true)}
-                    style={s.groupChangeBtn}
-                    activeOpacity={0.7}
+                    style={s.huntInfoRezoomBtn}
+                    onPress={() => setHuntRezoom((n) => n + 1)}
                   >
-                    <Text style={s.groupChangeBtnText}>Change</Text>
+                    <Text style={s.huntInfoRezoomText}>Resize map</Text>
                   </TouchableOpacity>
-                ) : (
-                  <View style={s.playAreaBadge}>
-                    <Text style={s.playAreaBadgeText}>
-                      📍 {huntGroup.radius_miles ?? 2}mi
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Member avatars row */}
-              <View style={s.groupMemberRow}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  {huntMembers.slice(0, 6).map((m, i) => {
-                    const memberId = m.id || m.user_id;
-                    const hasHidden = active.some(
-                      (mc) => mc.hider_user_id === m.user_id,
-                    );
-                    return (
-                      <TouchableOpacity
-                        key={memberId}
-                        activeOpacity={0.75}
-                        onPress={() =>
-                          setExpandedMemberId(
-                            expandedMemberId === memberId ? null : memberId,
-                          )
-                        }
-                        style={[
-                          s.huntMemberAvatar,
-                          { marginLeft: i > 0 ? -5 : 0, zIndex: 6 - i },
-                        ]}
-                      >
-                        <Text style={s.huntMemberInitial}>
-                          {m.display_name[0]?.toUpperCase() ?? "?"}
-                        </Text>
-                        <View
-                          style={[
-                            s.huntMascotDot,
-                            hasHidden && s.huntMascotDotActive,
-                          ]}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {expandedMemberId ? (
-                    <Text style={[s.muted, { marginLeft: 10, fontSize: 13 }]}>
-                      {huntMembers.find(
-                        (m) => (m.id || m.user_id) === expandedMemberId,
-                      )?.display_name ?? ""}
-                    </Text>
-                  ) : null}
+                  {userId === huntGroup.created_by ? (
+                    <TouchableOpacity
+                      onPress={() => setShowGroupPicker(true)}
+                      style={s.groupChangeBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={s.groupChangeBtnText}>
+                        {huntGroup.radius_miles ?? 2}mi · Change
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={s.playAreaBadge}>
+                      <Text style={s.playAreaBadgeText}>
+                        {huntGroup.radius_miles ?? 2}mi
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                <TouchableOpacity
-                  style={s.groupInviteBtn}
-                  onPress={() => {
-                    setGroupModalMode("invite");
-                    setShowGroupModal(true);
-                  }}
-                >
-                  <Text style={s.groupInviteBtnText}>+ Invite</Text>
-                </TouchableOpacity>
               </View>
 
-              {/* Map fills center */}
-              <View style={{ flex: 1, position: "relative" }}>
+              {/* Map fills rest */}
+              <View style={{ flex: 1 }}>
                 {myPos && (
                   <PlayMap
                     myPos={myPos}
@@ -2213,9 +2407,77 @@ export default function HuntScreen() {
                           c: snappyColor,
                         })),
                     )}
-                    style={{ flex: 1, height: undefined }}
+                    style={{ flex: 1, height: undefined, borderRadius: 0 }}
+                    rezoomTrigger={huntRezoom}
                   />
                 )}
+
+                {/* Member box over map */}
+                <View style={s.groupMemberOverlay}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    {huntMembers.slice(0, 6).map((m, i) => {
+                      const memberId = m.id || m.user_id;
+                      const hasHidden = active.some(
+                        (mc) => mc.hider_user_id === m.user_id,
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={memberId}
+                          activeOpacity={0.75}
+                          onPress={() =>
+                            setExpandedMemberId(
+                              expandedMemberId === memberId ? null : memberId,
+                            )
+                          }
+                          style={[
+                            s.huntMemberAvatarLg,
+                            { marginLeft: i > 0 ? -8 : 0, zIndex: 6 - i },
+                          ]}
+                        >
+                          <Text style={s.huntMemberInitialLg}>
+                            {m.display_name[0]?.toUpperCase() ?? "?"}
+                          </Text>
+                          <View
+                            style={[
+                              s.huntMascotDot,
+                              hasHidden && s.huntMascotDotActive,
+                            ]}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                    {expandedMemberId ? (
+                      <Text
+                        style={{
+                          marginLeft: 10,
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#fff",
+                        }}
+                      >
+                        {huntMembers.find(
+                          (m) => (m.id || m.user_id) === expandedMemberId,
+                        )?.display_name ?? ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity
+                    style={s.groupInviteBtn}
+                    onPress={() => {
+                      setGroupModalMode("invite");
+                      setShowGroupModal(true);
+                    }}
+                  >
+                    <Text style={s.groupInviteBtnText}>+ Invite</Text>
+                  </TouchableOpacity>
+                </View>
+
                 {nearbyMascot && (
                   <TouchableOpacity
                     style={s.captureOverlayBtn}
@@ -2234,25 +2496,25 @@ export default function HuntScreen() {
                     </Text>
                   </View>
                 )}
-              </View>
 
-              {/* Hide Here button */}
-              <TouchableOpacity
-                onPress={() => void startHideMascot()}
-                disabled={uploading || !myPos || isOutsideGroupArea}
-                style={[
-                  s.soloCaptureBtn,
-                  {
-                    opacity:
-                      uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
-                  },
-                ]}
-              >
-                <Camera color="#fff" size={20} />
-                <Text style={s.soloCaptureBtnText}>
-                  {uploading ? "Saving…" : "Hide Here"}
-                </Text>
-              </TouchableOpacity>
+                {/* Hide Here button */}
+                <TouchableOpacity
+                  onPress={() => void startHideMascot()}
+                  disabled={uploading || !myPos || isOutsideGroupArea}
+                  style={[
+                    s.huntHideBtn,
+                    {
+                      opacity:
+                        uploading || !myPos || isOutsideGroupArea ? 0.4 : 1,
+                    },
+                  ]}
+                >
+                  <Camera color="#fff" size={18} />
+                  <Text style={s.huntHideBtnText}>
+                    {uploading ? "Saving…" : "Hide Here"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -2261,7 +2523,6 @@ export default function HuntScreen() {
       {/* ── SOLO ─────────────────────────────────────────────────────────── */}
       {tab === "solo" && (
         <View style={s.soloLayout}>
-          {/* Map area */}
           {!soloRadius || showSoloPicker ? (
             <ScrollView
               style={{ flex: 1 }}
@@ -2282,118 +2543,258 @@ export default function HuntScreen() {
               />
             </ScrollView>
           ) : (
-            <View style={{ flex: 1 }}>
-              <PlayMap
-                myPos={myPos}
-                center={soloCenter}
-                radiusMiles={soloRadius}
-                markersJson={JSON.stringify(
-                  soloFoundLocs.map((p, i) => ({
-                    lat: p.lat,
-                    lng: p.lng,
-                    c: "#16a34a",
-                    e:
-                      soloObjIndices?.[i] !== undefined
-                        ? SOLO_OBJECTS[soloObjIndices[i]]?.emoji
-                        : undefined,
-                  })),
-                )}
-                style={{
-                  flex: 1,
-                  height: undefined,
-                  borderBottomLeftRadius: 0,
-                  borderBottomRightRadius: 0,
-                }}
-              />
-              {/* Object cards float at top over map */}
-              <View ref={slotCardRef} style={s.soloTopRowFloat}>
-                {([0, 1] as const).map((col) => {
-                  const idx = soloObjIndices?.[col] ?? null;
-                  const done = soloPhotoDone[col];
-                  return (
+            <View style={s.soloActiveLayout}>
+              {/* Header row: Solo Hunt title + Solo/Group pill (collapsible) */}
+              {soloHeaderCollapsed ? (
+                <TouchableOpacity
+                  style={s.soloCollapsedHeader}
+                  onPress={() => setSoloHeaderCollapsed(false)}
+                >
+                  <ChevronDown color={colors.mutedForeground} size={14} />
+                </TouchableOpacity>
+              ) : (
+                <View style={s.soloHeaderRow}>
+                  <View style={s.soloHeaderLeft}>
+                    <Text style={s.soloTitle}>Solo Hunt</Text>
+                    <Text style={s.soloSubtitle}>
+                      Find 2 objects in your area
+                    </Text>
+                  </View>
+                  <View style={s.soloHeaderRight}>
+                    <View style={s.tabSegment}>
+                      {(["solo", "hunt"] as const).map((t, i) => (
+                        <TouchableOpacity
+                          key={t}
+                          onPress={() => setTab(t)}
+                          style={[
+                            s.tabSegmentBtn,
+                            tab === t && s.tabSegmentBtnActive,
+                            i === 0 && s.tabSegmentBtnLeft,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              s.tabSegmentText,
+                              tab === t && s.tabSegmentTextActive,
+                            ]}
+                          >
+                            {t === "hunt" ? "Group" : "Solo"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  {/* Collapse chevron — bottom center inside header */}
+                  <View style={s.soloCollapseBtnWrap}>
                     <TouchableOpacity
-                      key={col}
-                      ref={col === 0 ? spinSoloBtnRef : undefined}
-                      activeOpacity={soloObjRevealed ? 1 : 0.75}
-                      onPress={
-                        !soloObjRevealed && !soloObjSpinning
-                          ? spinSoloObject
-                          : undefined
-                      }
-                      style={[s.soloObjCard, done && s.soloObjCardDone]}
+                      style={s.groupCollapseBtn}
+                      onPress={() => setSoloHeaderCollapsed(true)}
                     >
-                      {done ? (
-                        <Text style={s.soloObjDoneText}>✓ Found</Text>
-                      ) : soloObjRevealed && idx !== null ? (
-                        <>
-                          <Text style={s.soloObjEmoji}>
-                            {SOLO_OBJECTS[idx]?.emoji ?? "?"}
-                          </Text>
-                          <Text style={s.soloObjLabel} numberOfLines={1}>
-                            {SOLO_OBJECTS[idx]?.label ?? ""}
-                          </Text>
-                        </>
-                      ) : soloObjSpinning ? (
-                        <ActivityIndicator color={colors.primary} />
+                      <ChevronUp color={colors.mutedForeground} size={14} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Map fills all remaining space */}
+              <View style={{ flex: 1 }}>
+                <PlayMap
+                  myPos={myPos}
+                  center={soloCenter}
+                  radiusMiles={soloRadius}
+                  markersJson={JSON.stringify(
+                    soloFoundLocs.map((p) => ({
+                      lat: p.lat,
+                      lng: p.lng,
+                      c: "#16a34a",
+                    })),
+                  )}
+                  rezoomTrigger={soloRezoom}
+                  style={{
+                    flex: 1,
+                    height: undefined,
+                    borderRadius: 0,
+                  }}
+                />
+
+                {/* Grey overlay panel: spans from top of map down through spin cards + actions */}
+                <View style={s.soloOverlayPanel}>
+                  {/* Spin cards */}
+                  <View ref={slotCardRef} style={s.soloTopRow}>
+                    {([0, 1] as const).map((col) => {
+                      const done = soloPhotoDone[col];
+                      return (
+                        <TouchableOpacity
+                          key={col}
+                          ref={col === 0 ? spinSoloBtnRef : undefined}
+                          activeOpacity={soloObjRevealed ? 1 : 0.75}
+                          onPress={
+                            !soloObjRevealed && !soloObjSpinning
+                              ? spinSoloObject
+                              : undefined
+                          }
+                          style={[s.soloObjCard, done && s.soloObjCardDone]}
+                        >
+                          {done ? (
+                            <Text style={s.soloObjDoneText}>✓ Found</Text>
+                          ) : soloObjRevealed && !soloObjSpinning ? (
+                            <>
+                              <Image
+                                source={
+                                  SOLO_OBJECTS[soloObjIndices?.[col] ?? 0]?.img
+                                }
+                                style={s.slotIconCircle}
+                                resizeMode="contain"
+                              />
+                              <Text style={s.slotLabel} numberOfLines={2}>
+                                {
+                                  SOLO_OBJECTS[soloObjIndices?.[col] ?? 0]
+                                    ?.label
+                                }
+                              </Text>
+                            </>
+                          ) : soloObjSpinning ? (
+                            <View style={s.slotWindow}>
+                              <Animated.View
+                                style={{
+                                  width: "100%",
+                                  transform: [
+                                    {
+                                      translateY:
+                                        col === 0 ? soloSlotY0 : soloSlotY1,
+                                    },
+                                  ],
+                                }}
+                              >
+                                {SLOT_STRIP.map((obj) => (
+                                  <View key={obj.key} style={s.slotItem}>
+                                    <Image
+                                      source={obj.img}
+                                      style={s.slotIconCircle}
+                                      resizeMode="contain"
+                                    />
+                                    <Text style={s.slotLabel} numberOfLines={2}>
+                                      {obj.label}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </Animated.View>
+                            </View>
+                          ) : (
+                            <Text style={s.soloSpinLabel}>Spin!</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+                {/* Outside banner */}
+                {isOutsideSoloArea && (
+                  <View style={s.soloOutsideBanner}>
+                    <Text style={s.soloOutsideBannerText}>
+                      ⚠ Outside play area!
+                    </Text>
+                  </View>
+                )}
+
+
+                {/* Bottom cluster: [Resize] [Capture it!] row + radius chip below */}
+                {soloPhotoDone[0] && soloPhotoDone[1] ? (
+                  <View style={s.soloDoneBanner}>
+                    <Text style={s.soloDoneBannerText}>
+                      Both found! Great hunt today. 🎉
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={s.soloBottomCluster}>
+                    <TouchableOpacity
+                      style={s.soloRezoomPill}
+                      onPress={() => setSoloRezoom((n) => n + 1)}
+                    >
+                      <Text style={s.soloRezoomPillText}>Resize map</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.soloCaptureBtn}
+                      disabled={!soloObjRevealed || soloPhotoUploading !== null}
+                      onPress={() => {
+                        const which: 0 | 1 = !soloPhotoDone[0] ? 0 : 1;
+                        void takeSoloPhoto(which);
+                      }}
+                    >
+                      {soloPhotoUploading !== null ? (
+                        <ActivityIndicator color="#fff" size="small" />
                       ) : (
-                        <Text style={s.soloSpinLabel}>Spin!</Text>
+                        <>
+                          <Camera color="#fff" size={20} />
+                          <Text style={s.soloCaptureBtnText}>Capture it!</Text>
+                        </>
                       )}
                     </TouchableOpacity>
-                  );
-                })}
+                    <TouchableOpacity
+                      style={s.soloRadiusChip}
+                      onPress={() => setShowSoloPicker(true)}
+                    >
+                      <Text style={s.soloRadiusChipText}>{soloRadius}mi</Text>
+                      <Text style={s.soloRadiusChipSub}>Change Area</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-              <TouchableOpacity
-                style={s.soloAreaChip}
-                onPress={() => setShowSoloPicker(true)}
-              >
-                <Text style={s.soloAreaChipText}>
-                  📍 {soloRadius}mi · Change
-                </Text>
-              </TouchableOpacity>
-              {isOutsideSoloArea && (
-                <View style={s.soloOutsideBanner}>
-                  <Text style={s.soloOutsideBannerText}>
-                    ⚠ Outside play area!
-                  </Text>
-                </View>
-              )}
-              {/* Capture / done — floats over the map */}
-              {soloPhotoDone[0] && soloPhotoDone[1] ? (
-                <View style={s.soloDoneBanner}>
-                  <Text style={s.soloDoneBannerText}>
-                    Both found! Great hunt today. 🎉
-                  </Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    s.soloCaptureBtn,
-                    {
-                      opacity:
-                        !soloObjRevealed || soloPhotoUploading !== null
-                          ? 0.45
-                          : 1,
-                    },
-                  ]}
-                  disabled={!soloObjRevealed || soloPhotoUploading !== null}
-                  onPress={() => {
-                    const which: 0 | 1 = !soloPhotoDone[0] ? 0 : 1;
-                    void takeSoloPhoto(which);
-                  }}
-                >
-                  {soloPhotoUploading !== null ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Camera color="#fff" size={20} />
-                      <Text style={s.soloCaptureBtnText}>Capture it!</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
             </View>
           )}
         </View>
+      )}
+
+      {showSoloWalkScreen && soloObjIndices && (
+        <WalkScreen
+          visible={showSoloWalkScreen}
+          objects={[
+            {
+              ...(SOLO_OBJECTS[soloObjIndices[0]] ?? {
+                img: require("../../assets/hunt-icons/39_hidden_detail.png"),
+                label: "Object",
+              }),
+              done: soloPhotoDone[0],
+            },
+            {
+              ...(SOLO_OBJECTS[soloObjIndices[1]] ?? {
+                img: require("../../assets/hunt-icons/39_hidden_detail.png"),
+                label: "Object",
+              }),
+              done: soloPhotoDone[1],
+            },
+          ]}
+          onEnd={(path, dist, dur) => void endSoloWalk(path, dist, dur)}
+          onCancel={() => {
+            soloWalkActiveRef.current = false;
+            setSoloWalkActive(false);
+            setShowSoloWalkScreen(false);
+          }}
+        />
+      )}
+
+      {showSoloWalkSummary && soloWalkSummaryData && soloObjIndices && (
+        <WalkSummary
+          visible={showSoloWalkSummary}
+          onClose={() => setShowSoloWalkSummary(false)}
+          topic={{
+            type: "solo",
+            objects: [
+              SOLO_OBJECTS[soloObjIndices[0]] ?? {
+                img: require("../../assets/hunt-icons/39_hidden_detail.png"),
+                label: "Object",
+              },
+              SOLO_OBJECTS[soloObjIndices[1]] ?? {
+                img: require("../../assets/hunt-icons/39_hidden_detail.png"),
+                label: "Object",
+              },
+            ],
+          }}
+          photoPaths={soloWalkSummaryData.photoPaths}
+          path={soloWalkSummaryData.path}
+          distanceMeters={soloWalkSummaryData.distanceMeters}
+          durationSeconds={soloWalkSummaryData.durationSeconds}
+        />
       )}
 
       {selectedMascot && (
@@ -2418,12 +2819,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  pillBar: {
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
   tabContent: {
     paddingHorizontal: 16,
     paddingTop: 6,
@@ -2431,6 +2826,151 @@ const s = StyleSheet.create({
     gap: 14,
   },
   soloLayout: { flex: 1 },
+  soloActiveLayout: {
+    flex: 1,
+    gap: 0,
+  },
+  soloHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  soloHeaderLeft: {
+    flexDirection: "column",
+    gap: 2,
+  },
+  soloHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  soloChangeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  soloChangeChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  soloSubRow: {
+    position: "absolute",
+    top: 86,
+    left: 10,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  soloRezoomBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  soloWalkBtnWrap: {
+    position: "absolute",
+    bottom: 86,
+    left: 12,
+    right: 12,
+    alignItems: "center",
+  },
+  soloStartWalkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 99,
+    backgroundColor: colors.muted,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  soloStartWalkBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.mutedForeground,
+  },
+  soloEndWalkBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 99,
+    backgroundColor: colors.secondary,
+  },
+  soloEndWalkBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  soloBottomCluster: {
+    position: "absolute",
+    bottom: 16,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  soloBottomRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  soloRezoomPill: {
+    width: 100,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  soloRezoomPillText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  soloRadiusChip: {
+    width: 100,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: colors.secondary,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  soloRadiusChipText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+  },
+  soloRadiusChipSub: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+  },
+  soloTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: -1,
+    color: colors.foreground,
+  },
+  soloSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.mutedForeground,
+    lineHeight: 16,
+  },
   pageTitle: {
     fontSize: 24,
     fontWeight: "900",
@@ -2695,6 +3235,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
@@ -2704,6 +3246,32 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     minWidth: 0,
+  },
+  groupCollapseBtnWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 1,
+  },
+  soloCollapseBtnWrap: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 1,
+  },
+  soloCollapsedHeader: {
+    alignItems: "center",
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  groupCollapseBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 3,
   },
   groupChangeBtn: {
     borderRadius: 99,
@@ -2718,13 +3286,51 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: colors.foreground,
   },
-  groupMemberRow: {
+  groupInfoActions: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
+  },
+  huntInfoRezoomBtn: {
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    paddingVertical: 7,
+    backgroundColor: colors.muted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  huntInfoRezoomText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.foreground,
+  },
+  groupMemberOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(0,0,0,0.38)",
+  },
+  huntMemberAvatarLg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  huntMemberInitialLg: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
   },
   groupInviteBtn: {
     marginLeft: "auto",
@@ -3018,21 +3624,13 @@ const s = StyleSheet.create({
   soloTopRow: {
     flexDirection: "row",
     gap: 10,
-    paddingHorizontal: 12,
-  },
-  soloTopRowFloat: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    flexDirection: "row",
-    gap: 10,
   },
   soloObjCard: {
     flex: 1,
-    height: 60,
+    height: SLOT_ITEM_H,
+    overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.88)",
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
@@ -3043,7 +3641,11 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(220,252,231,0.9)",
     borderColor: "#86efac",
   },
-  soloObjEmoji: { fontSize: 22 },
+  soloObjEmoji: { fontSize: 24 },
+  slotIconCircle: {
+    width: 60,
+    height: 60,
+  },
   soloObjLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -3053,25 +3655,26 @@ const s = StyleSheet.create({
   },
   soloObjDoneText: { fontSize: 14, fontWeight: "800", color: "#16a34a" },
   soloSpinLabel: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
     color: colors.primary,
     letterSpacing: -0.3,
   },
   soloPickerContent: { paddingHorizontal: 16, paddingBottom: 16 },
-  soloAreaChip: {
+  soloOverlayPanel: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderRadius: 99,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "transparent",
+    paddingHorizontal: 10,
+    paddingTop: 7,
+    paddingBottom: 5,
+    gap: 4,
   },
-  soloAreaChipText: { fontSize: 12, fontWeight: "700", color: "#fff" },
   soloOutsideBanner: {
     position: "absolute",
-    bottom: 86,
+    bottom: 130,
     left: 10,
     right: 10,
     backgroundColor: "rgba(220,38,38,0.9)",
@@ -3081,17 +3684,33 @@ const s = StyleSheet.create({
   },
   soloOutsideBannerText: { fontSize: 13, fontWeight: "700", color: "#fff" },
   soloCaptureBtn: {
-    position: "absolute",
-    bottom: 16,
-    left: 12,
-    right: 12,
+    flex: 1,
     height: 54,
     borderRadius: 18,
-    backgroundColor: "rgba(22, 163, 74, 0.93)",
+    backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
+  },
+  huntHideBtn: {
+    position: "absolute",
+    bottom: 16,
+    left: 40,
+    right: 40,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  huntHideBtnText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
   soloCaptureBtnText: {
     fontSize: 17,
@@ -3122,25 +3741,24 @@ const s = StyleSheet.create({
     gap: 10,
   },
   slotWindow: {
-    height: SLOT_ITEM_H,
+    flex: 1,
+    width: "100%",
     overflow: "hidden",
-    borderRadius: 14,
-    backgroundColor: colors.muted,
-    position: "relative",
   },
   slotItem: {
     height: SLOT_ITEM_H,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 6,
     gap: 4,
   },
   slotLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.foreground,
-    letterSpacing: -0.2,
     textAlign: "center",
+    lineHeight: 15,
   },
   slotFadeTop: {
     height: "15%",

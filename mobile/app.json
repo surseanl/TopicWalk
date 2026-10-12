@@ -5,6 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFBE59"
+    },
     "userInterfaceStyle": "automatic",
     "scheme": "topicwalk",
     "ios": {
@@ -29,7 +34,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "TopicWalk needs your camera to scan friend QR codes."
+          "cameraPermission": "TopicWalk uses your camera to take photos during your walks."
         }
       ],
       [
